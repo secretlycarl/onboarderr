@@ -143,7 +143,9 @@ Edit the ```services = [``` list in ```app.py``` starting at line 338, to have t
 
 # Sharing
 
-When ready to share with users, activate your tailscale funnel, cloudflare tunnel, or bingle tube.
+When ready to share with users, 
+- Activate your tailscale funnel, cloudflare tunnel, or bingle tube
+- Share the link
 
 # Future goals
 
