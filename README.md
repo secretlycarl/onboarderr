@@ -137,7 +137,7 @@ Wordmark Generator (make output text as big as slider allows) - https://fontmeme
 
 I wrote "...ask me about my discord" in the body a few times. I have Tautulli on my server and can make separate channels for users to be notified about content they're interested in. Remove those mentions if you don't have that.
 
-Change the Audiobookshelf server URL in audiobookshelf.html (line 83) if you host it and want to share.
+Change the Audiobookshelf server URL in ```audiobookshelf.html``` (line 83) if you host it and want to share.
 
 Edit the ```services = [``` list in ```app.py``` starting at line 338, to have the services you want to populate the admin page.
 
