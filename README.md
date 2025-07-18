@@ -39,8 +39,7 @@ Optional Discord notifications for when people request access
 
 Admin dashboard
 
-
-# [Screenshots](https://github.com/secretlycarl/onboarderr/tree/main/screenshots)
+**[Screenshots](https://github.com/secretlycarl/onboarderr/tree/main/screenshots)**
 
 # Requirements
 
