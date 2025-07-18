@@ -126,6 +126,10 @@ After submission, restart the script to apply the new ```.env``` and go to Login
 
 Once you're through setup and can see the site running, look through all the copy/instructions/etc I wrote and change what you want in the HTMLs.
 
+Section 5 in ```onboarding.html``` only applies if you have Pulsarr set up.
+
+Section 7 in ```onboarding.html``` is personalized to me, you should rewrite it
+
 Pick a new ```--accent``` color in the CSS, this will change all instances of COLOR in the HTML
 
 Make a new logo, favicon, and wordmark.
@@ -136,17 +140,11 @@ Simple vector editor - https://vectorink.io/app/canvas
 
 Wordmark Generator (make output text as big as slider allows) - https://fontmeme.com/netflix-font/
 
-Section 5 in ```onboarding.html``` only applies if you have Pulsarr set up.
-
-Section 7 in ```onboarding.html``` is personalized to me, you should rewrite it
-
 I wrote "...ask me about my discord" in the body a few times. I have Tautulli on my server and can make separate channels for users to be notified about content they're interested in. Remove those mentions if you don't have that.
 
 Change the Audiobookshelf server URL in audiobookshelf.html (line 83) if you host it and want to share
 
 Edit the ```services = [``` list in ```app.py``` starting at line 338, to have the services you want to populate the admin page.
-
-
 
 # Future goals
 
