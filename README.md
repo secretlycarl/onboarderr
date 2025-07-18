@@ -151,7 +151,7 @@ When ready to share with users, activate your tailscale funnel, cloudflare tunne
 
 I've never made a project this complex, or had a project this many people were interested in, so I'm not clear on how the future development for this will go. I have some ideas to make it better, but getting this all set up in a way that it's customizable and not just for my machine only was a beast itself.
 
-So you want to make it better, please do! Fork, pull request, whatever.
+So if you want to make it better, please do! Fork, pull request, whatever.
 
 Some improvements I might work on after publishing the initial version -
 
