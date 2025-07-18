@@ -79,9 +79,9 @@ Discord - to handle certain admin & user notifications
 
 # First Time Setup
 
-	git clone [repo url]
+	git clone https://github.com/secretlycarl/onboarderr
 
-	cd [folder]
+	cd onboarderr
 
 Before you run the script, set these variables in .env:
 
