@@ -83,7 +83,7 @@ Discord - to handle certain admin & user notifications
 
 	cd onboarderr
 
-Before you run the script, set these variables in .env:
+Before you run the script, rename the ```.env``` to just ```.env```, and set these variables:
 
 ```SITE_PASSWORD``` - for guests
 
