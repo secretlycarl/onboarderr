@@ -82,7 +82,9 @@ Discord - to handle certain admin & user notifications
 Before you run the script, set these variables in .env:
 
 ```SITE_PASSWORD```- for guests
+
 ```ADMIN_PASSWORD``` - for you
+
 ```DRIVES``` - Local drives that will have storage bars on the admin page later. TEST EMPTY
 
 The other variables are filled in with a form that shows on first startup.
@@ -103,7 +105,7 @@ I set the python script that handles everything to work on port ```10000```. You
 
 go to ```http://127.0.0.1:10000```
 
-First time setup will show, where you enter all the needed variables.
+First time setup will show, where you enter all the needed variables. The library descriptions you write are saved to ```library_notes.json```.
 
 The way I set it up, it pulls artwork from my Plex libraries to show in the carousels. I have an audiobook library with the same content as my ABS server so it was easiest for me to just use Plex to pull those images instead of new logic for ABS.
 
@@ -144,9 +146,9 @@ Edit the ```services = [``` list in ```app.py``` starting at line 338, to have t
 
 I've never made a project this complex, or had a project this many people were interested in, so I'm not clear on how the future development for this will go. I have some ideas to make it better, but getting this all set up in a way that it's customizable and not just for my machine only was a beast itself.
 
-So you want to improve on this, please do!
+So you want to improve on this, please do! Fork, pull request, whatever.
 
-Some ideas I might work on after publishing the initial version -
+Some improvements I might work on after publishing the initial version -
 
 - Improve layout, make more modern/adaptive, especially on mobile. My CSS implementation of mobile device detection, and how it changes elements for mobile, is crude at the moment.
 
