@@ -91,6 +91,8 @@ Before you run the script, set these variables in .env:
 
 ```DRIVES``` - Local drives that will have storage bars on the admin page later. TEST EMPTY
 
+```SECRET_KEY``` - should be a long (>32 chars) string. https://www.random.org/strings/
+
 The other variables are filled in with a form that shows on first startup.
 
 Create and activate a venv, I prefer to use conda. Then do
