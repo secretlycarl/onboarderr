@@ -42,15 +42,25 @@ Admin dashboard
 
 # Screenshots
 
-Setup
+<details> Setup
+![alt text](1_setup.png)
+</details>
 
-Plex Onboarding
+<details> Plex Onboarding
+![alt text](image-url)
+</details>
 
-Audiobookshelf Onboarding
+<details> Audiobookshelf Onboarding
+![alt text](image-url)
+</details>
 
-Media Lists
+<details> Media Lists
+![alt text](image-url)
+</details>
 
-Admin Page
+<details> Admin Page
+![alt text](image-url)
+</details>
 
 
 
