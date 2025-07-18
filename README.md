@@ -128,7 +128,9 @@ Once you're through setup and can see the site running, look through all the cop
 
 Pick a new ```--accent``` color in the CSS, this will change all instances of COLOR in the HTML
 
-Make a new logo and wordmark, I made the ones it comes with quickly with these sites -
+Make a new logo, favicon, and wordmark.
+
+I made the ones it comes with quickly with these sites -
 
 Simple vector editor - https://vectorink.io/app/canvas
 
@@ -150,7 +152,7 @@ Edit the ```services = [``` list in ```app.py``` starting at line 338, to have t
 
 I've never made a project this complex, or had a project this many people were interested in, so I'm not clear on how the future development for this will go. I have some ideas to make it better, but getting this all set up in a way that it's customizable and not just for my machine only was a beast itself.
 
-So you want to improve on this, please do! Fork, pull request, whatever.
+So you want to make it better, please do! Fork, pull request, whatever.
 
 Some improvements I might work on after publishing the initial version -
 
