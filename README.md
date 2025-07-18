@@ -33,7 +33,7 @@ I did all of the layout, copywriting/instructions, collected and edited screensh
 
 Up-to-date (as of writing this) instructions for new users to join the host's Plex/Audiobookshelf and get the best streaming experience
 
-Content from Plex and (sort of) Audiobookshelf populates sections of the website (poster carousels, media lists)
+Content from Plex and Audiobookshelf populates sections of the website (poster carousels, media lists)
 
 Optional Discord notifications for when people request access
 
