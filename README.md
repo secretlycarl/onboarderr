@@ -43,7 +43,7 @@ Admin dashboard
 # Screenshots
 
 <details> Setup
-![alt text](1_setup.png)
+![alt text](/static/1_setup.png)
 </details>
 
 <details> Plex Onboarding
