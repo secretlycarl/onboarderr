@@ -177,4 +177,4 @@ Some improvements I might work on after publishing the initial version -
 
 Thanks for your interest in my project! I hope you find it useful. If you want to give me a tip for putting this all together - 
 
-https://ko-fi.com/secretlycarl#linkModal
+[ko-fi.com/secretlycarl](https://ko-fi.com/secretlycarl)
