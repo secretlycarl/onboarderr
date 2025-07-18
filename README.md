@@ -119,7 +119,7 @@ After submission, restart the script to apply the new ```.env``` and go to Login
 
 # !!! Per-Host Tweaks !!!
 
-Once you're through setup and can see the site running, look through all the copy/instructions/etc I wrote and change what you want in the HTMLs
+Once you're through setup and can see the site running, look through all the copy/instructions/etc I wrote and change what you want in the HTMLs.
 
 Pick a new ```--accent``` color in the CSS, this will change all instances of COLOR in the HTML
 
