@@ -141,6 +141,8 @@ Change the Audiobookshelf server URL in audiobookshelf.html (line 83) if you hos
 
 Edit the ```services = [``` list in ```app.py``` starting at line 338, to have the services you want to populate the admin page.
 
+Tweak the ```300``` value for ```movies_grouped``` and ```shows_grouped``` in ```app.py```. If the amount of items in either list is greater than that, the list will turn into alphabetical dropdowns.
+
 # Sharing
 
 When ready to share with users, 
