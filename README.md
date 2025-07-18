@@ -5,6 +5,8 @@ Self-hosted user onboarding site for Plex and Audiobookshelf server owners
 
 Onboarderr serves as a sort of advertisement site for a host's Plex and Audiobookshelf servers, with instructions for new users (and a few admin tools).
 
+PLEX ONBOARDINF SS
+
 
 As someone who's never made a website before, I made this to accomplish a few goals - 
 
@@ -30,7 +32,7 @@ Content from Plex and Audiobookshelf populates sections of the website (poster c
 
 Optional Discord notifications for when people request access
 
-Admin dashboard to other *arrs
+Admin dashboard
 
 
 # Screenshots
@@ -61,14 +63,14 @@ I tested this on my Windows 11 machine, and someone got it going on a Mac host t
 
 # Optional Requirements
 
-Audiobookshelf Server and public URL to share with users
+[Audiobookshelf](https://www.audiobookshelf.org/) Server and public URL to share with users
 
 Discord - to handle certain admin & user notifications
 
-Pulsarr - Per-user content requests integrated w/ Sonarr & Radarr via Plex watchlist
+[Pulsarr](https://github.com/jamcalli/Pulsarr) - Per-user content requests integrated w/ Sonarr & Radarr via Plex watchlist
 - Pulsarr is able to push "media added" notifications through the Plex mobile app via Tautulli integration. Works fine for movies, but does not handle every new episode of shows. Hence the next one-
 
-Tautulli - Per-user individual "episode/audiobook added" notifications on Discord
+[Tautulli](https://github.com/Tautulli/Tautulli) - Per-user individual "episode/audiobook added" notifications on Discord
 
 
 # First Time Install
