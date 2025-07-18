@@ -7,7 +7,11 @@ PLEX ONBOARDINF SS
 
 Onboarderr serves as a sort of advertisement site for a host's Plex and Audiobookshelf servers, with instructions for new users (and a few admin tools).
 
-It's not exactly plug and play, as I tried to make it customizable for each host and there's some things to tweak before sharing it with users. Please read to the end!
+It's not exactly plug and play, as I tried to make it customizable for each host and there's some things to tweak before sharing it with users.
+
+Please read to the end!
+
+#
 
 As someone who's never made a website before, I made this to accomplish a few goals - 
 
