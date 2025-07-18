@@ -77,7 +77,7 @@ I tested this on my Windows 11 machine, and someone got it going on a Mac host t
 
 Discord - to handle certain admin & user notifications
 
-# First Time Install
+# First Time Setup
 
 	git clone [repo url]
 
@@ -101,8 +101,6 @@ Create and activate a venv, I prefer to use conda. Then do
 
 If you used a venv, you need to activate it every time you run the script/website. Or make a ```.ps1``` or ```.bat``` with both commands
 
-(When ready to share with users) activate your tailscale funnel, cloudflare tunnel, or bingle tube
-
 I set the python script that handles everything to work on port ```10000```. You can change this at the bottom of ```app.py```.
 
 ```debug=True``` at the bottom of ```app.py``` is on for testing, otherwise html changes don't update on reload. might be bad to keep ```True``` forever?
@@ -120,7 +118,6 @@ After submission, restart the script to apply the new ```.env``` and go to Login
 ```ADMIN_PASSWORD``` will take you to services page, but you can browse the others from the links at the top.
 
 ```SITE_PASSWORD``` will not allow access to admin page (at least I think I set that right, works in testing)
-
 
 # !!! Per-Host Tweaks !!!
 
@@ -142,9 +139,13 @@ Wordmark Generator (make output text as big as slider allows) - https://fontmeme
 
 I wrote "...ask me about my discord" in the body a few times. I have Tautulli on my server and can make separate channels for users to be notified about content they're interested in. Remove those mentions if you don't have that.
 
-Change the Audiobookshelf server URL in audiobookshelf.html (line 83) if you host it and want to share
+Change the Audiobookshelf server URL in audiobookshelf.html (line 83) if you host it and want to share.
 
 Edit the ```services = [``` list in ```app.py``` starting at line 338, to have the services you want to populate the admin page.
+
+# Sharing
+
+When ready to share with users, activate your tailscale funnel, cloudflare tunnel, or bingle tube.
 
 # Future goals
 
