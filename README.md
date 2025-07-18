@@ -42,8 +42,10 @@ Admin dashboard
 
 # Screenshots
 
+![setup](/screenshots/1_setup.png)
+
 <details> Setup
-![setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png)
+![setup](/screenshots/1_setup.png)
 </details>
 
 <details> Plex Onboarding
