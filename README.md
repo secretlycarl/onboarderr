@@ -165,6 +165,8 @@ Some improvements I might work on after publishing the initial version -
 
 - Way to run it in the background - this is probably possible already but idk that much about self hosting. for testing and sharing with a few friends I just leave the terminal window open with the funnel and script active
 
+- More languages, maybe language dropdown on setup to switch all body text contents
+
 
 
 # Thank You!
