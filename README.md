@@ -3,10 +3,11 @@ Self-hosted user onboarding site for Plex and Audiobookshelf server owners
 
 # Introducing Onboarderr
 
-Onboarderr serves as a sort of advertisement site for a host's Plex and Audiobookshelf servers, with instructions for new users (and a few admin tools).
-
 PLEX ONBOARDINF SS
 
+Onboarderr serves as a sort of advertisement site for a host's Plex and Audiobookshelf servers, with instructions for new users (and a few admin tools).
+
+It's not exactly plug and play, as I tried to make it customizable for each host and there's a lot to tweak before sharing it with users. Please read the readme!
 
 As someone who's never made a website before, I made this to accomplish a few goals - 
 
@@ -80,7 +81,7 @@ Discord - to handle certain admin & user notifications
 
 Before you run the script, set these variables in .env:
 
-```SITE_PASSWORD```- for guests
+```SITE_PASSWORD``` - for guests
 
 ```ADMIN_PASSWORD``` - for you
 
@@ -94,9 +95,9 @@ Create and activate a venv, I prefer to use conda. Then do
 
 	python app.py
 
-If you used a venv, you need to activate it every time you run the script/website
+If you used a venv, you need to activate it every time you run the script/website. Or make a ```.ps1``` or ```.bat``` with both commands
 
-(When ready to share with users) activate your tailscale funnel or cloudflare tunnel or bingle tube
+(When ready to share with users) activate your tailscale funnel, cloudflare tunnel, or bingle tube
 
 I set the python script that handles everything to work on port ```10000```. You can change this at the bottom of ```app.py```.
 
@@ -135,7 +136,7 @@ Section 7 in ```onboarding.html``` is personalized to me, you should rewrite it
 
 I wrote "...ask me about my discord" in the body a few times. I have Tautulli on my server and can make separate channels for users to be notified about content they're interested in. Remove those mentions if you don't have that.
 
-Change the Audiobookshelf server URL in audiobookshelf.html if you host it and want to share
+Change the Audiobookshelf server URL in audiobookshelf.html (line 83) if you host it and want to share
 
 Edit the ```services = [``` list in ```app.py``` starting at line 338, to have the services you want to populate the admin page.
 
