@@ -40,32 +40,7 @@ Optional Discord notifications for when people request access
 Admin dashboard
 
 
-# Screenshots
-
-![setup](/screenshots/1_setup.png)
-
-<details> Setup
-![setup](/screenshots/1_setup.png)
-</details>
-
-<details> Plex Onboarding
-![alt text](image-url)
-</details>
-
-<details> Audiobookshelf Onboarding
-![alt text](image-url)
-</details>
-
-<details> Media Lists
-![alt text](image-url)
-</details>
-
-<details> Admin Page
-![alt text](image-url)
-</details>
-
-
-
+# [Screenshots](https://github.com/secretlycarl/onboarderr/tree/main/screenshots)
 
 # Requirements
 
