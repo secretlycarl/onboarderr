@@ -66,16 +66,16 @@ Audiobookshelf Server and public URL to share with users
 Discord - to handle certain admin & user notifications
 
 Pulsarr - Per-user content requests integrated w/ Sonarr & Radarr via Plex watchlist
-		Pulsarr is able to push "media added" notifications through the Plex mobile app via Tautulli integration. Works fine for movies, but does not handle every new episode of shows. Hence the next one-
+- Pulsarr is able to push "media added" notifications through the Plex mobile app via Tautulli integration. Works fine for movies, but does not handle every new episode of shows. Hence the next one-
 
 Tautulli - Per-user individual "episode/audiobook added" notifications on Discord
 
 
 # First Time Install
 
-git clone [repo url]
+	git clone [repo url]
 
-cd [folder]
+	cd [folder]
 
 Before you run the script, set these variables in .env:
 
