@@ -59,7 +59,9 @@ I tested this on my Windows 11 machine, and someone got it going on a Mac host t
 [Pulsarr](https://github.com/jamcalli/Pulsarr) - Per-user content requests integrated w/ Sonarr & Radarr via Plex watchlist
 - Pulsarr is able to push "media added" notifications through the Plex mobile app via Tautulli integration. Works fine for movies, but does not handle every new episode of shows. Hence the next one-
 
-[Tautulli](https://github.com/Tautulli/Tautulli) - Per-user individual "episode/audiobook added" notifications on Discord
+[Tautulli](https://github.com/Tautulli/Tautulli) - Per-user specific "episode/audiobook added" notifications on Discord
+
+Sonarr & Radarr - to grab the watchlisted content
 
 Discord - to handle certain admin & user notifications
 
