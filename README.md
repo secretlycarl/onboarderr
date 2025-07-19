@@ -36,9 +36,8 @@ Up-to-date (as of writing this) instructions for new users to join the host's Pl
 Content from Plex and Audiobookshelf populates sections of the website (poster carousels, media lists)
 
 Optional Discord notifications for when people request access
-![discordnotif](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/discordnotif.jpg)
 
-# Admin dashboard
+Admin dashboard
 
 **[Screenshots](https://github.com/secretlycarl/onboarderr/tree/main/screenshots)**
 
