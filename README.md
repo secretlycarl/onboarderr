@@ -1,4 +1,4 @@
-# onboarderr
+#d# onboarderr
 Self-hosted user onboarding site for Plex and Audiobookshelf server owners
 
 # Introducing Onboarderr
@@ -115,7 +115,7 @@ Section 5 in ```onboarding.html``` only applies if you have Pulsarr set up.
 
 Section 7 in ```onboarding.html``` is personalized to me, you should rewrite it
 
-Pick a new ```--accent``` color in the CSS, this will change all instances of #d33fbc in the HTML
+Pick a new ```--accent``` color in the CSS, this will change all instances of ```#d33fbc``` in the HTML
 
 Make a new logo, favicon, and wordmark. I made the ones it comes with quickly with these sites -
 
