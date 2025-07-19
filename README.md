@@ -3,7 +3,7 @@ Self-hosted user onboarding site for Plex and Audiobookshelf server owners
 
 # Introducing Onboarderr
 
-https://github.com/secretlycarl/onboarderr/blob/main/screenshots/mainpage.png
+![mainpage](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/mainpage.png)
 
 Onboarderr serves as a sort of advertisement site for a host's Plex and Audiobookshelf servers, with instructions for new users (and a few admin tools).
 
