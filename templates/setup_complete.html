@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Setup Complete</title>
+    <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp') }}">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body style="display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
+    <div class="container" style="min-width: 400px; margin: 40px 0; padding: 32px 24px; text-align: center;">
+        <img src="{{ url_for('static', filename='clearlogo.webp') }}" alt="Logo" style="display: block; margin: 0 auto; max-width: 200px" >
+        <h1>Setup Complete!</h1>
+        <p style="font-size: 1.2em; color: #080; margin-top: 2em;">
+            Your configuration has been saved.<br>
+            <b>Please restart the server to apply changes and continue.</b>
+        </p>
+
+        <a href="/" style="display: inline-block; margin-top: 1em; padding: 0.7em 1em; background: #0042ac; color: #ffffff; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 1.1em;">Go to Login</a>
+    </div>
+</body>
+</html> 

@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Williamflix</title>
+  <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp') }}">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  {% include "_bottom_nav.html" %}
+  <div class="container">
+    <h1>Dashboard</h1>
+    <div class="services">
+      {% for service in services %}
+        <a href="{{ service.url }}" class="service-box" target="_blank">
+          <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo">
+          <span>{{ service.name }}</span>
+        </a>
+      {% endfor %}
+    </div>
+
+    <h2 style="margin-top:3em;">Plex Requests</h2>
+    {% if submissions %}
+      <table style="width:100%; border-collapse: collapse; margin-top: 1em;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Email</th>
+            <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Libraries</th>
+            <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for submission in submissions %}
+            <tr>
+              <td style="padding:0.5em;">{{ submission.email }}</td>
+              <td style="padding:0.5em;">{{ submission.libraries_titles | join(', ') }}</td>
+              <td style="padding:0.5em;">
+                <form method="POST" style="display:inline;">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="delete_index" value="{{ loop.index0 }}">
+                  <button type="submit" style="padding:0.3em 0.8em; font-size:0.9em; margin-top:1em;">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p style="margin-top:1em;">No Plex requests found.</p>
+    {% endif %}
+
+    {% if ABS_ENABLED == 'yes' %}
+    <h2 style="margin-top:3em;">Audiobookshelf Requests</h2>
+      {% if audiobookshelf_submissions %}
+        <div class="scrollable-table-container">
+        <table style="width:100%; border-collapse: collapse; margin-top: 1em;">
+          <thead>
+            <tr>
+              <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Email</th>
+              <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Username</th>
+              <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Password</th>
+              <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for submission in audiobookshelf_submissions %}
+              <tr>
+                <td style="padding:0.5em;">{{ submission.email }}</td>
+                <td style="padding:0.5em;">{{ submission.username }}</td>
+                <td style="padding:0.5em;">{{ submission.password }}</td>
+                <td style="padding:0.5em;">
+                  <form method="POST" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="audiobookshelf_delete_index" value="{{ loop.index0 }}">
+                    <button type="submit" style="padding:0.3em 0.8em; font-size:0.9em; margin-top:1em;">Delete</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      {% else %}
+        <p style="margin-top:1em;">No Audiobookshelf requests found.</p>
+      {% endif %}
+    {% endif %}
+
+    <h2 style="margin-top:3em;">Storage</h2>
+    <div style="margin-top:1em;">
+      {% for drive in storage_info %}
+        <div style="margin-bottom:1em;">
+          <strong>{{ drive.mount }}</strong>: {{ drive.used }} GB used / {{ drive.total }} GB total ({{ drive.percent }}%)
+          <div style="background:#333; height:10px; width:100%; border-radius:3px; margin-top:4px;">
+            <div style="height:100%; width:{{ drive.percent }}%; background:var(--accent); border-radius:3px;"></div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <details>
+      <summary class="collapsible-heading" style="font-size:1.2em; font-weight:bold; margin-top: 2em;">Settings</summary>
+      <div style="margin-left: 1em; margin-bottom:2em;">
+        <form method="post" id="admin-settings-form" style="max-width: 600px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label style="display:block; margin-bottom: 1.2em;">Server Name:<br>
+            <input type="text" name="server_name" id="server_name" value="{{ SERVER_NAME or '' }}" style="width: 100%; margin-top: 0.3em;">
+          </label>
+          <label style="display:block; margin-bottom: 1.2em;">Plex Token:<br>
+            <input type="text" name="plex_token" id="plex_token" value="{{ PLEX_TOKEN or '' }}" style="width: 100%; margin-top: 0.3em;">
+          </label>
+          <label style="display:block; margin-bottom: 1.2em;">Plex URL:<br>
+            <input type="text" name="plex_url" id="plex_url" value="{{ PLEX_URL or '' }}" style="width: 100%; margin-top: 0.3em;">
+          </label>
+          <button type="button" onclick="fetchLibrariesAdmin()" style="margin-bottom: 1.5em;">Fetch Plex Libraries</button><br>
+          
+          <!-- Current Library Selection Display -->
+          {% if LIBRARY_IDS %}
+          <div style="margin-bottom: 1.5em; padding: 1em; background: #2a2a2a; border-radius: 0.5em;">
+            <strong style="margin-bottom: 0.5em; display:block;">Currently Selected Libraries:</strong>
+            {% set selected_ids = LIBRARY_IDS.split(',') %}
+            {% for lib_id in selected_ids %}
+              {% if lib_id.strip() %}
+                <div style="margin-bottom: 0.5em;">
+                  <strong>{{ lib_id.strip() }}</strong>
+                  {% if library_notes[lib_id.strip()] and library_notes[lib_id.strip()]['description'] %}
+                    <span style="color: #888; font-size: 0.9em;">— {{ library_notes[lib_id.strip()]['description'] }}</span>
+                  {% endif %}
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+          {% endif %}
+          
+          <div id="libraries-section-admin" style="display:none; margin-bottom: 1.5em;">
+            <strong style="margin-bottom: 0.5em; display:block;">Select Libraries to make available:</strong>
+            <p>Title (ID)</p>
+            <div id="libraries-list-admin"></div>
+          </div>
+          <div id="library-descriptions-section-admin" style="display:none; margin-bottom: 1.5em;">
+            <strong style="margin-bottom: 0.5em; display:block;">Enter a description for each selected library (optional):</strong>
+            <div id="library-descriptions-list-admin"></div>
+          </div>
+          <p>Enter Library IDs below. Needed to pull posters for the onboarding pages.</p>
+          <label style="display:block; margin-bottom: 1.2em;">Movies Library ID:<br>
+            <input type="text" name="movies_id" id="movies_id" value="{{ MOVIES_ID or '' }}" style="width: 100%; margin-top: 0.3em;">
+          </label>
+          <label style="display:block; margin-bottom: 1.2em;">Shows Library ID:<br>
+            <input type="text" name="shows_id" id="shows_id" value="{{ SHOWS_ID or '' }}" style="width: 100%; margin-top: 0.3em;">
+          </label>
+          <label style="display:block; margin-bottom: 1.2em;">Enable Audiobookshelf?<br>
+            <input type="radio" name="abs_enabled" value="yes" {% if ABS_ENABLED == 'yes' %}checked{% endif %} onchange="toggleABSAdmin()"> Yes
+            <input type="radio" name="abs_enabled" value="no" {% if ABS_ENABLED != 'yes' %}checked{% endif %} onchange="toggleABSAdmin()"> No
+          </label>
+          <div id="abs-section-admin" style="display: none; margin-left: 20px; margin-bottom: 1.5em;">
+            <label>Audiobook Library ID:<br>
+              <input type="text" name="audiobooks_id" id="audiobooks_id" value="{{ AUDIOBOOKS_ID or '' }}" style="width: 100%; margin-top: 0.3em;" disabled>
+            </label><br><br>
+          </div>
+          <label style="display:block; margin-bottom: 1.2em;">Enable Discord Notifications?<br>
+            <input type="radio" name="discord_enabled" value="yes" {% if DISCORD_ENABLED == 'yes' %}checked{% endif %} onchange="toggleDiscordAdmin()"> Yes
+            <input type="radio" name="discord_enabled" value="no" {% if DISCORD_ENABLED != 'yes' %}checked{% endif %} onchange="toggleDiscordAdmin()"> No
+          </label>
+          <div id="discord-section-admin" style="display: none; margin-left: 20px; margin-bottom: 1.5em;">
+            <label>Discord Webhook URL:<br>
+              <input type="text" name="discord_webhook" id="discord_webhook_admin" value="{{ DISCORD_WEBHOOK or '' }}" style="width: 100%; margin-top: 0.3em;">
+            </label><br><br>
+            <label>Discord Username (optional):<br>
+              <input type="text" name="discord_username" id="discord_username_admin" value="{{ DISCORD_USERNAME or '' }}" placeholder="Monitor" style="width: 100%; margin-top: 0.3em;">
+            </label><br><br>
+            <label>Discord Avatar URL (optional):<br>
+              <input type="text" name="discord_avatar" id="discord_avatar_admin" value="{{ DISCORD_AVATAR or '' }}" style="width: 100%; margin-top: 0.3em;">
+            </label><br><br>
+            <label>Discord Color (optional):<br>
+              <input type="text" name="discord_color" id="discord_color_admin" value="{{ DISCORD_COLOR or '' }}" placeholder="#000000" style="width: 100%; margin-top: 0.3em;">
+            </label><br><br>
+          </div>
+          <div id="admin-setup-message" style="color: #f00; margin-bottom: 1em;"></div>
+          <button type="submit" id="admin-submit-btn" style="margin-top: 1.5em;">Apply Settings</button>
+          <div style="margin-top:1.5em; color:#888; font-size:0.95em;">
+            <b>Note:</b> Changes will only take effect after you restart the server.
+          </div>
+        </form>
+        <script>
+          function toggleABSAdmin() {
+            var abs = document.querySelector('input[name="abs_enabled"]:checked').value;
+            var absSection = document.getElementById('abs-section-admin');
+            var absInput = document.getElementById('audiobooks_id');
+            if (abs === 'yes') {
+              absSection.style.display = 'block';
+              if (absInput) absInput.disabled = false;
+            } else {
+              absSection.style.display = 'none';
+              if (absInput) absInput.disabled = true;
+            }
+          }
+          function toggleDiscordAdmin() {
+            var discord = document.querySelector('input[name="discord_enabled"]:checked').value;
+            var discordSection = document.getElementById('discord-section-admin');
+            var discordInput = document.getElementById('discord_webhook_admin');
+            if (discord === 'yes') {
+                discordSection.style.display = 'block';
+                if (discordInput) discordInput.disabled = false;
+            } else {
+                discordSection.style.display = 'none';
+                if (discordInput) discordInput.disabled = true;
+            }
+          }
+          // Call on page load to set initial state
+          toggleDiscordAdmin();
+          function fetchLibrariesAdmin() {
+            var token = document.getElementById('plex_token').value;
+            var url = document.getElementById('plex_url').value;
+            if (!token || !url) {
+              alert('Please enter Plex Token and URL first.');
+              return;
+            }
+            fetch('/fetch-libraries', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ plex_token: token, plex_url: url })
+            })
+            .then(response => response.json())
+            .then(data => {
+              var section = document.getElementById('libraries-section-admin');
+              var list = document.getElementById('libraries-list-admin');
+              var descSection = document.getElementById('library-descriptions-section-admin');
+              var descList = document.getElementById('library-descriptions-list-admin');
+              list.innerHTML = '';
+              descList.innerHTML = '';
+              if (data.libraries && data.libraries.length > 0) {
+                section.style.display = 'block';
+                data.libraries.forEach(function(lib) {
+                  var checkbox = document.createElement('input');
+                  checkbox.type = 'checkbox';
+                  checkbox.name = 'library_ids';
+                  checkbox.value = lib.key;
+                  checkbox.id = 'admin_lib_' + lib.key;
+                  var label = document.createElement('label');
+                  label.htmlFor = checkbox.id;
+                  label.innerText = lib.title + ' (' + lib.key + ')';
+                  label.style.marginRight = '1em';
+                  list.appendChild(checkbox);
+                  list.appendChild(label);
+                  list.appendChild(document.createElement('br'));
+                  // Description field (hidden by default)
+                  var descDiv = document.createElement('div');
+                  descDiv.id = 'admindescdiv_' + lib.key;
+                  descDiv.style.display = 'none';
+                  descDiv.style.marginLeft = '2em';
+                  descDiv.style.marginBottom = '1em';
+                  var descLabel = document.createElement('label');
+                  descLabel.innerText = 'Description for ' + lib.title + ':';
+                  var descInput = document.createElement('input');
+                  descInput.type = 'text';
+                  descInput.name = 'library_desc_' + lib.key;
+                  descInput.style.width = '60%';
+                  descInput.style.marginTop = '0.3em';
+                  descDiv.appendChild(descLabel);
+                  descDiv.appendChild(document.createElement('br'));
+                  descDiv.appendChild(descInput);
+                  descList.appendChild(descDiv);
+                  // Show/hide description field when checkbox is toggled
+                  checkbox.addEventListener('change', function() {
+                    descDiv.style.display = checkbox.checked ? 'block' : 'none';
+                  });
+                });
+                descSection.style.display = 'block';
+              } else {
+                section.style.display = 'none';
+                descSection.style.display = 'none';
+                alert('No libraries found or error fetching libraries.');
+              }
+            })
+            .catch((err) => {
+              alert('Failed to fetch libraries.');
+              console.error(err);
+            });
+          }
+          // ABS toggle on load
+          toggleABSAdmin();
+        </script>
+      </div>
+    </details>
+  </div>
+
+</body>
+</html>

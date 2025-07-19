@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>{{ SERVER_NAME }}</title>
+  <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp') }}" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  {% include "_bottom_nav.html" %}
+  <div class="container">
+    <h1>Welcome to Audiobookshelf!</h1>
+
+    <div class="poster-carousel-container">
+      <div id="audiobook-carousel" class="poster-carousel"></div>
+    </div>
+    <script>
+    fetch('/audiobook-covers')
+      .then(res => res.json())
+      .then(paths => {
+        const container = document.getElementById('audiobook-carousel');
+        container.innerHTML = paths.map(path => `<img src="${path}" class="carousel-img" alt="Audiobook cover" loading="lazy">`).join('');
+        container.classList.add('animate');
+      });
+    </script>
+
+    <p style="color: #888">
+     Random selection of 25 audiobooks on my server. Go <a href="/medialists" class="accent">here</a> for the full list.
+    </p>
+
+    <p style="max-width:850px">
+      While Plex can handle audiobooks, <a href="https://www.audiobookshelf.org/showcase/" target="_blank">Audiobookshelf</a> (or just ABS) does a much better job (still for free). I reccomend it if you're an avid audio reader! You can listen on your phone or computer like Audible or Spotify.
+    </p>
+
+    <img src="{{ url_for('static', filename='abshome.webp') }}" alt="Homepage Example" class="toggle-grow" />
+
+    <p style="color: #888">
+      Click to enlarge (Zoom on mobile)
+    </p>
+ 
+  </div>
+  <div class="container">
+      <details {% if submitted %}open{% endif %}>
+      <summary class="collapsible-heading">1. Get Access</summary>
+      <div style="margin-left: 1em;">
+        <p>To get started, fill out the form below. Let me know when you're done so I can add your account.</p>
+
+        <p class="accent">
+          Note: Please don't share the account you create with others. If you know someone who you think would enjoy having access, let me know. In most cases I'll be happy to add them with their own account.
+        </p>
+        <form method="POST" action="/audiobookshelf" style="margin-bottom: 1em;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label for="email">Email:</label><br>
+          <input type="email" id="email" name="email" placeholder="Enter email" required
+                 class="max-300"
+                 {% if submitted %}disabled{% endif %}><br>
+        
+          <label for="username">Username:</label><br>
+          <input type="text" id="username" name="username" placeholder="Choose a username" required
+                 class="max-300"
+                 {% if submitted %}disabled{% endif %}><br>
+        
+          <label for="password">Password:</label><br>
+          <input type="text" id="password" name="password" placeholder="Choose a password" required
+                 class="max-300"
+                 {% if submitted %}disabled{% endif %}><br>
+        
+          <button type="submit" {% if submitted %}disabled{% endif %}>Submit</button>
+        </form>
+        
+        {% if submitted %}
+          <p style="color: #f6b900; font-weight: bold; margin-top: 1em;">
+            Thanks! Your request has been submitted.
+          </p>
+        {% endif %}
+      </div>
+    </details>
+  </div>
+  <div class="container">
+    <details>
+      <summary class="collapsible-heading">2. Logging In</summary>
+      <div style="margin-left: 1em;">
+        <p>
+          When I say so, you can access ABS on desktop at <a href="https://SOMEURL.xyz/" target="_blank">placeholder.xyz</a>, or download the app (see below) on your phone or tablet, and enter that same URL into the app when you open it.
+        </p>
+
+        <ul style="text-align:left; max-width:800px; margin: 1em 0;">
+          <li><a href="https://www.audiobookshelf.org/showcase/" target="_blank">Android</a></li>
+        </ul>
+
+        <p>
+          There's no offical iOS app yet, but you can try these:
+        </p>
+
+        <ul style="text-align:left; max-width:800px; margin: 1em 0;">
+          <li><a href="https://apps.apple.com/us/app/shelfplayer/id6475221163" target="_blank">ShelfPlayer</a></li>
+          <li><a href="https://apps.apple.com/us/app/plappa/id6475201956" target="_blank">plappa</a></li>
+        </ul>
+
+      </div>
+    </details>
+  </div>
+  <div class="container">
+    <details>
+      <summary class="collapsible-heading">3. First Time Setup</summary>
+      <div style="margin-left: 1em;">    
+        <p>
+          There's not a whole lot to do for ABS, you can start listening right away!
+        </p>
+      
+        <p>
+          Look through the settings in whichever app you get and change anything to your liking. It has useful features like an automatic sleep timer, playback speed change, bookmarking, and more. 	
+        </p>
+
+        <p class="accent">
+          Note: You can download audiobooks for offline listening, in case my server is offline or you go off-grid.
+        </p>
+
+        <img src="{{ url_for('static', filename='abssetup.webp') }}" alt="Settings" class="toggle-grow" />
+
+      </div>
+    </details>
+  </div>
+  <div class="container">
+    <details>
+      <summary class="collapsible-heading">4. Requests</summary>
+      <div style="margin-left: 1em;">
+    
+        <p>
+          I don't have an automated system for requesting audiobooks (yet), but I can add them manually if available.
+        </p>
+
+        <p>
+          If you want a book, look for it before you ask me. See <a href="https://fmhy.pages.dev/readingpiracyguide#audiobooks" target="_blank">this</a> list of sites.
+        </p>
+  
+    
+        <h3>Notifications</h3>
+        <p>
+          For notifications about newly added audiobooks, ask me about my Discord.
+        </p>
+    
+    
+      </div>
+    </details>
+  </div>
+  <div class="container">
+    <details>
+      <summary class="collapsible-heading">5. Issues</summary>
+      <div style="margin-left: 1em;">
+    
+        <p>
+          If you have issues playing a specific book, let me know.
+        </p>
+    
+      </div>
+    </details>
+  </div>
+
+  <script>
+    function handleSubmit(event) {
+      // Allow form to submit normally and delay disabling
+      setTimeout(() => {
+        const inputs = document.querySelectorAll('input, button');
+        inputs.forEach(el => el.disabled = true);
+      }, 50); // enough time for submit to start
+
+      return true; // let form proceed
+    }
+  </script>
+
+  <script>
+  fetch("/posters")
+    .then(res => res.json())
+    .then(urls => {
+      const container = document.getElementById("poster-carousel");
+
+    // Create one set of posters first
+      const fragment = document.createDocumentFragment();
+      urls.forEach(url => {
+        const img = document.createElement("img");
+        img.src = url;
+        img.loading = "lazy";
+        fragment.appendChild(img);
+      });
+
+    // Append twice for seamless loop
+      container.appendChild(fragment.cloneNode(true));
+      container.appendChild(fragment);
+
+    // Trigger animation after images are inserted
+      requestAnimationFrame(() => {
+        container.classList.add("animate");
+      });
+    });
+  </script>
+
+  <script>
+  fetch("/show-posters")
+    .then(res => res.json())
+    .then(urls => {
+      const container = document.getElementById("show-poster-carousel");
+
+      const fragment = document.createDocumentFragment();
+      urls.forEach(url => {
+        const img = document.createElement("img");
+        img.src = url;
+        img.loading = "lazy";
+        fragment.appendChild(img);
+      });
+
+      container.appendChild(fragment.cloneNode(true));
+      container.appendChild(fragment);
+
+      requestAnimationFrame(() => {
+        container.classList.add("animate");
+      });
+    });
+
+  </script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      // Only enable enlarge on screens wider than 1081px (adjust as needed)
+      if (window.innerWidth >= 1081) {
+        document.querySelectorAll(".toggle-grow").forEach(function (img) {
+          img.addEventListener("click", function () {
+            const isGrown = img.classList.toggle("grown");
+
+            if (!isGrown) {
+              img.style.left = "0px";
+              img.style.top = "0px";
+              img.style.position = "relative";
+              img.style.zIndex = "";
+            } else {
+              img.style.position = "relative";
+              img.style.zIndex = 10;
+            }
+          });
+        });
+      }
+    });
+  </script>
+
+</body>
+</html>

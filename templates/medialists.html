@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>{{ SERVER_NAME }}</title>
+  <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp') }}" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+    {% include "_bottom_nav.html" %}
+    <div class="container medialists-container">
+        <h1>Media Lists</h1>
+        <div style="display: flex; gap: 2em; justify-content: left;">
+            <div>
+                <label for="list-select">Select list:</label>
+                <select id="list-select" style="margin: 0.5em 0 1em 0;">
+                <option value="movies">Movies</option>
+                <option value="shows">Shows</option>
+                {% if abs_enabled and audiobooks %}
+                <option value="audiobooks">Audiobooks</option>
+                {% endif %}
+                </select>
+
+                <div id="movies-list">
+                <h3>Movies</h3>
+                {% if movies_grouped %}
+                    {% for letter, titles in movies_grouped.items() %}
+                        <details>
+                            <summary class="collapsible-heading">{{ letter }}</summary>
+                            <ul>
+                                {% for title in titles %}
+                                    <li>
+                                        {{ title }} -
+                                        <a href="https://www.imdb.com/find/?q={{ title | urlencode }}" target="_blank">IMDB</a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </details>
+                    {% endfor %}
+                {% else %}
+                    <ul>
+                        {% for title in movies %}
+                            <li>
+                                {{ title }} -
+                                <a href="https://www.imdb.com/find/?q={{ title | urlencode }}" target="_blank">IMDB</a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                </div>
+
+                <div id="shows-list" style="display: none;">
+                <h3>Shows</h3>
+                {% if shows_grouped %}
+                    {% for letter, titles in shows_grouped.items() %}
+                        <details>
+                            <summary class="collapsible-heading">{{ letter }}</summary>
+                            <ul>
+                                {% for title in titles %}
+                                    <li>
+                                        {{ title }} -
+                                        <a href="https://www.imdb.com/find/?q={{ title | urlencode }}" target="_blank">IMDB</a>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </details>
+                    {% endfor %}
+                {% else %}
+                    <ul>
+                        {% for title in shows %}
+                            <li>
+                                {{ title }} -
+                                <a href="https://www.imdb.com/find/?q={{ title | urlencode }}" target="_blank">IMDB</a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                </div>
+
+                {% if abs_enabled and audiobooks %}
+                <div id="audiobooks-list" style="display: none;">
+                <h3>Audiobooks</h3>
+                {% for author, books in audiobooks.items() %}
+                    <p style="font-weight: bold; margin-top: 1em;">{{ author }}</p>
+                    <ul>
+                    {% for book in books %}
+                        <li>
+                        {{ book }} -
+                        <a href="https://www.goodreads.com/search?q={{ book | urlencode }}" target="_blank">Goodreads</a>
+                        </li>
+                    {% endfor %}
+                    </ul>
+                {% endfor %}
+                </div>
+                {% endif %}  
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+          const select = document.getElementById("list-select");
+          const movies = document.getElementById("movies-list");
+          const shows = document.getElementById("shows-list");
+          const audiobooks = document.getElementById("audiobooks-list");
+      
+          function hideAll() {
+            movies.style.display = "none";
+            shows.style.display = "none";
+            if (audiobooks) audiobooks.style.display = "none";
+          }
+      
+          select.addEventListener("change", function () {
+            hideAll();
+            const value = select.value;
+            if (value === "movies") movies.style.display = "block";
+            else if (value === "shows") shows.style.display = "block";
+            else if (value === "audiobooks" && audiobooks) audiobooks.style.display = "block";
+          });
+        });
+      </script>
+      
+</body>
+</html>

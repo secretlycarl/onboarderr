@@ -1,0 +1,9 @@
+<img src="{{ url_for('static', filename='wordmark.webp') }}" alt="Wordmark" class="wordmark" />
+<div class="bottom-nav">
+  <a href="/onboarding">Join Plex</a>
+  {% if ABS_ENABLED == 'yes' %}
+  <a href="/audiobookshelf">Join Audiobookshelf</a>
+  {% endif %}
+  <a href="/medialists">Media Lists</a>
+  <a href="/services">Admin</a>
+</div>

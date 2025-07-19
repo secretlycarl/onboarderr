@@ -1,0 +1,479 @@
+
+:root {
+  --bg: #121212;
+  --container-bg: #1e1e1e;
+  --accent: #d33fbc;
+  --text: #ffffff;
+  --muted: #888888;
+  --input-bg: #ffffff;
+  --input-border: #444;
+  --button-bg: #0042ac;
+  --button-hover: #005ff8;
+  --button-text: #ffffff;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', Arial, sans-serif;
+  line-height: 1.6;
+  padding: 1em;
+}
+
+
+.container {
+  background: var(--container-bg);
+  padding: 2em;
+  margin: 1em auto;
+  border-radius: 1em;
+  max-width: 900px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+}
+
+
+h2, summary.collapsible-heading {
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.collapsible-heading {
+  font-size: 1.4em;
+  cursor: pointer;
+}
+
+p, li {
+  margin: 1em 0;
+  color: var(--text);
+}
+
+a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+ul {
+  list-style: disc inside;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+button {
+  font-size: 1em;
+  border-radius: 0.5em;
+  padding: 0.75em;
+  width: 100%;
+  max-width: 400px;
+  box-sizing: border-box;
+  margin-bottom: 1em;
+  transition: 0.3s ease all;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"] {
+  color: #111;
+}
+
+input[type="checkbox"] {
+  width: 1.2em;
+  height: 1.2em;
+  min-width: 1.2em;
+  min-height: 1.2em;
+  accent-color: var(--accent);
+  margin-right: 0.7em;
+  vertical-align: middle;
+}
+
+input {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--text);
+}
+
+button {
+  background: var(--button-bg);
+  color: var(--button-text);
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--button-hover);
+}
+
+.poster-carousel-container {
+  overflow: hidden;
+  width: 100%;
+  height: 220px;
+  margin: 1em 0;
+  border-radius: 0.5em;
+  position: relative;
+}
+
+.poster-carousel {
+  display: flex;
+  gap: 1em;
+  animation: scroll-posters 32s linear infinite;
+}
+
+#show-poster-carousel {
+  display: flex;
+  gap: 1em;
+  animation: scroll-posters-slow 40s linear infinite;
+}
+
+.carousel-img {
+  width: 140px;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 0.5em;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
+  transition: transform 0.2s ease, box-shadow 0.2s;
+}
+
+/* grow carousel imgs on hover - glitchy right now
+
+.carousel-img:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(0,0,0,0.8);
+}
+*/
+
+/* click to expand img on desktop */
+.toggle-grow {
+  width: 100%;
+  height: auto;
+  transition: transform 0.3s ease;
+  cursor: pointer;
+}
+
+.toggle-grow.grown {
+  transform: scale(1.66);
+  z-index: 10;
+}
+
+/* actually the top nav but it was bottom at first */
+.bottom-nav {
+  display: flex;
+  justify-content: center;
+  gap: 2em;
+  font-size: 1.2em;
+  margin-top: 2em;
+  margin-bottom: 0em;
+  flex-wrap: wrap;
+}
+
+.bottom-nav a {
+  color: var(--accent);
+  font-weight: bold;
+  text-decoration: none;
+  transition: opacity 0.2s;
+  padding: 0.5em 0.8em;
+  border-radius: 0.4em;
+}
+
+.bottom-nav a:hover {
+  opacity: 0.8;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.wordmark {
+  width: 100%;
+  max-width: 400px;
+  min-width: 120px;
+  display: block;
+  margin: 2em auto 1em;
+}
+
+.login-container {
+  max-width: 400px;
+}
+
+.login-container form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.login-container form label {
+  width: 100%;
+  text-align: center;
+}
+
+.login-container form input,
+.login-container form button {
+  width: 100%;
+  max-width: 350px;
+  margin-bottom: 1em;
+}
+
+.medialists-container {
+  max-width: 500px;
+}
+
+figcaption {
+  font-size: 0.9em;
+}
+
+@media (pointer: coarse) and (max-width: 1800px) {
+  .wordmark {
+    max-width: 60%;
+  }
+  .poster-carousel-container {
+    height: 440px;
+  }
+  .carousel-img {
+    height: 400px;
+    width: 280px;
+    border-radius: 1em;
+  }
+  .poster-carousel {
+    gap: 2em;
+  }
+
+  #show-poster-carousel {
+    gap: 2em;
+  }
+  p {
+    margin-bottom: 1;
+  }
+  p + p {
+    margin-top: 3.5em;
+  }
+  label {
+    font-size: 2em;
+  }
+  button {
+    font-size: 2em;
+  }
+  .login-container {
+    max-width: 90vw;
+    padding: 2em 2em;
+    font-size: 1.3em;
+  }
+  .login-container form label {
+    font-size: 1.2em;
+  }
+  .bottom-nav {
+    gap: 0.5em;
+    font-size: 2em;
+  }
+  .library-table {
+    font-size: 2em;
+    min-width: 1200px;
+  }
+  .library-table td {
+    padding: 0.5em 1em;
+  }
+  .lib-checkbox {
+    width: 4em;
+  }
+  .lib-title {
+    width: 18em;
+  }
+  .lib-desc {
+    font-size: 1em;
+  }
+  .library-table input[type="checkbox"] {
+    width: 2.4em;
+    height: 2.4em;
+    min-width: 2.4em;
+    min-height: 2.4em;
+  }
+  .library-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    margin-bottom: 2em;
+  }
+  .medialists-container {
+    max-width: 950px;
+  }
+  #list-select, .medialists-container label {
+    font-size: 2em;
+  }
+  .medialists-container ul, .medialists-container li, .medialists-container h3, .medialists-container details, .medialists-container {
+    font-size: 1.3em;
+  }
+  .medialists-container h1 {
+    font-size: 2.2em;
+  }
+  .container table,
+  .container th,
+  .container td {
+    font-size: 1.5em;
+    padding: 1em 0.7em;
+  }
+  .container table button[type="submit"] {
+    font-size: 1.3em;
+    padding: 0.7em 1.5em;
+  }
+  .scrollable-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    margin-bottom: 2em;
+  }
+
+  .services {
+    gap: 2em;
+  }
+  .service-box {
+    width: 280px;
+    flex: 1 1 280px;
+    max-width: 90vw;
+    padding: 2em 1em;
+    font-size: 1.5em;
+  }
+  .service-box img {
+    width: 90px;
+    height: 90px;
+    margin-bottom: 1em;
+  }
+  .service-box span {
+    font-size: 1.2em;
+  }
+  figcaption {
+    font-size: 2em;
+  }
+
+  .collapsible-heading {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+  }
+}
+
+
+@keyframes scroll-posters {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-150%);
+  }
+}
+
+@keyframes scroll-posters-slow {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-150%);
+  }
+}
+
+.services {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1em;
+  justify-content: center;
+  margin-top: 2em;
+}
+
+.service-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background-color: #2e2e2e;
+  padding: 1em;
+  width: 140px;
+  border-radius: 1em;
+  color: var(--text);
+  text-decoration: none;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease, background-color 0.3s ease;
+}
+
+.service-box:hover {
+  transform: scale(1.05);
+  background-color: #363636;
+}
+
+.service-box img {
+  width: 50px;
+  height: 50px;
+  margin-bottom: 0.5em;
+  object-fit: contain;
+}
+
+.accent {
+  color: var(--accent) !important;
+}
+
+.muted {
+  color: var(--muted) !important;
+}
+
+.max-800 {
+  max-width: 800px !important;
+}
+
+.max-850 {
+  max-width: 850px !important;
+}
+
+.text-left {
+  text-align: left !important;
+}
+
+.caption {
+  color: #fff !important;
+  font-size: 1.2em;
+  text-align: center;
+  margin-top: 0.25em;
+  margin-bottom: 1em;
+}
+
+.onboard-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7em;
+  font-size: 1.15em;
+  margin-bottom: 0.7em;
+  cursor: pointer;
+}
+
+.onboard-checkbox-label .muted {
+  font-size: 0.95em;
+}
+
+.library-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 0.7em;
+  margin-bottom: 1.5em;
+}
+
+.library-table td {
+  vertical-align: middle;
+  padding: 0.2em 0.5em;
+}
+
+.lib-checkbox {
+  width: 2.5em;
+  text-align: center;
+}
+
+.lib-title {
+  font-size: 1.15em;
+  font-weight: bold;
+  width: 10em;
+  white-space: nowrap;
+}
+
+.lib-desc {
+  font-size: 1em;
+  color: var(--muted);
+  width: 100%;
+}

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Onboarderr Setup</title>
+    <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp') }}">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <img src="{{ url_for('static', filename='clearlogo.webp') }}" alt="Logo" style="display: block; margin: 0 auto; max-width: 200px" >
+        <h1>Setup</h1>
+        <form method="post" id="setup-form" style="max-width: 600px; margin: 0 auto;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label style="display:block; margin-bottom: 1.2em;">Server Name:<br>
+                <input type="text" name="server_name" id="server_name" required class="max-300">
+            </label>
+            <label style="display:block; margin-bottom: 1.2em;">Plex Token:<br>
+                <input type="text" name="plex_token" id="plex_token" required class="max-300">
+            </label>
+            <label style="display:block; margin-bottom: 1.2em;">Plex URL:<br>
+                <input type="text" name="plex_url" id="plex_url" required class="max-300">
+            </label>
+            <button type="button" onclick="fetchLibraries()" style="margin-bottom: 1.5em;">Fetch Plex Libraries</button><br>
+            <div id="libraries-section" style="display:none; margin-bottom: 1.5em;">
+                <strong style="margin-bottom: 0.5em; display:block;">Select Libraries to make available:</strong>
+                <p>
+                  Title (ID)
+                </p>
+                <div id="libraries-list"></div>
+            </div>
+            <div id="library-descriptions-section" style="display:none; margin-bottom: 1.5em;">
+                <strong style="margin-bottom: 0.5em; display:block;">Enter a description for each selected library (optional):</strong>
+                <div id="library-descriptions-list"></div>
+
+            </div>
+
+            <p>
+                Enter Library IDs below. Needed to pull posters for the onboarding pages.
+            </p>
+
+            <label style="display:block; margin-bottom: 1.2em;">Movies Library ID:<br>
+                <input type="text" name="movies_id" id="movies_id" required class="max-300">
+            </label>
+            <label style="display:block; margin-bottom: 1.2em;">Shows Library ID:<br>
+                <input type="text" name="shows_id" id="shows_id" required class="max-300">
+            </label>
+
+            <label style="display:block; margin-bottom: 1.2em;">Enable Audiobookshelf?<br>
+                <input type="radio" name="abs_enabled" value="yes" checked onchange="toggleABS()"> Yes
+                <input type="radio" name="abs_enabled" value="no" onchange="toggleABS()"> No
+            </label>
+            <div id="abs-section" style="display: block; margin-left: 20px; margin-bottom: 1.5em;">
+                <label>Audiobook Library ID:<br>
+                    <input type="text" name="audiobooks_id" id="audiobooks_id" class="max-300">
+                </label><br><br>
+            </div>
+            <label style="display:block; margin-bottom: 1.2em;">Enable Discord Notifications?<br>
+                <input type="radio" name="discord_enabled" value="yes" onchange="toggleDiscord()"> Yes
+                <input type="radio" name="discord_enabled" value="no" onchange="toggleDiscord()"> No
+            </label>
+            <div id="discord-section" style="display: none; margin-left: 20px; margin-bottom: 1.5em;">
+                <label>Discord Webhook URL:<br>
+                    <input type="text" name="discord_webhook" id="discord_webhook" class="max-300">
+                </label><br><br>
+                <label>Discord Username (optional):<br>
+                    <input type="text" name="discord_username" id="discord_username" placeholder="Monitor" class="max-300">
+                </label><br><br>
+                <label>Discord Avatar URL (optional):<br>
+                    <input type="text" name="discord_avatar" id="discord_avatar" class="max-300">
+                </label><br><br>
+                <label>Discord Color (optional):<br>
+                    <input type="text" name="discord_color" id="discord_color" placeholder="#000000" class="max-300">
+                </label><br><br>
+            </div>
+            <div id="setup-message" style="color: #f00; margin-bottom: 1em;">
+                {% if error_message %}{{ error_message }}{% endif %}
+            </div>
+            <button type="submit" id="submit-btn" style="margin-top: 1.5em;" disabled>Save and Finish Setup</button>
+        </form>
+        <script>
+            function toggleABS() {
+                var abs = document.querySelector('input[name="abs_enabled"]:checked').value;
+                var absSection = document.getElementById('abs-section');
+                var absInput = document.getElementById('audiobooks_id');
+                if (abs === 'yes') {
+                    absSection.style.display = 'block';
+                    if (absInput) absInput.disabled = false;
+                } else {
+                    absSection.style.display = 'none';
+                    if (absInput) absInput.disabled = true;
+                }
+            }
+            function toggleDiscord() {
+                var discord = document.querySelector('input[name="discord_enabled"]:checked').value;
+                var discordSection = document.getElementById('discord-section');
+                var discordInput = document.getElementById('discord_webhook');
+                if (discord === 'yes') {
+                    discordSection.style.display = 'block';
+                    if (discordInput) discordInput.disabled = false;
+                } else {
+                    discordSection.style.display = 'none';
+                    if (discordInput) discordInput.disabled = true;
+                }
+            }
+            function fetchLibraries() {
+                var token = document.getElementById('plex_token').value;
+                var url = document.getElementById('plex_url').value;
+                if (!token || !url) {
+                    alert('Please enter Plex Token and URL first.');
+                    return;
+                }
+                var csrfToken = document.querySelector('input[name="csrf_token"]').value;
+                fetch('/fetch-libraries', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ plex_token: token, plex_url: url })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    var section = document.getElementById('libraries-section');
+                    var list = document.getElementById('libraries-list');
+                    var descSection = document.getElementById('library-descriptions-section');
+                    var descList = document.getElementById('library-descriptions-list');
+                    list.innerHTML = '';
+                    descList.innerHTML = '';
+                    var anyChecked = false;
+                    if (data.libraries && data.libraries.length > 0) {
+                        section.style.display = 'block';
+                        data.libraries.forEach(function(lib) {
+                            var checkbox = document.createElement('input');
+                            checkbox.type = 'checkbox';
+                            checkbox.name = 'library_ids';
+                            checkbox.value = lib.key;
+                            checkbox.id = 'lib_' + lib.key;
+                            var label = document.createElement('label');
+                            label.htmlFor = checkbox.id;
+                            label.innerText = lib.title + ' (' + lib.key + ')';
+                            label.style.marginRight = '1em';
+                            list.appendChild(checkbox);
+                            list.appendChild(label);
+                            list.appendChild(document.createElement('br'));
+
+                            // Description field (hidden by default)
+                            var descDiv = document.createElement('div');
+                            descDiv.id = 'descdiv_' + lib.key;
+                            descDiv.style.display = 'none';
+                            descDiv.style.marginLeft = '2em';
+                            descDiv.style.marginBottom = '1em';
+                            var descLabel = document.createElement('label');
+                            descLabel.innerText = 'Description for ' + lib.title + ':';
+                            var descInput = document.createElement('input');
+                            descInput.type = 'text';
+                            descInput.name = 'library_desc_' + lib.key;
+                            descInput.style.width = '60%';
+                            descInput.style.marginTop = '0.3em';
+                            descDiv.appendChild(descLabel);
+                            descDiv.appendChild(document.createElement('br'));
+                            descDiv.appendChild(descInput);
+                            descList.appendChild(descDiv);
+
+                            // Show/hide description field when checkbox is toggled
+                            checkbox.addEventListener('change', function() {
+                                descDiv.style.display = checkbox.checked ? 'block' : 'none';
+                                updateDescSectionVisibility();
+                            });
+                        });
+                        updateDescSectionVisibility();
+                    } else {
+                        section.style.display = 'none';
+                        descSection.style.display = 'none';
+                        alert('No libraries found or error fetching libraries.');
+                    }
+                })
+                .catch((err) => {
+                    alert('Failed to fetch libraries.');
+                    console.error(err);
+                });
+            }
+            function updateDescSectionVisibility() {
+                var descSection = document.getElementById('library-descriptions-section');
+                var anyChecked = false;
+                document.querySelectorAll('input[name="library_ids"]').forEach(function(cb) {
+                    if (cb.checked) anyChecked = true;
+                });
+                descSection.style.display = anyChecked ? 'block' : 'none';
+            }
+            function validateSetupForm() {
+                var serverName = document.getElementById('server_name').value.trim();
+                var plexToken = document.getElementById('plex_token').value.trim();
+                var plexUrl = document.getElementById('plex_url').value.trim();
+                var moviesId = document.getElementById('movies_id').value.trim();
+                var showsId = document.getElementById('shows_id').value.trim();
+                var absEnabled = document.querySelector('input[name="abs_enabled"]:checked').value;
+                var audiobooksId = document.getElementById('audiobooks_id').value.trim();
+                var discordEnabled = document.querySelector('input[name="discord_enabled"]:checked').value;
+                var discordWebhook = document.getElementById('discord_webhook').value.trim();
+                var libraryCheckboxes = document.querySelectorAll('input[name="library_ids"]');
+                var anyLibraryChecked = false;
+                libraryCheckboxes.forEach(function(cb) {
+                    if (cb.checked) anyLibraryChecked = true;
+                });
+                var submitBtn = document.getElementById('submit-btn');
+                var msgDiv = document.getElementById('setup-message');
+                var valid = serverName && plexToken && plexUrl && moviesId && showsId && anyLibraryChecked;
+                if (absEnabled === 'yes') {
+                    valid = valid && audiobooksId;
+                }
+                if (discordEnabled === 'yes') {
+                    valid = valid && discordWebhook;
+                }
+                if (valid) {
+                    submitBtn.disabled = false;
+                    msgDiv.textContent = '';
+                } else {
+                    submitBtn.disabled = true;
+                }
+            }
+            document.getElementById('setup-form').addEventListener('input', validateSetupForm);
+            document.getElementById('setup-form').addEventListener('change', validateSetupForm);
+
+            // Custom submit handler for delay and messaging
+            document.getElementById('setup-form').addEventListener('submit', function(e) {
+                var serverName = document.getElementById('server_name').value.trim();
+                var plexToken = document.getElementById('plex_token').value.trim();
+                var plexUrl = document.getElementById('plex_url').value.trim();
+                var moviesId = document.getElementById('movies_id').value.trim();
+                var showsId = document.getElementById('shows_id').value.trim();
+                var absEnabled = document.querySelector('input[name="abs_enabled"]:checked').value;
+                var audiobooksId = document.getElementById('audiobooks_id').value.trim();
+                var discordEnabled = document.querySelector('input[name="discord_enabled"]:checked').value;
+                var discordWebhook = document.getElementById('discord_webhook').value.trim();
+                var libraryCheckboxes = document.querySelectorAll('input[name="library_ids"]');
+                var anyLibraryChecked = false;
+                libraryCheckboxes.forEach(function(cb) {
+                    if (cb.checked) anyLibraryChecked = true;
+                });
+                var msgDiv = document.getElementById('setup-message');
+                var missing = [];
+                if (!serverName) missing.push('Server Name');
+                if (!plexToken) missing.push('Plex Token');
+                if (!plexUrl) missing.push('Plex URL');
+                if (!moviesId) missing.push('Movies Library ID');
+                if (!showsId) missing.push('Shows Library ID');
+                if (!anyLibraryChecked) missing.push('At least one Library');
+                if (absEnabled === 'yes' && !audiobooksId) missing.push('Audiobook Library ID');
+                if (discordEnabled === 'yes' && !discordWebhook) missing.push('Discord Webhook URL');
+                if (missing.length > 0) {
+                    e.preventDefault();
+                    msgDiv.textContent = 'Some entries are missing: ' + missing.join(', ');
+                    return false;
+                }
+            });
+            // Initialize visibility and validation on page load
+            toggleABS();
+            toggleDiscord(); // Initialize Discord visibility
+            validateSetupForm();
+        </script>
+    </div>
+</body>
+</html> 

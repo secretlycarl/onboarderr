@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>{{ SERVER_NAME }}</title>
+  <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp') }}" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  {% include "_bottom_nav.html" %}
+  <div class="container">
+    <h1>Welcome to Plex!</h1>
+
+    <div class="poster-carousel-container">
+      <div class="poster-carousel" id="poster-carousel"></div>
+    </div>
+
+    <div class="poster-carousel-container">
+      <div class="poster-carousel" id="show-poster-carousel"></div>
+    </div>
+
+    <p class="muted">
+     Random selection of 25 movies and shows on my server. Go <a href="/medialists" class="accent">here</a> for the full list.
+    </p>
+
+    <p class="max-850">
+      Plex Media Server (or just <a href="https://support.plex.tv/articles/200288286-what-is-plex/" target="_blank">Plex</a>) lets me share my collection of movies and shows with you, just like Netflix, but you don’t have to pay. You can watch on your TV, computer, phone, or tablet!
+    </p>
+
+    <img src="{{ url_for('static', filename='homepage.webp') }}" alt="Homepage Example" class="toggle-grow" />
+
+    <p class="muted">
+      Click to enlarge (Zoom on mobile)
+    </p>
+  </div>
+  <div class="container">
+    <details {% if submitted %}open{% endif %}>
+      <summary class="collapsible-heading">1. Get Access</summary>
+      <div style="margin-left: 1em;">
+        <p>To get started, enter your email below and select what you want access to. Let me know when you're done, and you'll recieve an email or invite link.</p>
+
+        <p class="accent">
+          Note: Please don't share the account you create with others. If you know someone who you think would enjoy having access, let me know. In most cases I'll be happy to add them with their own account.
+        </p>
+        <form method="POST" action="/onboarding" onsubmit="return handleSubmit(event)">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label for="email">Email:</label><br>
+          <input type="email" name="email" placeholder="Enter email for Plex" required
+                 class="max-300"
+                 {% if submitted %}disabled{% endif %} />
+          <div class="text-left max-800" style="margin: 1em 0;">
+            <div class="library-table-container">
+              <table class="library-table">
+                <tbody>
+                  {% for lib in libraries %}
+                    <tr>
+                      <td class="lib-checkbox">
+                        <input type="checkbox" name="libraries" value="{{ lib.key }}" {% if submitted %}disabled{% endif %} />
+                      </td>
+                      <td class="lib-title">
+                        {{ lib.title }}
+                      </td>
+                      <td class="lib-desc">
+                        {% if library_notes[lib.key|string] and library_notes[lib.key|string]['description'] %}
+                          <span class="muted">{{ library_notes[lib.key|string]['description'] }}</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <p>
+              If you picked any audio category, check out Plex's audio app for phones and tablets, Plexamp. You can find a link in "Logging In" below.
+            </p>
+          </div>
+          <button type="submit" {% if submitted %}disabled{% endif %}>Submit</button>
+        </form>
+    
+        {% if submitted %}
+          <p class="accent" style="font-weight: bold; margin-top: 1em;">
+            Thanks! Your request has been submitted.
+          </p>
+
+        {% endif %}
+      </div>
+    </details>
+  </div>
+  <div class="container">
+    <details>
+      <summary class="collapsible-heading">2. Logging In</summary>
+      <div style="margin-left: 1em;">
+        <p>
+          Once you get the invite, go ahead and make a Plex account, and download the app on your device. 
+        </p>
+        <p>
+          <a href="https://www.plex.tv/media-server-downloads/?cat=plex+desktop&plat=windows#plex-app" target="_blank">Here</a> is a link to a list of compatible devices with download links.
+        </p>
+        <p>
+         You can also access it via web browser on desktop at <a href="https://app.plex.tv/" target="_blank">app.plex.tv</a> to try it out, but I'd prefer if you use the standalone Windows or Mac app. 
+        </p>
+      </div>
+    </details>
+  </div>
+  <div class="container">
+    <details>
+      <summary class="collapsible-heading">3. First Time Setup</summary>
+      <div style="margin-left: 1em;">    
+        <p>
+          While Plex is generally easy to use, there are some important settings to change the first time you use it.
+        </p>
+
+        <p>
+          First is the removal of Live TV content provided by Plex. This content has ads and clutters the home page on some devices.
+        </p>
+
+        <p>
+          To change this setting, use the web or desktop app versions of Plex.
+        </p>
+
+        <figure style="width: 100%; margin: 0 0 1em 0;">
+          <img src="{{ url_for('static', filename='newuser1.webp') }}" alt="New User Screenshot" class="toggle-grow" />
+          <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
+            Go to "Online Media Sources"
+          </figcaption>
+        </figure>
+        
+        <figure style="width: 100%; margin: 0 0 1em 0;">
+          <img src="{{ url_for('static', filename='onlinemedia.webp') }}" alt="Online Media Setting" class="toggle-grow" />
+          <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
+            Disable Live TV, Movies & Shows, and Other Streaming Availability. The others can stay as-is.
+          </figcaption>
+        </figure>
+        
+       
+        <p>
+          You can poke around in the account settings and change things in the other tabs too.	
+        </p>
+
+        <p>
+          Next is to increase streaming quality. Check out <a href="https://mediaclients.wiki/Plex" target="_blank">this</a> handy guide for getting the best quality stream.
+    </p>
+
+
+        <p>
+          If you don't want to read all that, here's the general flow (must be done on every device):
+        </p>
+        <ul class="text-left max-800" style="margin: 1em 0;">
+          <li>Open Plex settings</li>
+          <li>Find Video or Quality settings</li>
+          <li>Disable any Automatic adjustments</li>
+          <li>Change streaming quality to Maximum</li>
+          <li>Enable Direct Play/Direct Stream</li>
+        </ul>
+      </div>
+    </details>
+  </div>
+  <div class="container">
+    <details>
+      <summary class="collapsible-heading">4. Pinning/Favoriting Libraries</summary>
+      <div style="margin-left: 1em;">
+    
+        <h3>Desktop</h3>
+        <p>
+          Once those settings have been changed, click the home button in the top left (on desktop) and you'll be taken to the page where all the magic happens.
+        </p>
+    
+        <figure style="width: 100%; margin: 0 0 1em 0;">
+          <img src="{{ url_for('static', filename='sidemore.webp') }}" alt="Sidebar" class="toggle-grow" />
+          <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
+            Click "More" at the bottom.
+          </figcaption>
+        </figure>
+    
+             <figure style="width: 100%; margin: 0 0 1em 0;">
+              <img src="{{ url_for('static', filename='unpin.webp') }}" alt="Unpinning" class="toggle-grow" />
+              <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
+                Unpin Playlists, Live TV, Movies & Shows, and Rentals. Make sure my sections at the top are pinned.
+              </figcaption>
+            </figure>
+            
+    
+        <h3>Mobile/Tablet</h3>
+    
+        <figure style="width: 100%; margin: 0 0 1em 0;">
+          <img src="{{ url_for('static', filename='mobilehome.webp') }}" alt="Mobile Home Screen" class="toggle-grow" />
+          <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
+            Press and hold "Libraries", go to the all libraries menu, and favorite everything there.
+          </figcaption>
+        </figure>
+        
+    
+        <p>
+          And you're all set! Browse through my libraries, check out my movie collections (separate tab in Movies library), or put on a comfort show and go to sleep. If you ever want a show or movie that I don't have, see "Requests" below.
+        </p>
+
+        <img src="{{ url_for('static', filename='screens.webp') }}"
+        alt="Screens"
+        class="toggle-grow" />
+    
+      </div>
+    </details>
+  </div>
+  <div class="container">
+    <details>
+      <summary class="collapsible-heading">5. Requests</summary>
+      <div style="margin-left: 1em;">
+    
+        <p>
+          Through some pirate technomancy, requesting movies and shows you want is pretty easy.
+        </p>
+    
+        <p>
+          We have to be "friends" on Plex (different than adding you to my server) for this feature to work so tell me to do that first before you request anything.
+        </p>
+    
+        <p class="accent">
+          Note: This feature does not work for new movies currently in theaters. Anything older or already on streaming services should be available.
+        </p>
+    
+        <ul class="text-left max-800" style="margin: 1em 0;">
+          <li>Go to the search bar or search menu</li>
+          <li>Enable "More Ways to Watch" if not already enabled</li>
+          <li>Search for the media you want</li>
+          <li>Click the "Add to watchlist" icon</li>
+        </ul>
+    
+        <figure style="width: 100%; margin: 0 0 1em 0;">
+          <img src="{{ url_for('static', filename='watchlist.webp') }}" alt="Watchlist" class="toggle-grow" />
+          <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
+            Desktop Example
+          </figcaption>
+        </figure>
+        
+    
+        <p>
+          Movies should show up in less than 30 minutes. Shows can take longer. The first season will show up to start, and others as you watch. If it's a show that's airing now and you want a more recent season, let me know.
+        </p>
+    
+        <p class="accent">
+          Be nice to my hard drives, don't request too much!
+        </p>
+    
+        <h3>Notifications</h3>
+        <p>
+          If I added you as a friend, you can receive notifications on phones and tablets when your Watchlisted media is ready to watch. For shows, this only applies when it is added for the first time. For per-episode notifications about currently airing shows, ask me about my Discord.
+        </p>
+    
+        <ul class="text-left max-800" style="margin: 1em 0;">
+          <li>Make sure notifications are enabled for Plex on your phone (Settings app)</li>
+          <li>Go to settings in Plex > Notifications</li>
+          <li>Turn off anything you'd like in Plex News, Friends, Discover, Live TV</li>
+          <li>Scroll down to Personal Media > New Content Added to Library</li>
+          <li>Set the toggles to how they look below (all off except for top one)</li>
+        </ul>
+    
+        <img src="{{ url_for('static', filename='notifs.webp') }}"
+             alt="Notification Settings"
+             class="toggle-grow" />
+    
+      </div>
+    </details>
+  </div>
+  <div class="container">
+    <details>
+      <summary class="collapsible-heading">6. Issues</summary>
+      <div style="margin-left: 1em;">
+    
+        <p>
+          If you have issues playing a specific piece of media, or it has bad subs, you can report it through Plex or just tell me.
+        </p>
+    
+        <img src="{{ url_for('static', filename='issue.webp') }}"
+             alt="Report Issue"
+             class="toggle-grow" />
+    
+      </div>
+    </details>
+  </div>
+  <div class="container">
+    <details>
+      <summary class="collapsible-heading">7. The End</summary>
+      <div style="margin-left: 1em;">
+    
+        <p>
+          Why did I do all this? I started out collecting all the Star Trek shows because they kept jumping around to different streaming services. At some point I joined r/datahoarder and now I have about 10TB of movies, shows, music, and books. And I wanted to share! So enjoy. 🖖
+        </p>
+
+        <p>
+          Donate to my hard drive fund:
+        </p>
+
+        <ul class="text-left max-800" style="margin: 1em 0;">
+          <li>Venmo -  </li>
+          <li>Cashapp - </li>
+          <li>Zelle - </li>
+        </ul>
+    
+      </div>
+    </details>
+  </div>
+
+  <script>
+    function handleSubmit(event) {
+      // Allow form to submit normally and delay disabling
+      setTimeout(() => {
+        const inputs = document.querySelectorAll('input, button');
+        inputs.forEach(el => el.disabled = true);
+      }, 50); // enough time for submit to start
+
+      return true; // let form proceed
+    }
+  </script>
+
+  <script>
+  fetch('/posters')
+    .then(res => res.json())
+    .then(paths => {
+      const container = document.getElementById('poster-carousel');
+      container.innerHTML = paths.map(path => `<img src="${path}" class="carousel-img" alt="Movie poster" loading="lazy">`).join('');
+      container.classList.add('animate');
+    });
+  fetch('/show-posters')
+    .then(res => res.json())
+    .then(paths => {
+      const container = document.getElementById('show-poster-carousel');
+      container.innerHTML = paths.map(path => `<img src="${path}" class="carousel-img" alt="Show poster" loading="lazy">`).join('');
+      container.classList.add('animate');
+    });
+  </script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      // Only enable enlarge on screens wider than 1081px (adjust as needed)
+      if (window.innerWidth >= 1081) {
+        document.querySelectorAll(".toggle-grow").forEach(function (img) {
+          img.addEventListener("click", function () {
+            const isGrown = img.classList.toggle("grown");
+
+            if (!isGrown) {
+              img.style.left = "0px";
+              img.style.top = "0px";
+              img.style.position = "relative";
+              img.style.zIndex = "";
+            } else {
+              img.style.position = "relative";
+              img.style.zIndex = 10;
+            }
+          });
+        });
+      }
+    });
+  </script>
+
+</body>
+</html>
