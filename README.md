@@ -91,11 +91,11 @@ If you used a venv, you need to activate it every time you run the script/websit
 
 I set the python script that handles everything to work on port ```10000```. You can change this at the bottom of ```app.py```.
 
-```debug=True``` at the bottom of ```app.py``` is on for testing, otherwise html changes don't update on reload. might be bad to keep ```True``` forever?
+```debug=True``` at the bottom of ```app.py``` is on for testing, otherwise html changes don't update on reload. make ```False``` when the site is ready.
 
 go to ```http://127.0.0.1:10000```
 
-First time setup will show, where you enter all the needed variables. The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1.
+First time setup form will show, where you enter all the variables. The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1.
 
 The way I set it up, it pulls artwork from my Plex libraries to show in the carousels. I have an audiobook library with the same content as my ABS server so it was easiest for me to just use Plex to pull those images instead of new logic for ABS.
 
