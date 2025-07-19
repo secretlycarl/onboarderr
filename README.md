@@ -26,7 +26,7 @@ As someone who's never made a website before, I made this to accomplish a few go
 
 Admittedly, most of the code was written by AI (ChatGPT, Gemini, Cursor). 
 
-I did some of the layout, all copywriting/instructions, collected and edited screenshots, and came up with this whole thing.
+I did most of the layout, all copywriting/instructions, collected and edited screenshots, and came up with this whole thing.
 
 
 # Features
