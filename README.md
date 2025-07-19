@@ -69,15 +69,15 @@ Discord - to handle certain admin & user notifications
 
 	cd onboarderr
 
-Before you run the script, rename the ```.env``` to just ```.env```, and set these variables:
+Before you run the script, rename the ```empty.env``` to just ```.env```, and set these variables:
 
 ```SITE_PASSWORD``` - for guests
 
 ```ADMIN_PASSWORD``` - for you
 
-```DRIVES``` - Local drives that will have storage bars on the admin page later. TEST EMPTY
+```DRIVES```(optional) - Local drives that will have storage bars on the admin page later.
 
-```SECRET_KEY``` - should be a long (>32 chars) string. https://www.random.org/strings/
+```SECRET_KEY``` - should be a long (>32 chars) string. https://pinetools.com/random-string-generator
 
 The other variables are filled in with a form that shows on first startup.
 
@@ -95,7 +95,7 @@ I set the python script that handles everything to work on port ```10000```. You
 
 go to ```http://127.0.0.1:10000```
 
-First time setup will show, where you enter all the needed variables. The library descriptions you write are saved to ```library_notes.json```.
+First time setup will show, where you enter all the needed variables. The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1.
 
 The way I set it up, it pulls artwork from my Plex libraries to show in the carousels. I have an audiobook library with the same content as my ABS server so it was easiest for me to just use Plex to pull those images instead of new logic for ABS.
 
