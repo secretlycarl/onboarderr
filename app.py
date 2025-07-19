@@ -101,10 +101,7 @@ def onboarding():
         return redirect(url_for("login"))
 
     submitted = False
-
     library_notes = load_library_notes()
-
-    # Only show libraries selected in setup
     selected_ids = os.getenv("LIBRARY_IDS", "").split(",") if os.getenv("LIBRARY_IDS") else []
 
     if request.method == "POST":
@@ -112,43 +109,37 @@ def onboarding():
         selected_keys = request.form.getlist("libraries")
 
         if email and selected_keys:
-            # Fetch all libraries for key-to-title mapping
             all_libraries = get_plex_libraries()
             key_to_title = {lib["key"]: lib["title"] for lib in all_libraries}
-
-            # Map submitted keys to their titles
             selected_titles = [key_to_title.get(key, f"Unknown ({key})") for key in selected_keys]
-
             submission_entry = {
                 "email": email,
                 "libraries_keys": selected_keys,
                 "libraries_titles": selected_titles,
                 "submitted_at": datetime.utcnow().isoformat() + "Z"
             }
-
             try:
                 with open("plex_submissions.json", "r") as f:
                     submissions = json.load(f)
             except FileNotFoundError:
                 submissions = []
-
             submissions.append(submission_entry)
-
             with open("plex_submissions.json", "w") as f:
                 json.dump(submissions, f, indent=2)
-
             submitted = True
+            send_discord_notification(email, "Plex")
+            # AJAX response
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({"success": True})
+        # AJAX error response
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"success": False, "error": "Missing required fields."})
 
     try:
-        # Only include libraries that were selected in setup
         libraries = [lib for lib in get_plex_libraries() if lib["key"] in selected_ids]
-
     except Exception as e:
         print(f"Failed to get Plex libraries: {e}")
         libraries = []
-
-    if submitted:
-        send_discord_notification(email, "Plex")
 
     return render_template(
         "onboarding.html",
@@ -187,11 +178,14 @@ def audiobookshelf():
             with open("audiobookshelf_submissions.json", "w") as f:
                 json.dump(submissions, f, indent=2)
             submitted = True
+            send_discord_notification(email, "Audiobookshelf")
+            # AJAX response
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({"success": True})
+        # AJAX error response
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"success": False, "error": "Missing required fields."})
 
-    if submitted:
-        send_discord_notification(email, "Audiobookshelf")
-
-    # You can keep the rest of the context as before, or simplify if not needed
     return render_template(
         "audiobookshelf.html",
         submitted=submitted
