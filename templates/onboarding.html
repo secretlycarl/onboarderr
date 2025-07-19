@@ -42,7 +42,7 @@
         <p class="accent">
           Note: Please don't share the account you create with others. If you know someone who you think would enjoy having access, let me know. In most cases I'll be happy to add them with their own account.
         </p>
-        <form method="POST" action="/onboarding" onsubmit="return handleSubmit(event)">
+        <form method="POST" action="/onboarding" id="onboarding-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label for="email">Email:</label><br>
           <input type="email" name="email" placeholder="Enter email for Plex" required
@@ -76,13 +76,11 @@
           </div>
           <button type="submit" {% if submitted %}disabled{% endif %}>Submit</button>
         </form>
-    
-        {% if submitted %}
+        <div id="onboarding-success" style="display:none;">
           <p class="accent" style="font-weight: bold; margin-top: 1em;">
             Thanks! Your request has been submitted.
           </p>
-
-        {% endif %}
+        </div>
       </div>
     </details>
   </div>
@@ -326,6 +324,56 @@
       const container = document.getElementById('show-poster-carousel');
       container.innerHTML = paths.map(path => `<img src="${path}" class="carousel-img" alt="Show poster" loading="lazy">`).join('');
       container.classList.add('animate');
+    });
+  </script>
+
+  <script>
+    // AJAX onboarding form submission
+    document.addEventListener('DOMContentLoaded', function() {
+      const form = document.getElementById('onboarding-form');
+      if (form) {
+        form.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          const formData = new FormData(form);
+          const data = new URLSearchParams();
+          for (const pair of formData) {
+            data.append(pair[0], pair[1]);
+          }
+          const submitBtn = form.querySelector('button[type="submit"]');
+          if (submitBtn) submitBtn.disabled = true;
+          // Disable all inputs
+          Array.from(form.elements).forEach(el => el.disabled = true);
+          try {
+            const response = await fetch('/onboarding', {
+              method: 'POST',
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+              },
+              body: data
+            });
+            if (response.ok) {
+              const result = await response.json();
+              if (result.success) {
+                document.getElementById('onboarding-success').style.display = '';
+                form.style.display = 'none';
+              } else {
+                // Show error
+                alert(result.error || 'Submission failed.');
+                Array.from(form.elements).forEach(el => el.disabled = false);
+                if (submitBtn) submitBtn.disabled = false;
+              }
+            } else {
+              alert('Submission failed.');
+              Array.from(form.elements).forEach(el => el.disabled = false);
+              if (submitBtn) submitBtn.disabled = false;
+            }
+          } catch (err) {
+            alert('Submission failed.');
+            Array.from(form.elements).forEach(el => el.disabled = false);
+            if (submitBtn) submitBtn.disabled = false;
+          }
+        });
+      }
     });
   </script>
 
