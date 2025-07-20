@@ -107,7 +107,7 @@ After submission, restart the script to apply the new ```.env``` and go to Login
 
 ```ADMIN_PASSWORD``` will take you to services page, but you can browse the others from the links at the top.
 
-```SITE_PASSWORD``` will not allow access to admin page (at least I think I set that right, works in testing)
+```SITE_PASSWORD``` will not allow access to admin page
 
 # !!! Per-Host Tweaks !!!
 
