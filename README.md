@@ -133,6 +133,8 @@ Edit the ```services = [``` list in ```app.py``` to have the services you want p
 
 Tweak the ```300``` value for ```movies_grouped``` and ```shows_grouped``` in ```app.py```. If the amount of items in either list is greater than that, the list will turn into alphabetical dropdowns.
 
+Delete ```plex_submissions.json``` and ```audiobookshelf_submissions.json```. the ones that come with it have example data to populate the requests sections on ```/services```
+
 # Sharing
 
 When ready to share with users, 
