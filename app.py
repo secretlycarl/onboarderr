@@ -40,6 +40,12 @@ def inject_server_name():
 def inject_csrf_token():
     return dict(csrf_token=generate_csrf)
 
+@app.context_processor
+def inject_admin_status():
+    # Make sure session is available in context
+    from flask import session
+    return dict(is_admin=session.get("admin_authenticated", False))
+
 def get_plex_libraries():
     headers = {"X-Plex-Token": PLEX_TOKEN}
     url = f"{PLEX_URL}/library/sections"
@@ -208,21 +214,6 @@ def login():
             return render_template("login.html", error="Incorrect password")
 
     return render_template("login.html")
-
-@app.route("/admin", methods=["GET", "POST"])
-def admin_login():
-    if not session.get("authenticated"):
-        return redirect(url_for("login"))
-
-    if request.method == "POST":
-        entered = request.form.get("admin_password")
-        if entered == ADMIN_PASSWORD:
-            session["admin_authenticated"] = True
-            return redirect(url_for("services"))
-        else:
-            return render_template("admin_login.html", error="Incorrect password")
-
-    return render_template("admin_login.html")
 
 @app.route("/services", methods=["GET", "POST"])
 def services():
