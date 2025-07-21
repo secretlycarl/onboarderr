@@ -9,13 +9,13 @@ Self-hosted user onboarding site for Plex and Audiobookshelf server owners
 
 Onboarderr is a customizable onboarding site for a host's Plex and (optional) Audiobookshelf servers. It includes user instructions, server highlights, and a basic admin dashboard.
 
-It's not exactly plug-n-play, as there are some things to customize before sharing it with users. Might be a little janky.
+It's not exactly plug and play, as there are some things to customize before sharing it with users. Might be a little janky.
 
 Please read to the end!
 
 #
 
-As someone who's never made a website before, I wantedd to: 
+As someone who's never made a website before, I wanted to: 
 
 - Learn about HTML, CSS, websites in general, and self-hosting
 
