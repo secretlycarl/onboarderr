@@ -43,6 +43,7 @@ Admin dashboard with basic tools and info
 
 **[Screenshots](https://github.com/secretlycarl/onboarderr/tree/main/screenshots)**
 
+
 # Requirements
 
 Python (3.10+)
@@ -85,6 +86,35 @@ Rename ```empty.env``` to ```.env```, and set:
 
 The rest of the config is handled on first startup.
 
+# Dockerized Startup (Recommended)
+
+From the project directory, run:
+
+Linux/macOS:
+```sh
+docker build -t onboarderr .
+docker run -d -p 10000:10000 --name onboarderr -v $(pwd):/app onboarderr
+```
+
+Windows (PowerShell):
+```powershell
+docker build -t onboarderr .
+docker run -d -p 10000:10000 --name onboarderr -v ${PWD}:/app onboarderr
+```
+
+Windows (Command Prompt):
+```cmd
+docker build -t onboarderr .
+docker run -d -p 10000:10000 --name onboarderr -v %cd%:/app onboarderr
+```
+
+- `-v` maps the project folder into the container, so any CSS and HTML changes are reflected live.
+- The site will be available at ```localhost:10000```
+- To apply changes to `.env`, restart the container: `docker restart onboarderr`
+- To stop/remove: `docker stop onboarderr && docker rm onboarderr`
+
+# Manual Startup
+
 Create and activate a venv (I use conda), Then:
 
 	pip install -r requirements.txt
@@ -95,7 +125,11 @@ Site runs on port ```10000``` by default. You can change this at the bottom of `
 
 ```debug=True``` at the bottom of ```app.py``` is on for live testing of updates. Make ```False``` when the site is ready.
 
+To restart it from here, CTRL+C in terminal window, then ```python app.py``` again
+
 go to ```http://127.0.0.1:10000```
+
+#
 
 First run will show the setup page. Everything here can be changed afterwards from ```.env``` or the settings dropdown on ```/services```.
 
@@ -103,11 +137,12 @@ The library descriptions you write are saved to ```library_notes.json```, and di
 
 It pulls artwork from your Plex libraries to show in the carousels. I have an audiobook library which mirrors my ABS server so it was easiest for me to just use Plex to pull those images instead of new logic for ABS.
 
-After submission, restart the script to apply the new ```.env``` and go to Login (on windows, ctrl+c in terminal window, then ```python app.py``` again)
+After submission, restart the script to apply the new ```.env``` and go to Login
 
 ```ADMIN_PASSWORD``` will take you to services page, but you can browse the others from the links at the top.
 
 ```SITE_PASSWORD``` will not allow access to admin page
+
 
 # !!! Per-Host Tweaks !!!
 
@@ -156,8 +191,6 @@ Some improvements I might work on after publishing the initial version -
 - Fix looping of carousels (now they just sorta reset to initial pos and keep going that way)
 
 - Rate limiting/better site security
-
-- Way to run it in the background - this is probably possible already but idk that much about self hosting. for testing and sharing with a few friends I just leave the terminal window open with the funnel and script active
 
 - More languages, maybe language dropdown on setup to switch all body text contents
 
