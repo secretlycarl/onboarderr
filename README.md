@@ -33,13 +33,13 @@ I handled the layout, all copywriting/instructions, collected and edited screens
 
 # Features
 
-Setup instructions for Plex and Audiobookshelf users
+- Setup instructions for Plex and Audiobookshelf users
 
-Carousel previews and media lists pulled from your server
+- Carousel previews and media lists pulled from your server
 
-Optional Discord notifications when users request access
+- Optional Discord notifications when users request access
 
-Admin dashboard with basic tools and info
+- Admin dashboard with basic tools and info
 
 **[Screenshots](https://github.com/secretlycarl/onboarderr/tree/main/screenshots)**
 
@@ -75,41 +75,38 @@ Discord - to handle certain admin & user notifications
 Rename ```empty.env``` to ```.env```, and set:
 
 - ```SITE_PASSWORD``` - for guests
-
 - ```ADMIN_PASSWORD``` - for you
-
 - ```DRIVES```(optional) - for a storage bar display in the admin panel.
-
 - ```SECRET_KEY``` - should be a long (>32 chars) string. [pinetools](https://pinetools.com/random-string-generator)
 
-The rest of the config is handled by ```/setup``` on first startup.
+The rest of ```.env``` is filled by ```/setup``` on first startup.
 
 # Dockerized Startup (Recommended)
 
 From the project directory, run:
 
 Linux/macOS:
-```sh
+```
 docker build -t onboarderr .
 docker run -d -p 10000:10000 --name onboarderr -v $(pwd):/app onboarderr
 ```
 
 Windows (PowerShell):
-```powershell
+```
 docker build -t onboarderr .
 docker run -d -p 10000:10000 --name onboarderr -v ${PWD}:/app onboarderr
 ```
 
 Windows (Command Prompt):
-```cmd
+```
 docker build -t onboarderr .
 docker run -d -p 10000:10000 --name onboarderr -v %cd%:/app onboarderr
 ```
 
 - `-v` maps the project folder into the container, so any CSS and HTML changes are reflected on refresh.
-- The site will be available at ```localhost:10000```
 - To apply the changes made to `.env` after setup, restart the container: `docker restart onboarderr`
 - To stop/remove: `docker stop onboarderr && docker rm onboarderr`
+- The site will be available at ```localhost:10000```
 
 # Manual Startup
 
@@ -119,17 +116,14 @@ Create and activate a venv (I use conda), Then:
 
 	python app.py
 
-Site runs on port ```10000``` by default. You can change this at the bottom of ```app.py```.
-
-```debug=True``` at the bottom of ```app.py``` is on for live testing of updates. Make ```False``` when the site is ready.
-
-To restart it from here, CTRL+C in terminal window, then ```python app.py``` again
-
-go to ```http://127.0.0.1:10000```
+- It runs on port ```10000``` by default. You can change this at the bottom of ```app.py```.
+- ```debug=True``` at the bottom of ```app.py``` is on for live testing of updates. Make ```False``` when the site is ready.
+- To restart it from here, CTRL+C in terminal window, then ```python app.py``` again
+- Go to ```http://127.0.0.1:10000```
 
 #
 
-First run will show the setup page. Everything here can be changed afterwards from ```.env``` or the settings dropdown on ```/services```.
+First run will bring you to [setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png). Everything here can be changed afterwards from ```.env``` or the settings dropdown on ```/services```.
 
 The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1.
 
