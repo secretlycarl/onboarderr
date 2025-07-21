@@ -111,7 +111,7 @@ docker run -d -p 10000:10000 --name onboarderr -v %cd%:/app onboarderr
 
 # Manual Startup
 
-Create and activate a venv (I use conda), Then:
+Create and activate a venv (conda or through system python), then:
 
 	pip install -r requirements.txt
 
@@ -124,17 +124,12 @@ Create and activate a venv (I use conda), Then:
 
 #
 
-First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png). Everything here can be changed afterwards from ```.env``` or the settings dropdown on ```/services```.
-
-The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1.
-
-It pulls artwork from your Plex libraries to show in the carousels. I have an audiobook library which mirrors my ABS server so it was easiest for me to just use Plex to pull those images instead of new logic for ABS.
-
-After submission, restart the script to apply the new ```.env``` and go to Login
-
-```ADMIN_PASSWORD``` will take you to services page, but you can browse the others from the links at the top.
-
-```SITE_PASSWORD``` will not allow access to admin page
+- First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png). Everything here can be changed afterwards from ```.env``` or the settings dropdown on ```/services```.
+- The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1.
+- It pulls artwork from your Plex libraries to show in the carousels. I have an audiobook library which mirrors my ABS server so it was easiest for me to just use Plex to pull those images instead of new logic for ABS.
+- After submission, restart the script to apply the new ```.env``` and go to Login
+- ```ADMIN_PASSWORD``` will take you to services page, but you can browse the others from the links at the top.
+- ```SITE_PASSWORD``` will not allow access to admin page
 
 
 # !!! Per-Host Tweaks !!!
