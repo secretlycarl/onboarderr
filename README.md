@@ -85,7 +85,7 @@ Rename ```empty.env``` to ```.env```, and set:
 
 The rest of the config is handled on first startup.
 
-Create and activate a venv, (I use conda). Then:
+Create and activate a venv (I use conda), Then:
 
 	pip install -r requirements.txt
 
