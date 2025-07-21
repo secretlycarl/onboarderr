@@ -110,7 +110,7 @@ docker run -d -p 10000:10000 --name onboarderr -v %cd%:/app onboarderr
 
 - `-v` maps the project folder into the container, so any CSS and HTML changes are reflected on refresh.
 - The site will be available at ```localhost:10000```
-- To apply changes to `.env`, restart the container: `docker restart onboarderr`
+- To apply the changes made to `.env` after setup, restart the container: `docker restart onboarderr`
 - To stop/remove: `docker stop onboarderr && docker rm onboarderr`
 
 # Manual Startup
