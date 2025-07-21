@@ -7,19 +7,19 @@ Self-hosted user onboarding site for Plex and Audiobookshelf server owners
 
 ![Customization Options](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/customexample.png)
 
-Onboarderr serves as a customizable onboarding site site for a host's Plex and (optional) Audiobookshelf servers. It includes user instructions and a basic admin dashboard.
+Onboarderr is a customizable onboarding site for a host's Plex and (optional) Audiobookshelf servers. It includes user instructions, server highlights, and a basic admin dashboard.
 
-It's not exactly plug and play, as I tried to make it customizable for each host and there's some things to tweak before sharing it with users. Might be a little janky.
+It's not exactly plug-n-play, as there are some things to customize before sharing it with users. Might be a little janky.
 
 Please read to the end!
 
 #
 
-As someone who's never made a website before, I made this to accomplish a few goals - 
+As someone who's never made a website before, I wantedd to: 
 
 - Learn about HTML, CSS, websites in general, and self-hosting
 
-- To improve on a few "new user setup" guides I've seen for Plex
+- Improve on a few "new user setup" guides I've seen for Plex
 
 - Offer a more appealing way for friends to join my Plex
 
@@ -33,23 +33,23 @@ I handled the layout, all copywriting/instructions, collected and edited screens
 
 # Features
 
-Up-to-date (as of writing this) instructions for new users to join the host's Plex/Audiobookshelf and get the best streaming experience
+Setup instructions for Plex and Audiobookshelf users
 
 Carousel previews and media lists pulled from your server
 
 Optional Discord notifications when users request access
 
-Admin dashboard
+Admin dashboard with basic tools and info
 
 **[Screenshots](https://github.com/secretlycarl/onboarderr/tree/main/screenshots)**
 
 # Requirements
 
-Python (3.10? idk) on your system's PATH
+Python (3.10+)
 
 Plex Media Server
 
-Some method of making your local server publicly accessible (Try tailscale with tailscale funnel if you're new to self-hosting. Simple and free. I use Cloudflared now to handle a few URLs I want to make public)
+Method of making your local server publicly accessible (Tailscale w/ [Tailscale Funnel](https://tailscale.com/kb/1223/funnel) if you're new to self-hosting. Simple and free. I use [Cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/) now to handle a few URLs I want to make public)
 
 Tested on Windows 11. A Mac user got it working too.
 
@@ -81,27 +81,27 @@ Rename ```empty.env``` to ```.env```, and set:
 
 - ```DRIVES```(optional) - for a storage bar display in the admin panel.
 
-- ```SECRET_KEY``` - should be a long (>32 chars) string. https://pinetools.com/random-string-generator
+- ```SECRET_KEY``` - should be a long (>32 chars) string. [pinetools](https://pinetools.com/random-string-generator)
 
 The rest of the config is handled on first startup.
 
-Create and activate a venv, I prefer to use conda. Then:
+Create and activate a venv, (I use conda). Then:
 
 	pip install -r requirements.txt
 
 	python app.py
 
-The site runs locally on port ```10000```. You can change this at the bottom of ```app.py```.
+Sitee runs on port ```10000``` by default. You can change this at the bottom of ```app.py```.
 
-```debug=True``` at the bottom of ```app.py``` is on for testing, otherwise html changes don't update on reload. make ```False``` when the site is ready.
+```debug=True``` at the bottom of ```app.py``` is on for live testing of updates. Make ```False``` when the site is ready.
 
 go to ```http://127.0.0.1:10000```
 
-First time setup form will show, where you enter all the variables. The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1.
+First run will show the setup page. Everything here can be changed afterwards from ```.env``` or the settings dropdown on ```/services```.
 
-The way I set it up, it pulls artwork from my Plex libraries to show in the carousels. I have an audiobook library with the same content as my ABS server so it was easiest for me to just use Plex to pull those images instead of new logic for ABS.
+The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1.
 
-You can tweak any of this in the services/admin page later
+It pulls artwork from your Plex libraries to show in the carousels. I have an audiobook library which mirrors my ABS server so it was easiest for me to just use Plex to pull those images instead of new logic for ABS.
 
 After submission, restart the script to apply the new ```.env``` and go to Login (on windows, ctrl+c in terminal window, then ```python app.py``` again)
 
@@ -111,33 +111,35 @@ After submission, restart the script to apply the new ```.env``` and go to Login
 
 # !!! Per-Host Tweaks !!!
 
-Once you're through setup and can see the site running, look through all the copy/instructions/etc I wrote and change what you want in the HTMLs.
+After setup, go through the HTMLs and other files, and make any changes to the content to adjust it for you.
 
-Section 5 in ```onboarding.html``` only applies if you have Pulsarr set up.
+Specifically:
 
-Section 7 in ```onboarding.html``` is personalized to me, you should rewrite it
+- Section 5 in ```onboarding.html``` only applies if you have Pulsarr
 
-Pick a new ```--accent``` color in the CSS, this will change all instances of ```#d33fbc``` in the HTML
+- Section 7 in ```onboarding.html``` is personalized to me, you should rewrite it
 
-Make a new logo, favicon, and wordmark. I made the ones it comes with quickly with these sites -
+- Pick a new ```--accent``` color in the CSS, this will change all instances of ```#d33fbc``` in the HTMLs
 
-Simple vector editor - https://vectorink.io/app/canvas
+- Make a new logo, favicon, and wordmark. I made the ones it comes with quickly with these sites -
 
-Wordmark Generator (make output text as big as slider allows) - https://fontmeme.com/netflix-font/
+	- Simple vector editor - https://vectorink.io/app/canvas
 
-If you don't have Tautulli set up with discord notifications, remove mentions of "ask me about my discord".
+	- Wordmark Generator (make output text as big as slider allows) - https://fontmeme.com/netflix-font/
 
-Change the Audiobookshelf server URL in the body of ```audiobookshelf.html``` if you host it and want to share.
+- If you don't have Tautulli + Discord set up, remove mentions of "ask me about my discord"
 
-Edit the ```services = [``` list in ```app.py``` to have the services you want populate the admin page.
+- Change the Audiobookshelf server URL in the body of ```audiobookshelf.html``` if you host it and want to share
 
-Tweak the ```300``` value for ```movies_grouped``` and ```shows_grouped``` in ```app.py```. If the amount of items in either list is greater than that, the list will turn into alphabetical dropdowns.
+- In ```app.py```, edit the ```services = [``` list to change the ones availble on the admin page.
 
-Delete ```plex_submissions.json``` and ```audiobookshelf_submissions.json```. the ones that come with it have example data to populate the requests sections on ```/services```
+- In ```app.py```, adjust the ```300``` threshold for ```movies_grouped``` and ```shows_grouped```. This controls when the lists switch to aplhabetical dropdowns.
+
+- Delete ```plex_submissions.json``` and ```audiobookshelf_submissions.json```. the ones that come with it have example data to populate the requests sections on ```/services```
 
 # Sharing
 
-When ready to share with users, 
+When ready, 
 - Activate your tailscale funnel, cloudflare tunnel, or bingle tube
 - Share the public URL with friends
 
