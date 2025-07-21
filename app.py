@@ -15,6 +15,7 @@ import re
 from collections import defaultdict, OrderedDict
 from flask_wtf.csrf import generate_csrf
 from flask_wtf import CSRFProtect
+import platform
 
 load_dotenv()
 
@@ -61,15 +62,16 @@ def get_plex_libraries():
             libraries.append({"title": title, "key": key})
     return libraries
 
+# --- File read/write: always use utf-8 encoding and os.path.join ---
 def load_library_notes():
     try:
-        with open("library_notes.json", "r") as f:
+        with open(os.path.join(os.getcwd(), "library_notes.json"), "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
         return {}
 
 def save_library_notes(notes):
-    with open("library_notes.json", "w") as f:
+    with open(os.path.join(os.getcwd(), "library_notes.json"), "w", encoding="utf-8") as f:
         json.dump(notes, f, indent=2)
 
 def safe_set_key(env_path, key, value):
@@ -126,12 +128,12 @@ def onboarding():
                 "submitted_at": datetime.utcnow().isoformat() + "Z"
             }
             try:
-                with open("plex_submissions.json", "r") as f:
+                with open(os.path.join(os.getcwd(), "plex_submissions.json"), "r") as f:
                     submissions = json.load(f)
             except FileNotFoundError:
                 submissions = []
             submissions.append(submission_entry)
-            with open("plex_submissions.json", "w") as f:
+            with open(os.path.join(os.getcwd(), "plex_submissions.json"), "w") as f:
                 json.dump(submissions, f, indent=2)
             submitted = True
             send_discord_notification(email, "Plex")
@@ -177,12 +179,12 @@ def audiobookshelf():
                 "submitted_at": datetime.utcnow().isoformat() + "Z"
             }
             try:
-                with open("audiobookshelf_submissions.json", "r") as f:
+                with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "r") as f:
                     submissions = json.load(f)
             except FileNotFoundError:
                 submissions = []
             submissions.append(submission_entry)
-            with open("audiobookshelf_submissions.json", "w") as f:
+            with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "w") as f:
                 json.dump(submissions, f, indent=2)
             submitted = True
             send_discord_notification(email, "Audiobookshelf")
@@ -234,7 +236,7 @@ def services():
         "library_ids" in request.form or
         "audiobookshelf_url" in request.form
     ):
-        env_path = os.path.join(os.path.dirname(__file__), ".env")
+        env_path = os.path.join(os.getcwd(), ".env")
         # Update .env with any non-empty fields (only if they changed)
         for field in ["server_name", "plex_token", "plex_url", "movies_id", "shows_id", "audiobooks_id"]:
             value = request.form.get(field, "").strip()
@@ -263,7 +265,7 @@ def services():
             if desc:
                 library_notes[lib_id] = {"description": desc}
         if library_notes:
-            with open("library_notes.json", "w", encoding="utf-8") as f:
+            with open(os.path.join(os.getcwd(), "library_notes.json"), "w", encoding="utf-8") as f:
                 json.dump(library_notes, f, indent=2)
         # Discord settings
         discord_enabled = request.form.get("discord_enabled")
@@ -297,11 +299,11 @@ def services():
         delete_index = int(request.form.get("delete_index", -1))
         if delete_index >= 0:
             try:
-                with open("plex_submissions.json", "r") as f:
+                with open(os.path.join(os.getcwd(), "plex_submissions.json"), "r") as f:
                     submissions = json.load(f)
                 if 0 <= delete_index < len(submissions):
                     del submissions[delete_index]
-                    with open("plex_submissions.json", "w") as f:
+                    with open(os.path.join(os.getcwd(), "plex_submissions.json"), "w") as f:
                         json.dump(submissions, f, indent=2)
             except Exception as e:
                 print(f"Error deleting submission: {e}")
@@ -309,25 +311,25 @@ def services():
         if audiobookshelf_delete_index is not None:
             try:
                 audiobookshelf_delete_index = int(audiobookshelf_delete_index)
-                with open("audiobookshelf_submissions.json", "r") as f:
+                with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "r") as f:
                     audiobookshelf_submissions = json.load(f)
                 if 0 <= audiobookshelf_delete_index < len(audiobookshelf_submissions):
                     del audiobookshelf_submissions[audiobookshelf_delete_index]
-                    with open("audiobookshelf_submissions.json", "w") as f:
+                    with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "w") as f:
                         json.dump(audiobookshelf_submissions, f, indent=2)
             except Exception as e:
                 print(f"Error deleting audiobookshelf submission: {e}")
 
     # Load Plex submissions
     try:
-        with open("plex_submissions.json", "r") as f:
+        with open(os.path.join(os.getcwd(), "plex_submissions.json"), "r") as f:
             submissions = json.load(f)
     except FileNotFoundError:
         submissions = []
 
     # Load Audiobookshelf submissions
     try:
-        with open("audiobookshelf_submissions.json", "r") as f:
+        with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "r") as f:
             audiobookshelf_submissions = json.load(f)
     except FileNotFoundError:
         audiobookshelf_submissions = []
@@ -346,8 +348,16 @@ def services():
         {"name": "Pulsarr", "url": "http://localhost:3003/", "logo": "pulsarr.webp"}
     ]
 
-    drives = os.getenv("DRIVES", "").split(",")
-    drives = [d.strip() for d in drives if d.strip()]
+    # --- Platform-agnostic drive detection ---
+    drives_env = os.getenv("DRIVES")
+    if not drives_env:
+        if platform.system() == "Windows":
+            drives = ["C:\\"]
+        else:
+            drives = ["/"]
+    else:
+        drives = [d.strip() for d in drives_env.split(",") if d.strip()]
+
     storage_info = []
     for drive in drives:
         try:
@@ -422,6 +432,7 @@ def fetch_libraries():
     except Exception as e:
         return jsonify({"libraries": [], "error": str(e)})
 
+# --- Use os.path.join for all file paths ---
 def download_and_cache_posters():
     headers = {'X-Plex-Token': PLEX_TOKEN}
     movie_dir = os.path.join("static", "posters", "movies")
@@ -681,7 +692,7 @@ def setup_complete():
     return render_template("setup_complete.html")
 
 if __name__ == "__main__":
-    # Always use latest env values for section IDs
+    # --- Dynamic configuration for section IDs ---
     global MOVIES_SECTION_ID, SHOWS_SECTION_ID, AUDIOBOOKS_SECTION_ID
     MOVIES_SECTION_ID = os.getenv("MOVIES_ID")
     SHOWS_SECTION_ID = os.getenv("SHOWS_ID")

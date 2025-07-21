@@ -6,8 +6,27 @@ services:
     working_dir: /app
     volumes:
       - .:/app
-    env_file:
-      - .env
+    environment:
+      - SETUP_COMPLETE=${SETUP_COMPLETE}
+      - SITE_PASSWORD=${SITE_PASSWORD}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - SECRET_KEY=${SECRET_KEY}
+      - DRIVES=${DRIVES}
+      - SERVER_NAME=${SERVER_NAME}
+      - PLEX_TOKEN=${PLEX_TOKEN}
+      - PLEX_URL=${PLEX_URL}
+      - MOVIES_ID=${MOVIES_ID}
+      - SHOWS_ID=${SHOWS_ID}
+      - ABS_ENABLED=${ABS_ENABLED}
+      - AUDIOBOOKSHELF_URL=${AUDIOBOOKSHELF_URL}
+      - AUDIOBOOKS_ID=${AUDIOBOOKS_ID}
+      - LIBRARY_IDS=${LIBRARY_IDS}
+      - LIBRARY_NAMES=${LIBRARY_NAMES}
+      - DISCORD_ENABLED=${DISCORD_ENABLED}
+      - DISCORD_WEBHOOK=${DISCORD_WEBHOOK}
+      - DISCORD_USERNAME=${DISCORD_USERNAME}
+      - DISCORD_AVATAR=${DISCORD_AVATAR}
+      - DISCORD_COLOR=${DISCORD_COLOR}
     ports:
       - "10000:10000"
     command: sh -c "pip install --no-cache-dir -r requirements.txt && python app.py"
