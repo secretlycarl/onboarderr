@@ -91,7 +91,7 @@ Create and activate a venv (I use conda), Then:
 
 	python app.py
 
-Sitee runs on port ```10000``` by default. You can change this at the bottom of ```app.py```.
+Site runs on port ```10000``` by default. You can change this at the bottom of ```app.py```.
 
 ```debug=True``` at the bottom of ```app.py``` is on for live testing of updates. Make ```False``` when the site is ready.
 
