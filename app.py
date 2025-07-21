@@ -33,7 +33,8 @@ PLEX_URL = os.getenv("PLEX_URL")
 def inject_server_name():
     return dict(
         SERVER_NAME=os.getenv("SERVER_NAME", "DefaultName"),
-        ABS_ENABLED=os.getenv("ABS_ENABLED", "yes")
+        ABS_ENABLED=os.getenv("ABS_ENABLED", "yes"),
+        AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", "")
     )
 
 @app.context_processor
@@ -230,7 +231,8 @@ def services():
         "audiobooks_id" in request.form or
         "abs_enabled" in request.form or
         "discord_enabled" in request.form or
-        "library_ids" in request.form
+        "library_ids" in request.form or
+        "audiobookshelf_url" in request.form
     ):
         env_path = os.path.join(os.path.dirname(__file__), ".env")
         # Update .env with any non-empty fields (only if they changed)
@@ -244,6 +246,11 @@ def services():
         current_abs = os.getenv("ABS_ENABLED", "no")
         if abs_enabled in ["yes", "no"] and abs_enabled != current_abs:
             set_key(env_path, "ABS_ENABLED", "yes" if abs_enabled == "yes" else "no")
+        # Audiobookshelf URL
+        audiobookshelf_url = request.form.get("audiobookshelf_url", "").strip()
+        current_abs_url = os.getenv("AUDIOBOOKSHELF_URL", "")
+        if audiobookshelf_url and audiobookshelf_url != current_abs_url:
+            set_key(env_path, "AUDIOBOOKSHELF_URL", audiobookshelf_url)
         # Library IDs (checkboxes)
         library_ids = request.form.getlist("library_ids")
         current_library_ids = os.getenv("LIBRARY_IDS", "")
@@ -378,7 +385,8 @@ def services():
         DISCORD_WEBHOOK=os.getenv("DISCORD_WEBHOOK", ""),
         DISCORD_USERNAME=os.getenv("DISCORD_USERNAME", ""),
         DISCORD_AVATAR=os.getenv("DISCORD_AVATAR", ""),
-        DISCORD_COLOR=os.getenv("DISCORD_COLOR", "")
+        DISCORD_COLOR=os.getenv("DISCORD_COLOR", ""),
+        AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", "")
     )
 
 @app.route("/posters")
@@ -595,6 +603,7 @@ def setup():
         form = request.form
         abs_enabled = form.get("abs_enabled", "")
         audiobooks_id = form.get("audiobooks_id", "").strip()
+        audiobookshelf_url = form.get("audiobookshelf_url", "").strip()
         discord_enabled = form.get("discord_enabled", "")
         discord_webhook = form.get("discord_webhook", "").strip()
         discord_username = form.get("discord_username", "").strip()
@@ -602,9 +611,13 @@ def setup():
         discord_color = form.get("discord_color", "").strip()
 
         # Server-side validation for ABS
-        if abs_enabled == "yes" and not audiobooks_id:
-            error_message = "Some entries are missing: Audiobook Library ID"
-            return render_template("setup.html", error_message=error_message)
+        if abs_enabled == "yes":
+            if not audiobooks_id:
+                error_message = "Some entries are missing: Audiobook Library ID"
+                return render_template("setup.html", error_message=error_message)
+            if not audiobookshelf_url:
+                error_message = "Some entries are missing: Audiobookshelf URL"
+                return render_template("setup.html", error_message=error_message)
 
         # Server-side validation for Discord
         if discord_enabled == "yes" and not discord_webhook:
@@ -619,6 +632,7 @@ def setup():
         safe_set_key(env_path, "ABS_ENABLED", abs_enabled)
         if abs_enabled == "yes":
             safe_set_key(env_path, "AUDIOBOOKS_ID", audiobooks_id)
+            safe_set_key(env_path, "AUDIOBOOKSHELF_URL", audiobookshelf_url)
         # Save Discord settings
         safe_set_key(env_path, "DISCORD_ENABLED", discord_enabled)
         if discord_enabled == "yes":

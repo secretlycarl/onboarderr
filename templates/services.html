@@ -156,6 +156,9 @@
             <label>Audiobook Library ID:<br>
               <input type="text" name="audiobooks_id" id="audiobooks_id" value="{{ AUDIOBOOKS_ID or '' }}" style="width: 100%; margin-top: 0.3em;" disabled>
             </label><br><br>
+            <label>Audiobookshelf Server URL:<br>
+              <input type="text" name="audiobookshelf_url" id="audiobookshelf_url_admin" value="{{ AUDIOBOOKSHELF_URL or '' }}" style="width: 100%; margin-top: 0.3em;" disabled>
+            </label><br><br>
           </div>
           <label style="display:block; margin-bottom: 1.2em;">Enable Discord Notifications?<br>
             <input type="radio" name="discord_enabled" value="yes" {% if DISCORD_ENABLED == 'yes' %}checked{% endif %} onchange="toggleDiscordAdmin()"> Yes
@@ -186,12 +189,15 @@
             var abs = document.querySelector('input[name="abs_enabled"]:checked').value;
             var absSection = document.getElementById('abs-section-admin');
             var absInput = document.getElementById('audiobooks_id');
+            var absUrlInput = document.getElementById('audiobookshelf_url_admin');
             if (abs === 'yes') {
               absSection.style.display = 'block';
               if (absInput) absInput.disabled = false;
+              if (absUrlInput) absUrlInput.disabled = false;
             } else {
               absSection.style.display = 'none';
               if (absInput) absInput.disabled = true;
+              if (absUrlInput) absUrlInput.disabled = true;
             }
           }
           function toggleDiscordAdmin() {

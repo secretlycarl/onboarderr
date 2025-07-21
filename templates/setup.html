@@ -54,6 +54,9 @@
                 <label>Audiobook Library ID:<br>
                     <input type="text" name="audiobooks_id" id="audiobooks_id" class="max-300">
                 </label><br><br>
+                <label>Audiobookshelf Server URL:<br>
+                    <input type="text" name="audiobookshelf_url" id="audiobookshelf_url" class="max-300">
+                </label><br><br>
             </div>
             <label style="display:block; margin-bottom: 1.2em;">Enable Discord Notifications?<br>
                 <input type="radio" name="discord_enabled" value="yes" onchange="toggleDiscord()"> Yes
@@ -83,12 +86,15 @@
                 var abs = document.querySelector('input[name="abs_enabled"]:checked').value;
                 var absSection = document.getElementById('abs-section');
                 var absInput = document.getElementById('audiobooks_id');
+                var audiobookshelfUrlInput = document.getElementById('audiobookshelf_url');
                 if (abs === 'yes') {
                     absSection.style.display = 'block';
                     if (absInput) absInput.disabled = false;
+                    if (audiobookshelfUrlInput) audiobookshelfUrlInput.disabled = false;
                 } else {
                     absSection.style.display = 'none';
                     if (absInput) absInput.disabled = true;
+                    if (audiobookshelfUrlInput) audiobookshelfUrlInput.disabled = true;
                 }
             }
             function toggleDiscord() {
@@ -196,6 +202,7 @@
                 var showsId = document.getElementById('shows_id').value.trim();
                 var absEnabled = document.querySelector('input[name="abs_enabled"]:checked').value;
                 var audiobooksId = document.getElementById('audiobooks_id').value.trim();
+                var audiobookshelfUrl = document.getElementById('audiobookshelf_url').value.trim();
                 var discordEnabled = document.querySelector('input[name="discord_enabled"]:checked').value;
                 var discordWebhook = document.getElementById('discord_webhook').value.trim();
                 var libraryCheckboxes = document.querySelectorAll('input[name="library_ids"]');
@@ -207,7 +214,7 @@
                 var msgDiv = document.getElementById('setup-message');
                 var valid = serverName && plexToken && plexUrl && moviesId && showsId && anyLibraryChecked;
                 if (absEnabled === 'yes') {
-                    valid = valid && audiobooksId;
+                    valid = valid && audiobooksId && audiobookshelfUrl;
                 }
                 if (discordEnabled === 'yes') {
                     valid = valid && discordWebhook;
@@ -231,6 +238,7 @@
                 var showsId = document.getElementById('shows_id').value.trim();
                 var absEnabled = document.querySelector('input[name="abs_enabled"]:checked').value;
                 var audiobooksId = document.getElementById('audiobooks_id').value.trim();
+                var audiobookshelfUrl = document.getElementById('audiobookshelf_url').value.trim();
                 var discordEnabled = document.querySelector('input[name="discord_enabled"]:checked').value;
                 var discordWebhook = document.getElementById('discord_webhook').value.trim();
                 var libraryCheckboxes = document.querySelectorAll('input[name="library_ids"]');
@@ -247,6 +255,7 @@
                 if (!showsId) missing.push('Shows Library ID');
                 if (!anyLibraryChecked) missing.push('At least one Library');
                 if (absEnabled === 'yes' && !audiobooksId) missing.push('Audiobook Library ID');
+                if (absEnabled === 'yes' && !audiobookshelfUrl) missing.push('Audiobookshelf URL');
                 if (discordEnabled === 'yes' && !discordWebhook) missing.push('Discord Webhook URL');
                 if (missing.length > 0) {
                     e.preventDefault();
