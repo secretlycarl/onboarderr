@@ -122,7 +122,7 @@ Create and activate a venv (conda or through system python), then:
 - To restart it from here, CTRL+C in terminal window, then ```python app.py``` again
 - Go to ```http://127.0.0.1:10000```
 
-#
+# Setup Form
 
 - First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png). Everything here can be changed afterwards from ```.env``` or the settings dropdown on ```/services```.
 - The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1.
