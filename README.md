@@ -129,8 +129,6 @@ Specifically:
 
 - If you don't have Tautulli + Discord set up, remove mentions of "ask me about my discord"
 
-- Change the Audiobookshelf server URL in the body of ```audiobookshelf.html``` if you host it and want to share
-
 - In ```app.py```, edit the ```services = [``` list to change the ones availble on the admin page.
 
 - In ```app.py```, adjust the ```300``` threshold for ```movies_grouped``` and ```shows_grouped```. This controls when the lists switch to aplhabetical dropdowns.
