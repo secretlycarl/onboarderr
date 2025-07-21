@@ -154,7 +154,7 @@ Specifically:
 
 - In ```app.py```, edit the ```services = [``` list to change the ones availble on the admin page.
 
-- In ```app.py```, adjust the ```300``` threshold for ```movies_grouped``` and ```shows_grouped```. This controls when the lists switch to aplhabetical dropdowns.
+- In ```app.py```, adjust the ```300``` threshold for ```movies_grouped``` and ```shows_grouped```. This controls when the lists switch to alphabetical dropdowns.
 
 - Delete ```plex_submissions.json``` and ```audiobookshelf_submissions.json```. the ones that come with it have example data to populate the requests sections on ```/services```
 
