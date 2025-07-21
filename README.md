@@ -52,8 +52,6 @@ Plex Media Server
 
 Method of making your local server publicly accessible (Tailscale w/ [Tailscale Funnel](https://tailscale.com/kb/1223/funnel) if you're new to self-hosting. Simple and free. I use [Cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/) now to handle a few URLs I want to make public)
 
-Tested on Windows 11. A Mac user got it working too.
-
 
 # Optional Requirements
 
@@ -84,7 +82,7 @@ Rename ```empty.env``` to ```.env```, and set:
 
 - ```SECRET_KEY``` - should be a long (>32 chars) string. [pinetools](https://pinetools.com/random-string-generator)
 
-The rest of the config is handled on first startup.
+The rest of the config is handled by ```/setup``` on first startup.
 
 # Dockerized Startup (Recommended)
 
