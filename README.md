@@ -29,11 +29,8 @@ I handled the layout, all copywriting/instructions, collected and edited screens
 # Features
 
 - Setup instructions for Plex and Audiobookshelf users
-
 - Carousel previews and media lists pulled from your server
-
 - Optional Discord notifications when users request access
-
 - Admin dashboard with basic tools and info
 
 **[Screenshots](https://github.com/secretlycarl/onboarderr/tree/main/screenshots)**
@@ -136,6 +133,7 @@ Specifically:
 - Pick a new ```--accent``` color in the CSS, this will change all instances of ```#d33fbc``` in the HTMLs
 - Make a new logo, favicon, and wordmark. I made the ones it comes with quickly with these sites -
 	- Simple vector editor - https://vectorink.io/app/canvas
+   		- clearlogo is 300x300, favicon is 32x32
 	- Wordmark Generator (make output text as big as slider allows) - https://fontmeme.com/netflix-font/
 - If you don't have Tautulli + Discord set up, remove mentions of "ask me about my discord"
 - In ```app.py```, edit the ```services = [``` list to change the ones availble on the admin page.
