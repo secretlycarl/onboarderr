@@ -79,7 +79,7 @@ Rename ```empty.env``` to ```.env```, and set:
 - ```DRIVES```(optional) - for a storage bar display in the admin panel.
 - ```SECRET_KEY``` - should be a long (>32 chars) string. [pinetools](https://pinetools.com/random-string-generator)
 
-The rest of ```.env``` is filled by ```/setup``` on first startup.
+The rest of ```.env``` is filled by [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png) on first startup.
 
 # Dockerized Startup (Recommended)
 
@@ -123,7 +123,7 @@ Create and activate a venv (I use conda), Then:
 
 #
 
-First run will bring you to [setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png). Everything here can be changed afterwards from ```.env``` or the settings dropdown on ```/services```.
+First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png). Everything here can be changed afterwards from ```.env``` or the settings dropdown on ```/services```.
 
 The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1.
 
