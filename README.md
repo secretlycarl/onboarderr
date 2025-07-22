@@ -50,7 +50,7 @@ Method of making your local server publicly accessible (Tailscale w/ [Tailscale 
 [Pulsarr](https://github.com/jamcalli/Pulsarr) - Per-user content requests integrated w/ Sonarr & Radarr via Plex watchlist
 - Pulsarr is able to push "media added" notifications through the Plex mobile app via Tautulli integration. Works fine for movies, but does not handle every new episode of shows.
 
-[Tautulli](https://github.com/Tautulli/Tautulli) - Per-user specific "episode/audiobook added" notifications on Discord
+[Tautulli](https://github.com/Tautulli/Tautulli) - Per-user specific "episode/media item added" notifications on Discord
 - If a user wants notifications for each new episode of a show, I create a new private text channel that is only for them on my discord server, then use the info for that channel in Tautulli for a new notification agent. Condition for the Show Name and it directs those notifs to the channel I just made.
 
 [Sonarr](https://github.com/Sonarr/Sonarr) & [Radarr](https://github.com/Radarr/Radarr) - to grab the watchlisted content
@@ -67,7 +67,7 @@ Rename ```empty.env``` to ```.env```, and set:
 
 - ```SITE_PASSWORD``` - for guests
 - ```ADMIN_PASSWORD``` - for you
-- ```DRIVES```(optional) - for a storage bar display in the admin panel.
+- ```DRIVES```(optional) - for a storage bar display in the admin panel. For Linux/Mac/Docker, put ```/mnt/x,/mnt/y``` etc
 - ```SECRET_KEY``` - should be a long (>32 chars) string. [pinetools](https://pinetools.com/random-string-generator)
 
 The rest of ```.env``` is filled by [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png) on first startup.
@@ -79,22 +79,49 @@ From the project directory, run:
 Linux/macOS:
 ```
 docker build -t onboarderr .
-docker run -d -p 10000:10000 --name onboarderr -v $(pwd):/app onboarderr
+docker run -d --restart unless-stopped -p 10000:10000 --name onboarderr -v $(pwd):/app onboarderr
+```
+Or to inlcude mounted drives:
+```
+docker run -d -p 10000:10000 --name onboarderr \
+  --restart unless-stopped \
+  -v $(pwd):/app \
+  -v /mnt/e:/mnt/e \
+  -v /mnt/f:/mnt/f \
+  onboarderr
 ```
 
 Windows (PowerShell):
 ```
 docker build -t onboarderr .
-docker run -d -p 10000:10000 --name onboarderr -v ${PWD}:/app onboarderr
+docker run -d --restart unless-stopped -p 10000:10000 --name onboarderr -v ${PWD}:/app onboarderr
+```
+Mounted Drives version:
+```
+docker run -d -p 10000:10000 --name onboarderr `
+  --restart unless-stopped `
+  -v ${PWD}:/app `
+  -v E:\:/mnt/e `
+  -v F:\:/mnt/f `
+  onboarderr
 ```
 
 Windows (Command Prompt):
 ```
 docker build -t onboarderr .
-docker run -d -p 10000:10000 --name onboarderr -v %cd%:/app onboarderr
+docker run -d --restart unless-stopped -p 10000:10000 --name onboarderr -v %cd%:/app onboarderr
+```
+Mounted Drives version:
+```
+docker run -d -p 10000:10000 --name onboarderr ^
+  --restart unless-stopped ^
+  -v %cd%:/app ^
+  -v E:\:/mnt/e ^
+  -v F:\:/mnt/f ^
+  onboarderr
 ```
 
-- `-v` maps the project folder into the container, so any CSS and HTML changes are reflected on refresh.
+- `-v` maps the project folder and drives into the container, so any CSS and HTML changes are reflected on refresh, and the storage bars work.
 - To apply the changes made to `.env` after setup, restart the container: `docker restart onboarderr`
 - To stop/remove: `docker stop onboarderr && docker rm onboarderr`
 - The site will be available at ```localhost:10000```
@@ -145,6 +172,21 @@ Specifically:
 When ready, 
 - Activate your tailscale funnel, cloudflare tunnel, or bingle tube
 - Share the public URL with friends
+
+# Updates
+
+Option 1:
+```git pull``` will update the repo and notify you if there are any incompatible changes, like if your customizations will overlap with anything from the update
+
+Option 2 - 
+
+```
+git stash	# temporarily saves your changes (html, css, etc)
+git pull	# gets updates
+git stash pop	# re-applies your changes on top
+```
+
+After updating, restart the container to make sure all new changes apply.
 
 # Future goals
 
