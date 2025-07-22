@@ -186,6 +186,8 @@ git pull	# gets updates
 git stash pop	# re-applies your changes on top
 ```
 
+After updating, restart the container to make sure all new changes apply.
+
 # Future goals
 
 I've never made a project this complex, or had a project this many people were interested in, so I'm not clear on how the future development for this will go. I have some ideas to make it better, but getting this all set up in a way that it's customizable and not just for my machine only was a beast itself.
