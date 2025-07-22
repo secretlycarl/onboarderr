@@ -12,10 +12,18 @@
         <h1>Setup Complete!</h1>
         <p style="font-size: 1.2em; color: #080; margin-top: 2em;">
             Your configuration has been saved.<br>
-            <b>Please restart the server to apply changes and continue.</b>
+            <b>The server will restart automatically to apply changes.<br>
+            Please wait a few moments and refresh this page.</b>
         </p>
 
         <a href="/" style="display: inline-block; margin-top: 1em; padding: 0.7em 1em; background: #0042ac; color: #ffffff; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 1.1em;">Go to Login</a>
     </div>
+    <script>
+window.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        fetch('/trigger_restart', {method: 'POST'});
+    }, 1000);
+});
+</script>
 </body>
 </html> 

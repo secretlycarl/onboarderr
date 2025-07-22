@@ -1,0 +1,4 @@
+.env
+/static/posters/Movies/*
+/static/posters/Shows/*
+/static/posters/Audiobooks/*

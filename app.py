@@ -16,6 +16,11 @@ from collections import defaultdict, OrderedDict
 from flask_wtf.csrf import generate_csrf
 from flask_wtf import CSRFProtect
 import platform
+import subprocess
+import os
+import signal
+import threading
+import time
 
 load_dotenv()
 
@@ -77,6 +82,7 @@ def save_library_notes(notes):
 def safe_set_key(env_path, key, value):
     if value != "":
         set_key(env_path, key, value, quote_mode="never")
+
 
 def send_discord_notification(email, service_type):
     """Send Discord notification for form submissions"""
@@ -593,6 +599,7 @@ def get_random_audiobook_covers():
     return jsonify(paths)
 
 def is_setup_complete():
+# DEBUG!!!!
     return os.getenv("SETUP_COMPLETE") == "1"
 
 @app.before_request
@@ -603,12 +610,33 @@ def check_setup():
         if request.endpoint not in allowed_endpoints and not request.path.startswith("/static"):
             return redirect(url_for("setup"))
 
+@app.before_request
+def show_restarting_page():
+    if os.path.exists("/tmp/restarting_server"):
+        return render_template("restarting.html"), 503
+
+def restart_container_delayed():
+    with open("/tmp/restarting_server", "w") as f:
+        f.write("restarting")
+    time.sleep(2)  # Give browser time to receive the response
+    os.kill(os.getpid(), signal.SIGTERM)
+
+@app.route("/trigger_restart", methods=["POST"])
+@csrf.exempt
+def trigger_restart():
+    if is_setup_complete():
+        # Setup is already complete, do not allow restart
+        return jsonify({"error": "Forbidden"}), 403
+    threading.Thread(target=restart_container_delayed, daemon=True).start()
+    return jsonify({"status": "restarting"})
+
 @app.route("/setup", methods=["GET", "POST"])
 def setup():
     if is_setup_complete():
         return redirect(url_for("login"))
     error_message = None
     if request.method == "POST":
+        from dotenv import set_key
         env_path = os.path.join(os.getcwd(), ".env")
         form = request.form
         abs_enabled = form.get("abs_enabled", "")
@@ -691,6 +719,9 @@ def setup_complete():
     return render_template("setup_complete.html")
 
 if __name__ == "__main__":
+    # Remove the restart flag file if it exists
+    if os.path.exists("/tmp/restarting_server"):
+        os.remove("/tmp/restarting_server")
     # --- Dynamic configuration for section IDs ---
     global MOVIES_SECTION_ID, SHOWS_SECTION_ID, AUDIOBOOKS_SECTION_ID
     MOVIES_SECTION_ID = os.getenv("MOVIES_ID")
