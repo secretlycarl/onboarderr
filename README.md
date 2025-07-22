@@ -67,7 +67,7 @@ Rename ```empty.env``` to ```.env```, and set:
 
 - ```SITE_PASSWORD``` - for guests
 - ```ADMIN_PASSWORD``` - for you
-- ```DRIVES```(optional) - for a storage bar display in the admin panel.
+- ```DRIVES```(optional) - for a storage bar display in the admin panel. For Linux/Mac/Docker, put ```/mnt/x, /mnt/y``` etc
 - ```SECRET_KEY``` - should be a long (>32 chars) string. [pinetools](https://pinetools.com/random-string-generator)
 
 The rest of ```.env``` is filled by [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png) on first startup.
@@ -81,11 +81,28 @@ Linux/macOS:
 docker build -t onboarderr .
 docker run -d -p 10000:10000 --name onboarderr -v $(pwd):/app onboarderr
 ```
+Or to inlcude mounted drives:
+```
+docker run -d -p 10000:10000 --name onboarderr \
+  -v $(pwd):/app \
+  -v /mnt/e:/mnt/e \
+  -v /mnt/f:/mnt/f \
+  onboarderr
+```
 
 Windows (PowerShell):
 ```
 docker build -t onboarderr .
 docker run -d -p 10000:10000 --name onboarderr -v ${PWD}:/app onboarderr
+```
+Mounted Drives version:
+```
+docker run -d -p 10000:10000 --name onboarderr `
+  -v ${PWD}:/app `
+  -v E:\:/mnt/e `
+  -v F:\:/mnt/f `
+  --env-file .env `
+  onboarderr
 ```
 
 Windows (Command Prompt):
@@ -93,8 +110,17 @@ Windows (Command Prompt):
 docker build -t onboarderr .
 docker run -d -p 10000:10000 --name onboarderr -v %cd%:/app onboarderr
 ```
+Mounted Drives version:
+```
+docker run -d -p 10000:10000 --name onboarderr ^
+  -v %cd%:/app ^
+  -v E:\:/mnt/e ^
+  -v F:\:/mnt/f ^
+  --env-file .env ^
+  onboarderr
+```
 
-- `-v` maps the project folder into the container, so any CSS and HTML changes are reflected on refresh.
+- `-v` maps the project folder and drives into the container, so any CSS and HTML changes are reflected on refresh, and the storage bars work.
 - To apply the changes made to `.env` after setup, restart the container: `docker restart onboarderr`
 - To stop/remove: `docker stop onboarderr && docker rm onboarderr`
 - The site will be available at ```localhost:10000```
