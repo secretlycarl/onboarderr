@@ -173,6 +173,19 @@ When ready,
 - Activate your tailscale funnel, cloudflare tunnel, or bingle tube
 - Share the public URL with friends
 
+# Updates
+
+Option 1:
+```git pull``` will update the repo and notify you if there are any incompatible changes, like if your customizations will overlap with anything from the update
+
+Option 2 - 
+
+```
+git stash	# temporarily saves your changes (html, css, etc)
+git pull	# gets updates
+git stash pop	# re-applies your changes on top
+```
+
 # Future goals
 
 I've never made a project this complex, or had a project this many people were interested in, so I'm not clear on how the future development for this will go. I have some ideas to make it better, but getting this all set up in a way that it's customizable and not just for my machine only was a beast itself.
