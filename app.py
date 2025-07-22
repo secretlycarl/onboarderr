@@ -74,7 +74,7 @@ def save_library_notes(notes):
 
 def safe_set_key(env_path, key, value):
     if value != "":
-        set_key(env_path, key, value)
+        set_key(env_path, key, value, quote_mode="never")
 
 def send_discord_notification(email, service_type):
     """Send Discord notification for form submissions"""
@@ -240,22 +240,22 @@ def services():
             value = request.form.get(field, "").strip()
             current_value = os.getenv(field.upper(), "")
             if value and value != current_value:
-                set_key(env_path, field.upper(), value)
+                safe_set_key(env_path, field.upper(), value)
         # ABS enabled/disabled
         abs_enabled = request.form.get("abs_enabled")
         current_abs = os.getenv("ABS_ENABLED", "no")
         if abs_enabled in ["yes", "no"] and abs_enabled != current_abs:
-            set_key(env_path, "ABS_ENABLED", "yes" if abs_enabled == "yes" else "no")
+            safe_set_key(env_path, "ABS_ENABLED", "yes" if abs_enabled == "yes" else "no")
         # Audiobookshelf URL
         audiobookshelf_url = request.form.get("audiobookshelf_url", "").strip()
         current_abs_url = os.getenv("AUDIOBOOKSHELF_URL", "")
         if audiobookshelf_url and audiobookshelf_url != current_abs_url:
-            set_key(env_path, "AUDIOBOOKSHELF_URL", audiobookshelf_url)
+            safe_set_key(env_path, "AUDIOBOOKSHELF_URL", audiobookshelf_url)
         # Library IDs (checkboxes)
         library_ids = request.form.getlist("library_ids")
         current_library_ids = os.getenv("LIBRARY_IDS", "")
         if library_ids and ",".join(library_ids) != current_library_ids:
-            set_key(env_path, "LIBRARY_IDS", ",".join(library_ids))
+            safe_set_key(env_path, "LIBRARY_IDS", ",".join(library_ids))
         # Library descriptions (optional)
         library_notes = {}
         for lib_id in library_ids:
@@ -269,27 +269,27 @@ def services():
         discord_enabled = request.form.get("discord_enabled")
         current_discord = os.getenv("DISCORD_ENABLED", "no")
         if discord_enabled in ["yes", "no"] and discord_enabled != current_discord:
-            set_key(env_path, "DISCORD_ENABLED", discord_enabled)
+            safe_set_key(env_path, "DISCORD_ENABLED", discord_enabled)
         
         discord_webhook = request.form.get("discord_webhook", "").strip()
         current_webhook = os.getenv("DISCORD_WEBHOOK", "")
         if discord_webhook and discord_webhook != current_webhook:
-            set_key(env_path, "DISCORD_WEBHOOK", discord_webhook)
+            safe_set_key(env_path, "DISCORD_WEBHOOK", discord_webhook)
         
         discord_username = request.form.get("discord_username", "").strip()
         current_username = os.getenv("DISCORD_USERNAME", "")
         if discord_username and discord_username != current_username:
-            set_key(env_path, "DISCORD_USERNAME", discord_username)
+            safe_set_key(env_path, "DISCORD_USERNAME", discord_username)
         
         discord_avatar = request.form.get("discord_avatar", "").strip()
         current_avatar = os.getenv("DISCORD_AVATAR", "")
         if discord_avatar and discord_avatar != current_avatar:
-            set_key(env_path, "DISCORD_AVATAR", discord_avatar)
+            safe_set_key(env_path, "DISCORD_AVATAR", discord_avatar)
         
         discord_color = request.form.get("discord_color", "").strip()
         current_color = os.getenv("DISCORD_COLOR", "")
         if discord_color and discord_color != current_color:
-            set_key(env_path, "DISCORD_COLOR", discord_color)
+            safe_set_key(env_path, "DISCORD_COLOR", discord_color)
         return redirect(url_for("setup_complete"))
 
     # Handle Plex/Audiobookshelf request deletion
@@ -598,7 +598,6 @@ def setup():
         return redirect(url_for("login"))
     error_message = None
     if request.method == "POST":
-        from dotenv import set_key
         env_path = os.path.join(os.getcwd(), ".env")
         form = request.form
         abs_enabled = form.get("abs_enabled", "")
@@ -624,11 +623,11 @@ def setup():
             error_message = "Some entries are missing: Discord Webhook URL"
             return render_template("setup.html", error_message=error_message)
 
-        set_key(env_path, "SERVER_NAME", form.get("server_name", ""))
-        set_key(env_path, "PLEX_TOKEN", form.get("plex_token", ""))
-        set_key(env_path, "PLEX_URL", form.get("plex_url", ""))
-        set_key(env_path, "MOVIES_ID", form.get("movies_id", ""))
-        set_key(env_path, "SHOWS_ID", form.get("shows_id", ""))
+        safe_set_key(env_path, "SERVER_NAME", form.get("server_name", ""))
+        safe_set_key(env_path, "PLEX_TOKEN", form.get("plex_token", ""))
+        safe_set_key(env_path, "PLEX_URL", form.get("plex_url", ""))
+        safe_set_key(env_path, "MOVIES_ID", form.get("movies_id", ""))
+        safe_set_key(env_path, "SHOWS_ID", form.get("shows_id", ""))
         safe_set_key(env_path, "ABS_ENABLED", abs_enabled)
         if abs_enabled == "yes":
             safe_set_key(env_path, "AUDIOBOOKS_ID", audiobooks_id)
@@ -658,8 +657,8 @@ def setup():
                 root = ET.fromstring(response.text)
                 id_to_title = {d.attrib.get("key"): d.attrib.get("title") for d in root.findall(".//Directory")}
                 selected_titles = [id_to_title.get(i, f"Unknown ({i})") for i in library_ids]
-                set_key(env_path, "LIBRARY_IDS", ",".join(library_ids))
-                set_key(env_path, "LIBRARY_NAMES", ",".join([t or "" for t in selected_titles]))
+                safe_set_key(env_path, "LIBRARY_IDS", ",".join(library_ids))
+                safe_set_key(env_path, "LIBRARY_NAMES", ",".join([t or "" for t in selected_titles]))
                 # Save library notes with title and description
                 for lib_id in library_ids:
                     desc = form.get(f"library_desc_{lib_id}", "")
@@ -669,9 +668,9 @@ def setup():
                     }
                 save_library_notes(library_notes)
             except Exception as e:
-                set_key(env_path, "LIBRARY_IDS", ",".join(library_ids))
-                set_key(env_path, "LIBRARY_NAMES", "")
-        set_key(env_path, "SETUP_COMPLETE", "1")
+                safe_set_key(env_path, "LIBRARY_IDS", ",".join(library_ids))
+                safe_set_key(env_path, "LIBRARY_NAMES", "")
+        safe_set_key(env_path, "SETUP_COMPLETE", "1")
         load_dotenv(override=True)
         return redirect(url_for("setup_complete"))
     return render_template("setup.html", error_message=error_message)
