@@ -74,7 +74,13 @@ The rest of ```.env``` is filled by [/setup](https://github.com/secretlycarl/onb
 
 # Dockerized Startup (Recommended)
 
-From the project directory, run:
+From the project directory, choose a following option:
+
+### Docker Compose
+We Have included a compose.yml file for use with docker compose. Follow the directions above to complete your first time setup and then run `docker compose up -d` to start the app. 
+
+
+### Manually Building
 
 Linux/macOS:
 ```
