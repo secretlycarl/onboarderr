@@ -79,11 +79,12 @@ From the project directory, run:
 Linux/macOS:
 ```
 docker build -t onboarderr .
-docker run -d -p 10000:10000 --name onboarderr -v $(pwd):/app onboarderr
+docker run -d --restart unless-stopped -p 10000:10000 --name onboarderr -v $(pwd):/app onboarderr
 ```
 Or to inlcude mounted drives:
 ```
 docker run -d -p 10000:10000 --name onboarderr \
+  --restart unless-stopped \
   -v $(pwd):/app \
   -v /mnt/e:/mnt/e \
   -v /mnt/f:/mnt/f \
@@ -93,11 +94,12 @@ docker run -d -p 10000:10000 --name onboarderr \
 Windows (PowerShell):
 ```
 docker build -t onboarderr .
-docker run -d -p 10000:10000 --name onboarderr -v ${PWD}:/app onboarderr
+docker run -d --restart unless-stopped -p 10000:10000 --name onboarderr -v ${PWD}:/app onboarderr
 ```
 Mounted Drives version:
 ```
 docker run -d -p 10000:10000 --name onboarderr `
+  --restart unless-stopped `
   -v ${PWD}:/app `
   -v E:\:/mnt/e `
   -v F:\:/mnt/f `
@@ -108,11 +110,12 @@ docker run -d -p 10000:10000 --name onboarderr `
 Windows (Command Prompt):
 ```
 docker build -t onboarderr .
-docker run -d -p 10000:10000 --name onboarderr -v %cd%:/app onboarderr
+docker run -d --restart unless-stopped -p 10000:10000 --name onboarderr -v %cd%:/app onboarderr
 ```
 Mounted Drives version:
 ```
 docker run -d -p 10000:10000 --name onboarderr ^
+  --restart unless-stopped ^
   -v %cd%:/app ^
   -v E:\:/mnt/e ^
   -v F:\:/mnt/f ^
