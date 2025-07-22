@@ -67,7 +67,7 @@ Rename ```empty.env``` to ```.env```, and set:
 
 - ```SITE_PASSWORD``` - for guests
 - ```ADMIN_PASSWORD``` - for you
-- ```DRIVES```(optional) - for a storage bar display in the admin panel. For Linux/Mac/Docker, put ```/mnt/x, /mnt/y``` etc
+- ```DRIVES```(optional) - for a storage bar display in the admin panel. For Linux/Mac/Docker, put ```/mnt/x,/mnt/y``` etc
 - ```SECRET_KEY``` - should be a long (>32 chars) string. [pinetools](https://pinetools.com/random-string-generator)
 
 The rest of ```.env``` is filled by [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png) on first startup.
