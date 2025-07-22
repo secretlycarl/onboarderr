@@ -103,7 +103,6 @@ docker run -d -p 10000:10000 --name onboarderr `
   -v ${PWD}:/app `
   -v E:\:/mnt/e `
   -v F:\:/mnt/f `
-  --env-file .env `
   onboarderr
 ```
 
@@ -119,7 +118,6 @@ docker run -d -p 10000:10000 --name onboarderr ^
   -v %cd%:/app ^
   -v E:\:/mnt/e ^
   -v F:\:/mnt/f ^
-  --env-file .env ^
   onboarderr
 ```
 
