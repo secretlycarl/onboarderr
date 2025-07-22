@@ -50,7 +50,7 @@ Method of making your local server publicly accessible (Tailscale w/ [Tailscale 
 [Pulsarr](https://github.com/jamcalli/Pulsarr) - Per-user content requests integrated w/ Sonarr & Radarr via Plex watchlist
 - Pulsarr is able to push "media added" notifications through the Plex mobile app via Tautulli integration. Works fine for movies, but does not handle every new episode of shows.
 
-[Tautulli](https://github.com/Tautulli/Tautulli) - Per-user specific "episode/audiobook added" notifications on Discord
+[Tautulli](https://github.com/Tautulli/Tautulli) - Per-user specific "episode/media item added" notifications on Discord
 - If a user wants notifications for each new episode of a show, I create a new private text channel that is only for them on my discord server, then use the info for that channel in Tautulli for a new notification agent. Condition for the Show Name and it directs those notifs to the channel I just made.
 
 [Sonarr](https://github.com/Sonarr/Sonarr) & [Radarr](https://github.com/Radarr/Radarr) - to grab the watchlisted content
