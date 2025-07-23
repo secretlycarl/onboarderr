@@ -92,8 +92,7 @@ Or to inlcude mounted drives:
 docker run -d -p 10000:10000 --name onboarderr \
   --restart unless-stopped \
   -v $(pwd):/app \
-  -v /mnt/e:/mnt/e \
-  -v /mnt/f:/mnt/f \
+  -v /media:/media \
   onboarderr
 ```
 
@@ -107,8 +106,7 @@ Mounted Drives version:
 docker run -d -p 10000:10000 --name onboarderr `
   --restart unless-stopped `
   -v ${PWD}:/app `
-  -v E:\:/mnt/e `
-  -v F:\:/mnt/f `
+  -v /media:/media `
   onboarderr
 ```
 
@@ -122,8 +120,7 @@ Mounted Drives version:
 docker run -d -p 10000:10000 --name onboarderr ^
   --restart unless-stopped ^
   -v %cd%:/app ^
-  -v E:\:/mnt/e ^
-  -v F:\:/mnt/f ^
+  -v /media:/media ^
   onboarderr
 ```
 
