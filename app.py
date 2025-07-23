@@ -190,11 +190,12 @@ def onboarding():
         section_id = lib["key"]
         name = lib["title"]
         poster_dir = os.path.join("static", "posters", section_id)
-        poster_urls = []
-        for i in range(1, 26):
-            poster_path = f"/static/posters/{section_id}/poster{i}.webp"
-            if os.path.exists(os.path.join("static", "posters", section_id, f"poster{i}.webp")):
-                poster_urls.append(poster_path)
+        if os.path.exists(poster_dir):
+            all_files = [f for f in os.listdir(poster_dir) if f.lower().endswith(('.webp', '.jpg', '.jpeg', '.png'))]
+            random.shuffle(all_files)
+            poster_urls = [f"/static/posters/{section_id}/{fname}" for fname in all_files[:25]]
+        else:
+            poster_urls = []
         library_posters[name] = poster_urls
 
     pulsarr_enabled = bool(os.getenv("PULSARR"))
@@ -592,9 +593,12 @@ def download_and_cache_posters_for_libraries(libraries, limit=25):
                 thumb = el.attrib.get("thumb")
                 if thumb and thumb not in posters:
                     posters.append(thumb)
-            for i, rel_path in enumerate(posters[:limit]):
-                img_url = f"{PLEX_URL}{rel_path}?X-Plex-Token={PLEX_TOKEN}"
+            random.shuffle(posters)
+            for i, rel_path in enumerate(posters):
                 out_path = os.path.join(lib_dir, f"poster{i+1}.webp")
+                if os.path.exists(out_path):
+                    continue  # Skip if already cached
+                img_url = f"{PLEX_URL}{rel_path}?X-Plex-Token={PLEX_TOKEN}"
                 try:
                     r = requests.get(img_url, headers=headers)
                     with open(out_path, "wb") as f:
@@ -798,6 +802,15 @@ def setup():
 def setup_complete():
     return render_template("setup_complete.html")
 
+def periodic_poster_refresh(libraries, interval_hours=6):
+    def refresh():
+        while True:
+            print("[INFO] Refreshing library posters...")
+            download_and_cache_posters_for_libraries(libraries)
+            time.sleep(interval_hours * 3600)
+    t = threading.Thread(target=refresh, daemon=True)
+    t.start()
+
 if __name__ == "__main__":
     # Remove the restart flag file if it exists
     if os.path.exists("/tmp/restarting_server"):
@@ -816,4 +829,6 @@ if __name__ == "__main__":
         download_and_cache_posters_for_libraries(libraries)
     except Exception as e:
         print(f"Warning: Could not download posters: {e}")
+    # After initial poster download
+    periodic_poster_refresh(libraries, interval_hours=6)  # Refresh every 6 hours
     app.run(host="0.0.0.0", port=10000, debug=True)
