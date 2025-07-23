@@ -11,16 +11,23 @@
   <div class="container">
     <h1>Welcome to Plex!</h1>
 
-    <div class="poster-carousel-container">
-      <div class="poster-carousel" id="poster-carousel"></div>
-    </div>
-
-    <div class="poster-carousel-container">
-      <div class="poster-carousel" id="show-poster-carousel"></div>
+    <div class="library-poster-carousels" style="display: flex; flex-wrap: wrap; gap: 2em; align-items: flex-start; justify-content: flex-start;">
+      {% for lib_name, posters in library_posters.items() %}
+        <div style="min-width: 320px; max-width: 400px; flex: 1 1 320px;">
+          <h3 style="text-align:center;">{{ lib_name }}</h3>
+          <div class="poster-carousel-container">
+            <div class="poster-carousel animate">
+              {% for poster in posters %}
+                <img src="{{ poster }}" class="carousel-img" alt="{{ lib_name }} poster" loading="lazy">
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
     </div>
 
     <p class="muted">
-     Random selection of 25 movies and shows on my server. Go <a href="/medialists" class="accent">here</a> for the full list.
+     Random selection of posters from each library. Go <a href="/medialists" class="accent">here</a> for the full list.
     </p>
 
     <p class="max-850">
@@ -302,20 +309,6 @@
   </script>
 
   <script>
-  fetch('/posters')
-    .then(res => res.json())
-    .then(paths => {
-      const container = document.getElementById('poster-carousel');
-      container.innerHTML = paths.map(path => `<img src="${path}" class="carousel-img" alt="Movie poster" loading="lazy">`).join('');
-      container.classList.add('animate');
-    });
-  fetch('/show-posters')
-    .then(res => res.json())
-    .then(paths => {
-      const container = document.getElementById('show-poster-carousel');
-      container.innerHTML = paths.map(path => `<img src="${path}" class="carousel-img" alt="Show poster" loading="lazy">`).join('');
-      container.classList.add('animate');
-    });
   </script>
 
   <script>

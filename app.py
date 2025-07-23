@@ -162,9 +162,23 @@ def onboarding():
         print(f"Failed to get Plex libraries: {e}")
         libraries = []
 
+    # Build static poster URLs for each library
+    library_posters = {}
+    for lib in libraries:
+        section_id = lib["key"]
+        name = lib["title"]
+        poster_dir = os.path.join("static", "posters", section_id)
+        poster_urls = []
+        for i in range(1, 26):
+            poster_path = f"/static/posters/{section_id}/poster{i}.webp"
+            if os.path.exists(os.path.join("static", "posters", section_id, f"poster{i}.webp")):
+                poster_urls.append(poster_path)
+        library_posters[name] = poster_urls
+
     pulsarr_enabled = bool(os.getenv("PULSARR"))
     overseerr_enabled = bool(os.getenv("OVERSEERR"))
     overseerr_url = os.getenv("OVERSEERR", "")
+
     return render_template(
         "onboarding.html",
         libraries=libraries,
@@ -172,7 +186,8 @@ def onboarding():
         library_notes=library_notes,
         pulsarr_enabled=pulsarr_enabled,
         overseerr_enabled=overseerr_enabled,
-        overseerr_url=overseerr_url
+        overseerr_url=overseerr_url,
+        library_posters=library_posters
     )
 
 @app.route("/audiobookshelf", methods=["GET", "POST"])
@@ -535,6 +550,38 @@ def download_and_cache_posters():
     if os.getenv("ABS_ENABLED", "yes") == "yes":
         save_images(AUDIOBOOKS_SECTION_ID, audiobook_dir, "audiobook", 25)
 
+def download_and_cache_posters_for_libraries(libraries, limit=25):
+    headers = {"X-Plex-Token": PLEX_TOKEN}
+    for lib in libraries:
+        section_id = lib["key"]
+        lib_dir = os.path.join("static", "posters", section_id)
+        os.makedirs(lib_dir, exist_ok=True)
+        url = f"{PLEX_URL}/library/sections/{section_id}/all"
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            root = ET.fromstring(response.content)
+            posters = []
+            for el in root.findall(".//Video"):
+                thumb = el.attrib.get("thumb")
+                if thumb:
+                    posters.append(thumb)
+            for el in root.findall(".//Directory"):
+                thumb = el.attrib.get("thumb")
+                if thumb and thumb not in posters:
+                    posters.append(thumb)
+            for i, rel_path in enumerate(posters[:limit]):
+                img_url = f"{PLEX_URL}{rel_path}?X-Plex-Token={PLEX_TOKEN}"
+                out_path = os.path.join(lib_dir, f"poster{i+1}.webp")
+                try:
+                    r = requests.get(img_url, headers=headers)
+                    with open(out_path, "wb") as f:
+                        f.write(r.content)
+                except Exception as e:
+                    print(f"Error saving {img_url}: {e}")
+        except Exception as e:
+            print(f"Error fetching posters for section {section_id}: {e}")
+
 def group_titles_by_letter(titles):
     groups = defaultdict(list)
     for title in titles:
@@ -558,8 +605,7 @@ def medialists():
     if not session.get("authenticated"):
         return redirect(url_for("login"))
 
-    # Movies and Shows: get all titles from the section
-    def fetch_titles(section_id, is_show=False):
+    def fetch_titles_for_library(section_id):
         titles = []
         if not section_id:
             return titles
@@ -569,66 +615,40 @@ def medialists():
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
             root = ET.fromstring(response.content)
-            if is_show:
-                for show in root.findall(".//Directory"):
-                    title = show.attrib.get("title")
-                    if title:
-                        titles.append(title)
-            else:
-                for video in root.findall(".//Video"):
-                    title = video.attrib.get("title")
-                    if title:
-                        titles.append(title)
+            for el in root.findall(".//Video"):
+                title = el.attrib.get("title")
+                if title:
+                    titles.append(title)
+            for el in root.findall(".//Directory"):
+                title = el.attrib.get("title")
+                if title and title not in titles:
+                    titles.append(title)
         except Exception as e:
             print(f"Error fetching titles for section {section_id}: {e}")
         return titles
 
-    # Audiobooks: group by author, each author has a list of books
-    def fetch_audiobooks(section_id):
-        books = {}
-        if not section_id:
-            return books
-        headers = {"X-Plex-Token": PLEX_TOKEN}
-        url = f"{PLEX_URL}/library/sections/{section_id}/all"
-        try:
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            root = ET.fromstring(response.content)
-            for author in root.findall(".//Directory"):
-                author_name = author.attrib.get("title")
-                author_key = author.attrib.get("key")
-                if author_name and author_key:
-                    author_url = f"{PLEX_URL}{author_key}?X-Plex-Token={PLEX_TOKEN}"
-                    author_resp = requests.get(author_url, headers=headers)
-                    if author_resp.status_code == 200:
-                        author_root = ET.fromstring(author_resp.content)
-                        books[author_name] = []
-                        for book in author_root.findall(".//Directory"):
-                            book_title = book.attrib.get("title")
-                            if book_title:
-                                books[author_name].append(book_title)
-        except Exception as e:
-            print(f"Error fetching audiobooks: {e}")
-        return books
+    # Get all libraries
+    try:
+        libraries = get_plex_libraries()
+    except Exception as e:
+        print(f"Failed to get Plex libraries: {e}")
+        libraries = []
 
-    movies = fetch_titles(MOVIES_SECTION_ID)
-    shows = fetch_titles(SHOWS_SECTION_ID, is_show=True)
-    audiobooks = {}
-    abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
-    if abs_enabled and AUDIOBOOKS_SECTION_ID:
-        audiobooks = fetch_audiobooks(AUDIOBOOKS_SECTION_ID)
+    # Only include libraries specified in LIBRARY_IDS
+    selected_ids = os.getenv("LIBRARY_IDS", "")
+    selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
+    filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
 
-    movies_grouped = group_titles_by_letter(movies) if len(movies) > 300 else None
-    shows_grouped = group_titles_by_letter(shows) if len(shows) > 300 else None
+    library_media = {}
+    for lib in filtered_libraries:
+        section_id = lib["key"]
+        name = lib["title"]
+        titles = fetch_titles_for_library(section_id)
+        library_media[name] = group_titles_by_letter(titles)
 
     return render_template(
         "medialists.html",
-        movies=movies,
-        shows=shows,
-        audiobooks=audiobooks if abs_enabled else None,
-        abs_enabled=abs_enabled,
-        movies_grouped=movies_grouped,
-        shows_grouped=shows_grouped
+        library_media=library_media
     )
 
 @app.route("/audiobook-covers")
@@ -766,7 +786,12 @@ if __name__ == "__main__":
     SHOWS_SECTION_ID = os.getenv("SHOWS_ID")
     AUDIOBOOKS_SECTION_ID = os.getenv("AUDIOBOOKS_ID")
     try:
-        download_and_cache_posters()
+        # Download posters for all libraries in LIBRARY_IDS
+        selected_ids = os.getenv("LIBRARY_IDS", "")
+        selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
+        all_libraries = get_plex_libraries()
+        libraries = [lib for lib in all_libraries if lib["key"] in selected_ids]
+        download_and_cache_posters_for_libraries(libraries)
     except Exception as e:
         print(f"Warning: Could not download posters: {e}")
     app.run(host="0.0.0.0", port=10000, debug=True)

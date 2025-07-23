@@ -8,23 +8,14 @@
 </head>
 <body>
     {% include "_bottom_nav.html" %}
-    <div class="container medialists-container">
+    <div class="container medialists-container" style="max-width: 1600px; width: 95vw; margin: 0 auto;">
         <h1>Media Lists</h1>
-        <div style="display: flex; gap: 2em; justify-content: left;">
-            <div>
-                <label for="list-select">Select list:</label>
-                <select id="list-select" style="margin: 0.5em 0 1em 0;">
-                <option value="movies">Movies</option>
-                <option value="shows">Shows</option>
-                {% if abs_enabled and audiobooks %}
-                <option value="audiobooks">Audiobooks</option>
-                {% endif %}
-                </select>
-
-                <div id="movies-list">
-                <h3>Movies</h3>
-                {% if movies_grouped %}
-                    {% for letter, titles in movies_grouped.items() %}
+        <div class="library-grid">
+        {% for lib_name, groups in library_media.items() %}
+            <div class="library-col">
+                <h3>{{ lib_name }}</h3>
+                {% if groups %}
+                    {% for letter, titles in groups.items() %}
                         <details>
                             <summary class="collapsible-heading">{{ letter }}</summary>
                             <ul>
@@ -38,63 +29,32 @@
                         </details>
                     {% endfor %}
                 {% else %}
-                    <ul>
-                        {% for title in movies %}
-                            <li>
-                                {{ title }} -
-                                <a href="https://www.imdb.com/find/?q={{ title | urlencode }}" target="_blank">IMDB</a>
-                            </li>
-                        {% endfor %}
-                    </ul>
+                    <p class="muted">No items found in this library.</p>
                 {% endif %}
-                </div>
-
-                <div id="shows-list" style="display: none;">
-                <h3>Shows</h3>
-                {% if shows_grouped %}
-                    {% for letter, titles in shows_grouped.items() %}
-                        <details>
-                            <summary class="collapsible-heading">{{ letter }}</summary>
-                            <ul>
-                                {% for title in titles %}
-                                    <li>
-                                        {{ title }} -
-                                        <a href="https://www.imdb.com/find/?q={{ title | urlencode }}" target="_blank">IMDB</a>
-                                    </li>
-                                {% endfor %}
-                            </ul>
-                        </details>
-                    {% endfor %}
-                {% else %}
-                    <ul>
-                        {% for title in shows %}
-                            <li>
-                                {{ title }} -
-                                <a href="https://www.imdb.com/find/?q={{ title | urlencode }}" target="_blank">IMDB</a>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                {% endif %}
-                </div>
-
-                {% if abs_enabled and audiobooks %}
-                <div id="audiobooks-list" style="display: none;">
-                <h3>Audiobooks</h3>
-                {% for author, books in audiobooks.items() %}
-                    <p style="font-weight: bold; margin-top: 1em;">{{ author }}</p>
-                    <ul>
-                    {% for book in books %}
-                        <li>
-                        {{ book }} -
-                        <a href="https://www.goodreads.com/search?q={{ book | urlencode }}" target="_blank">Goodreads</a>
-                        </li>
-                    {% endfor %}
-                    </ul>
-                {% endfor %}
-                </div>
-                {% endif %}  
             </div>
+        {% endfor %}
         </div>
+        <style>
+        .library-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2em;
+            align-items: flex-start;
+        }
+        .library-col {
+            min-width: 0;
+            max-width: 350px;
+            background: #232323;
+            border-radius: 8px;
+            padding: 1em 1.2em;
+            box-shadow: 0 2px 8px #0002;
+        }
+        @media (max-width: 900px) {
+            .library-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        </style>
     </div>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
