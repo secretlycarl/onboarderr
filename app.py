@@ -22,12 +22,34 @@ import signal
 import threading
 import time
 import shutil
+import secrets
 
 # Before load_dotenv()
 if not os.path.exists('.env') and os.path.exists('empty.env'):
     print('\n[WARN] .env file not found. Copying empty.env to .env for you. Please edit .env with your settings!\n')
     shutil.copyfile('empty.env', '.env')
 
+# Ensure SECRET_KEY is set
+def ensure_secret_key():
+    env_path = '.env'
+    with open(env_path, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
+    found = False
+    for i, line in enumerate(lines):
+        if line.strip().startswith('SECRET_KEY='):
+            found = True
+            if line.strip() == 'SECRET_KEY=' or line.strip() == 'SECRET_KEY=""':
+                # Generate and set a new key
+                new_key = secrets.token_urlsafe(48)
+                lines[i] = f'SECRET_KEY={new_key}\n'
+            break
+    if not found:
+        new_key = secrets.token_urlsafe(48)
+        lines.append(f'SECRET_KEY={new_key}\n')
+    with open(env_path, 'w', encoding='utf-8') as f:
+        f.writelines(lines)
+
+ensure_secret_key()
 load_dotenv()
 
 app = Flask(__name__)
