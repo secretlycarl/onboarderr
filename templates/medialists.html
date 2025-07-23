@@ -34,6 +34,22 @@
             </div>
         {% endfor %}
         </div>
+        {% if abs_enabled and audiobooks %}
+          <div>
+            <h3>Audiobooks</h3>
+            {% for author, books in audiobooks.items() %}
+              <p style="font-weight: bold; margin-top: 1em;">{{ author }}</p>
+              <ul>
+                {% for book in books %}
+                  <li>
+                    {{ book }} -
+                    <a href="https://www.goodreads.com/search?q={{ book | urlencode }}" target="_blank">Goodreads</a>
+                  </li>
+                {% endfor %}
+              </ul>
+            {% endfor %}
+          </div>
+        {% endif %}
         <style>
         .library-grid {
             display: grid;

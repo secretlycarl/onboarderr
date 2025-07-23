@@ -653,6 +653,33 @@ def medialists():
             print(f"Error fetching titles for section {section_id}: {e}")
         return titles
 
+    def fetch_audiobooks(section_id):
+        books = {}
+        if not section_id:
+            return books
+        headers = {"X-Plex-Token": PLEX_TOKEN}
+        url = f"{PLEX_URL}/library/sections/{section_id}/all"
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            root = ET.fromstring(response.content)
+            for author in root.findall(".//Directory"):
+                author_name = author.attrib.get("title")
+                author_key = author.attrib.get("key")
+                if author_name and author_key:
+                    author_url = f"{PLEX_URL}{author_key}?X-Plex-Token={PLEX_TOKEN}"
+                    author_resp = requests.get(author_url, headers=headers)
+                    if author_resp.status_code == 200:
+                        author_root = ET.fromstring(author_resp.content)
+                        books[author_name] = []
+                        for book in author_root.findall(".//Directory"):
+                            book_title = book.attrib.get("title")
+                            if book_title:
+                                books[author_name].append(book_title)
+        except Exception as e:
+            print(f"Error fetching audiobooks: {e}")
+        return books
+
     # Get all libraries
     try:
         libraries = get_plex_libraries()
@@ -672,9 +699,16 @@ def medialists():
         titles = fetch_titles_for_library(section_id)
         library_media[name] = group_titles_by_letter(titles)
 
+    abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
+    audiobooks = {}
+    if abs_enabled and AUDIOBOOKS_SECTION_ID:
+        audiobooks = fetch_audiobooks(AUDIOBOOKS_SECTION_ID)
+
     return render_template(
         "medialists.html",
-        library_media=library_media
+        library_media=library_media,
+        audiobooks=audiobooks,
+        abs_enabled=abs_enabled,
     )
 
 @app.route("/audiobook-covers")
