@@ -74,29 +74,57 @@ The rest of ```.env``` is filled by [/setup](https://github.com/secretlycarl/onb
 
 # Dockerized Startup (Recommended)
 
-From the project directory, choose a following option:
+From the project directory, choose one of the following options:
 
-### Docker Compose
-We Have included a compose.yml file for use with docker compose. Follow the directions above to complete your first time setup and then run `docker compose up -d` to start the app. 
+## Docker Compose (Recommended for Most Users)
+A `compose.yml` file is included for use with Docker Compose. Complete your first time setup as above, then run:
 
+    docker compose up -d
 
-### Manually Building
+### Mounting Drives for Storage Bars
+To display storage bars for specific drives (e.g., E: and F: on Windows, or /mnt/e and /mnt/f on Linux), you must:
+1. **Set the `DRIVES` variable in your `.env` file** to the mount points inside the container (e.g., `/mnt/e,/mnt/f`).
+2. **Add volume mounts for each drive in your `compose.yml`** under the `volumes:` section:
 
-Linux/macOS:
+- **Linux Example:**
+  ```
+  volumes:
+    - .:/app
+    - /mnt/e:/mnt/e
+    - /mnt/f:/mnt/f
+  ```
+- **Windows Example:**
+  ```
+  volumes:
+    - .:/app
+    - E:\:/mnt/e
+    - F:\:/mnt/f
+  ```
+  > **Note:** On Windows, you may need to allow Docker Desktop access to your drives (Docker Desktop > Settings > Resources > File Sharing).
+
+- **Set in `.env` (all platforms):**
+  ```
+  DRIVES=/mnt/e,/mnt/f
+  ```
+
+## Manual Docker Run
+
+### Linux/macOS:
 ```
 docker build -t onboarderr .
 docker run -d --restart unless-stopped -p 10000:10000 --name onboarderr -v $(pwd):/app onboarderr
 ```
-Or to inlcude mounted drives:
+To include mounted drives:
 ```
 docker run -d -p 10000:10000 --name onboarderr \
   --restart unless-stopped \
   -v $(pwd):/app \
-  -v /media:/media \
+  -v /mnt/e:/mnt/e \
+  -v /mnt/f:/mnt/f \
   onboarderr
 ```
 
-Windows (PowerShell):
+### Windows (PowerShell):
 ```
 docker build -t onboarderr .
 docker run -d --restart unless-stopped -p 10000:10000 --name onboarderr -v ${PWD}:/app onboarderr
@@ -106,11 +134,12 @@ Mounted Drives version:
 docker run -d -p 10000:10000 --name onboarderr `
   --restart unless-stopped `
   -v ${PWD}:/app `
-  -v /media:/media `
+  -v E:\:/mnt/e `
+  -v F:\:/mnt/f `
   onboarderr
 ```
 
-Windows (Command Prompt):
+### Windows (Command Prompt):
 ```
 docker build -t onboarderr .
 docker run -d --restart unless-stopped -p 10000:10000 --name onboarderr -v %cd%:/app onboarderr
@@ -120,27 +149,39 @@ Mounted Drives version:
 docker run -d -p 10000:10000 --name onboarderr ^
   --restart unless-stopped ^
   -v %cd%:/app ^
-  -v /media:/media ^
+  -v E:\:/mnt/e ^
+  -v F:\:/mnt/f ^
   onboarderr
 ```
 
 - `-v` maps the project folder and drives into the container, so any CSS and HTML changes are reflected on refresh, and the storage bars work.
-- To apply the changes made to `.env` after setup, restart the container: `docker restart onboarderr`
-- To stop/remove: `docker stop onboarderr && docker rm onboarderr`
-- The site will be available at ```localhost:10000```
+- **If you change the drives in `.env`, make sure your Docker volumes match!**
+- The site will be available at `localhost:10000`
+
+### Troubleshooting Docker Drive Mounts on Windows
+- If you get errors about mounting drives, open Docker Desktop > Settings > Resources > File Sharing and add the drives (e.g., `E:\`, `F:\`).
+- Restart Docker Desktop after making changes.
+
+# Restarting the App
+
+- **After setup or changing settings, the app will automatically restart itself to apply changes.**
+- You do **not** need to manually restart the container after setup or settings changes.
+- If you ever need to restart manually (e.g., after updating code), use:
+  - `docker restart onboarderr` (for Docker)
+  - `CTRL+C` then `python app.py` again (for manual/venv use)
 
 # Manual Startup
 
 Create and activate a venv (conda or through system python), then:
 
-	pip install -r requirements.txt
+    pip install -r requirements.txt
 
-	python app.py
+    python app.py
 
-- It runs on port ```10000``` by default. You can change this at the bottom of ```app.py```.
-- ```debug=True``` at the bottom of ```app.py``` is on for live testing of updates. Make ```False``` when the site is ready.
-- To restart it from here, CTRL+C in terminal window, then ```python app.py``` again
-- Go to ```http://127.0.0.1:10000```
+- It runs on port `10000` by default. You can change this at the bottom of `app.py`.
+- `debug=True` at the bottom of `app.py` is on for live testing of updates. Make `False` when the site is ready.
+- To restart it from here, CTRL+C in terminal window, then `python app.py` again
+- Go to `http://127.0.0.1:10000`
 
 # Setup Form
 

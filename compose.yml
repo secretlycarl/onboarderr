@@ -1,4 +1,3 @@
-# Version is Being Deprecated
 services:
   onboarderr:
     image: python:3.10-slim
@@ -7,7 +6,11 @@ services:
     volumes:
       - .:/app
       - /media:/media
+      # Add your own drive mounts here, e.g.:
+      # - E:/:/mnt/e
+      # - F:/:/mnt/f
     ports:
       - "10000:10000"
-    command: sh -c "pip install --no-cache-dir -r requirements.txt && python app.py"
+    command: >
+      sh -c "pip install --no-cache-dir -r requirements.txt && python app.py"
     restart: unless-stopped 

@@ -624,9 +624,6 @@ def restart_container_delayed():
 @app.route("/trigger_restart", methods=["POST"])
 @csrf.exempt
 def trigger_restart():
-    if is_setup_complete():
-        # Setup is already complete, do not allow restart
-        return jsonify({"error": "Forbidden"}), 403
     threading.Thread(target=restart_container_delayed, daemon=True).start()
     return jsonify({"status": "restarting"})
 
