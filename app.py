@@ -831,4 +831,5 @@ if __name__ == "__main__":
         print(f"Warning: Could not download posters: {e}")
     # After initial poster download
     periodic_poster_refresh(libraries, interval_hours=6)  # Refresh every 6 hours
-    app.run(host="0.0.0.0", port=10000, debug=True)
+    debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
+    app.run(host="0.0.0.0", port=10000, debug=debug_mode)

@@ -8,10 +8,8 @@
 </head>
 <body>
   {% include "_bottom_nav.html" %}
-  <div class="container">
-    <h1>Welcome to Plex!</h1>
-
-    <div class="library-poster-carousels" style="display: flex; flex-wrap: wrap; gap: 2em; align-items: flex-start; justify-content: flex-start;">
+  <div style="max-width: 1600px; width: 95vw; margin: 0 auto;">
+    <div class="library-poster-carousels" style="display: flex; flex-wrap: wrap; gap: 2em; align-items: flex-start; justify-content: center;">
       {% for lib_name, posters in library_posters.items() %}
         <div style="min-width: 320px; max-width: 400px; flex: 1 1 320px;">
           <h3 style="text-align:center;">{{ lib_name }}</h3>
@@ -25,6 +23,9 @@
         </div>
       {% endfor %}
     </div>
+  </div>
+  <div class="container">
+    <h1>Welcome to Plex!</h1>
 
     <p class="muted">
      Random selection of posters from each library. Go <a href="/medialists" class="accent">here</a> for the full list.
