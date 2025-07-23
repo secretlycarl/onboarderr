@@ -156,11 +156,17 @@ def onboarding():
         print(f"Failed to get Plex libraries: {e}")
         libraries = []
 
+    pulsarr_enabled = bool(os.getenv("PULSARR"))
+    overseerr_enabled = bool(os.getenv("OVERSEERR"))
+    overseerr_url = os.getenv("OVERSEERR", "")
     return render_template(
         "onboarding.html",
         libraries=libraries,
         submitted=submitted,
-        library_notes=library_notes
+        library_notes=library_notes,
+        pulsarr_enabled=pulsarr_enabled,
+        overseerr_enabled=overseerr_enabled,
+        overseerr_url=overseerr_url
     )
 
 @app.route("/audiobookshelf", methods=["GET", "POST"])
@@ -353,6 +359,7 @@ def services():
         ("Prowlarr", "PROWLARR", "prowlarr.webp"),
         ("Bazarr", "BAZARR", "bazarr.webp"),
         ("Pulsarr", "PULSARR", "pulsarr.webp"),
+        ("Overseerr", "OVERSEERR", "overseerr.webp"),
     ]
     services = []
     for name, env, logo in service_defs:
@@ -372,7 +379,8 @@ def services():
             {"name": "Lidarr", "url": "http://localhost:8686", "logo": "lidarr.webp"},
             {"name": "Prowlarr", "url": "http://localhost:9696/", "logo": "prowlarr.webp"},
             {"name": "Bazarr", "url": "http://localhost:6767/", "logo": "bazarr.webp"},
-            {"name": "Pulsarr", "url": "http://localhost:3003/", "logo": "pulsarr.webp"}
+            {"name": "Pulsarr", "url": "http://localhost:3003/", "logo": "pulsarr.webp"},
+            {"name": "Overseerr", "url": "http://localhost:5055/", "logo": "overseerr.webp"}
         ]
 
     # Read flags for showing/hiding services and custom URL

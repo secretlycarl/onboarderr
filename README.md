@@ -197,7 +197,6 @@ After setup, go through the HTMLs and other files, and make any changes to the c
 
 Specifically:
 
-- Section 5 in ```onboarding.html``` only applies if you have Pulsarr
 - Section 7 in ```onboarding.html``` is personalized to me, you should rewrite it
 - Pick a new ```--accent``` color in the CSS, this will change all instances of ```#d33fbc``` in the HTMLs
 - Make a new logo, favicon, and wordmark. I made the ones it comes with quickly with these sites -

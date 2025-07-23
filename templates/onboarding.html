@@ -200,6 +200,7 @@
     </details>
   </div>
   <div class="container">
+    {% if pulsarr_enabled %}
     <details>
       <summary class="collapsible-heading">5. Requests</summary>
       <div style="margin-left: 1em;">
@@ -258,6 +259,25 @@
     
       </div>
     </details>
+    {% endif %}
+  </div>
+  <div class="container">
+    {% if overseerr_enabled %}
+    <details>
+      <summary class="collapsible-heading">Overseerr Requests</summary>
+      <div style="margin-left: 1em;">
+        <p>
+          You can request movies and shows directly using Overseerr. Click the link below to open the request page:
+        </p>
+        <p>
+          <a href="{{ overseerr_url }}" target="_blank" class="accent">Open Overseerr</a>
+        </p>
+        <p class="muted">
+          Requests made here will be sent to the admin for approval and processing.
+        </p>
+      </div>
+    </details>
+    {% endif %}
   </div>
   <div class="container">
     <details>
