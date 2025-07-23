@@ -1,4 +1,4 @@
 .env
-/static/posters/Movies/*
-/static/posters/Shows/*
-/static/posters/Audiobooks/*
+/static/posters/*/
+/static/posters/*
+
