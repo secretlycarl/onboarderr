@@ -855,15 +855,21 @@ if __name__ == "__main__":
     SHOWS_SECTION_ID = os.getenv("SHOWS_ID")
     AUDIOBOOKS_SECTION_ID = os.getenv("AUDIOBOOKS_ID")
     try:
-        # Download posters for all libraries in LIBRARY_IDS
-        selected_ids = os.getenv("LIBRARY_IDS", "")
-        selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
-        all_libraries = get_plex_libraries()
-        libraries = [lib for lib in all_libraries if lib["key"] in selected_ids]
-        download_and_cache_posters_for_libraries(libraries)
+        # Download posters for all libraries in LIBRARY_IDS, but only if setup is complete and PLEX_TOKEN is set
+        if os.getenv("SETUP_COMPLETE") == "1":
+            if not PLEX_TOKEN:
+                print("[WARN] Skipping poster download: PLEX_TOKEN is not set.")
+            else:
+                selected_ids = os.getenv("LIBRARY_IDS", "")
+                selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
+                all_libraries = get_plex_libraries()
+                libraries = [lib for lib in all_libraries if lib["key"] in selected_ids]
+                download_and_cache_posters_for_libraries(libraries)
+                periodic_poster_refresh(libraries, interval_hours=6)  # Only call if libraries is defined
+        else:
+            print("[INFO] Skipping poster download: setup is not complete.")
     except Exception as e:
         print(f"Warning: Could not download posters: {e}")
     # After initial poster download
-    periodic_poster_refresh(libraries, interval_hours=6)  # Refresh every 6 hours
     debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
     app.run(host="0.0.0.0", port=10000, debug=debug_mode)
