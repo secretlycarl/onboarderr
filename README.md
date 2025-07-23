@@ -67,7 +67,7 @@ Rename ```empty.env``` to ```.env```, and set:
 
 - ```SITE_PASSWORD``` - for guests
 - ```ADMIN_PASSWORD``` - for you
-- ```DRIVES```(optional) - for a storage bar display in the admin panel. For Linux/Mac/Docker, put ```/mnt/x,/mnt/y``` etc
+- ```DRIVES``` - for a storage bar display in the admin panel. use Linux style drive names (even on Windows) for it to work in Docker.
 - ```SECRET_KEY``` - should be a long (≥32 chars) string. [pinetools](https://pinetools.com/random-string-generator)
 
 The rest of ```.env``` is filled by [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png) on first startup.
@@ -77,9 +77,7 @@ The rest of ```.env``` is filled by [/setup](https://github.com/secretlycarl/onb
 From the project directory, choose one of the following options:
 
 ## Docker Compose (Recommended for Most Users)
-A `compose.yml` file is included for use with Docker Compose. Complete your first time setup as above, then run:
-
-    docker compose up -d
+A `compose.yml` file is included for use with Docker Compose. Before running `docker compose up -d`, see below
 
 ### Mounting Drives for Storage Bars
 To display storage bars for specific drives (e.g., E: and F: on Windows, or /mnt/e and /mnt/f on Linux), you must:
