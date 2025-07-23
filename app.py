@@ -340,19 +340,44 @@ def services():
     except FileNotFoundError:
         audiobookshelf_submissions = []
 
-    services = [
-        {"name": "Plex", "url": "https://app.plex.tv", "logo": "plex.webp"},
-        {"name": "Tautulli", "url": "http://localhost:8181", "logo": "tautulli.webp"},
-        {"name": "Audiobookshelf", "url": "http://localhost:13378", "logo": "abs.webp"},
-        {"name": "qbittorrent", "url": "http://localhost:8080/", "logo": "qbit.webp"},
-        {"name": "Immich", "url": "http://localhost:2283/", "logo": "immich.webp"},
-        {"name": "Sonarr", "url": "http://localhost:8989/", "logo": "sonarr.webp"},
-        {"name": "Radarr", "url": "http://localhost:7878/", "logo": "radarr.webp"},
-        {"name": "Lidarr", "url": "http://localhost:8686", "logo": "lidarr.webp"},
-        {"name": "Prowlarr", "url": "http://localhost:9696/", "logo": "prowlarr.webp"},
-        {"name": "Bazarr", "url": "http://localhost:6767/", "logo": "bazarr.webp"},
-        {"name": "Pulsarr", "url": "http://localhost:3003/", "logo": "pulsarr.webp"}
+    # Build services list from per-service environment variables
+    service_defs = [
+        ("Plex", "PLEX", "plex.webp"),
+        ("Tautulli", "TAUTULLI", "tautulli.webp"),
+        ("Audiobookshelf", "AUDIOBOOKSHELF", "abs.webp"),
+        ("qbittorrent", "QBITTORRENT", "qbit.webp"),
+        ("Immich", "IMMICH", "immich.webp"),
+        ("Sonarr", "SONARR", "sonarr.webp"),
+        ("Radarr", "RADARR", "radarr.webp"),
+        ("Lidarr", "LIDARR", "lidarr.webp"),
+        ("Prowlarr", "PROWLARR", "prowlarr.webp"),
+        ("Bazarr", "BAZARR", "bazarr.webp"),
+        ("Pulsarr", "PULSARR", "pulsarr.webp"),
     ]
+    services = []
+    for name, env, logo in service_defs:
+        url = os.getenv(env)
+        if url:
+            services.append({"name": name, "url": url, "logo": logo})
+    if not services:
+        # Fallback to default list if none are set
+        services = [
+            {"name": "Plex", "url": "https://app.plex.tv", "logo": "plex.webp"},
+            {"name": "Tautulli", "url": "http://localhost:8181", "logo": "tautulli.webp"},
+            {"name": "Audiobookshelf", "url": "http://localhost:13378", "logo": "abs.webp"},
+            {"name": "qbittorrent", "url": "http://localhost:8080/", "logo": "qbit.webp"},
+            {"name": "Immich", "url": "http://localhost:2283/", "logo": "immich.webp"},
+            {"name": "Sonarr", "url": "http://localhost:8989/", "logo": "sonarr.webp"},
+            {"name": "Radarr", "url": "http://localhost:7878/", "logo": "radarr.webp"},
+            {"name": "Lidarr", "url": "http://localhost:8686", "logo": "lidarr.webp"},
+            {"name": "Prowlarr", "url": "http://localhost:9696/", "logo": "prowlarr.webp"},
+            {"name": "Bazarr", "url": "http://localhost:6767/", "logo": "bazarr.webp"},
+            {"name": "Pulsarr", "url": "http://localhost:3003/", "logo": "pulsarr.webp"}
+        ]
+
+    # Read flags for showing/hiding services and custom URL
+    show_services = os.getenv("SHOW_SERVICES", "yes").lower() == "yes"
+    custom_services_url = os.getenv("CUSTOM_SERVICES_URL", "").strip()
 
     # --- Platform-agnostic drive detection ---
     drives_env = os.getenv("DRIVES")
@@ -402,7 +427,9 @@ def services():
         DISCORD_USERNAME=os.getenv("DISCORD_USERNAME", ""),
         DISCORD_AVATAR=os.getenv("DISCORD_AVATAR", ""),
         DISCORD_COLOR=os.getenv("DISCORD_COLOR", ""),
-        AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", "")
+        AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", ""),
+        show_services=show_services,
+        custom_services_url=custom_services_url
     )
 
 @app.route("/posters")

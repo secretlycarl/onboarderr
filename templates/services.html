@@ -11,14 +11,22 @@
   {% include "_bottom_nav.html" %}
   <div class="container">
     <h1>Dashboard</h1>
-    <div class="services">
-      {% for service in services %}
-        <a href="{{ service.url }}" class="service-box" target="_blank">
-          <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo">
-          <span>{{ service.name }}</span>
-        </a>
-      {% endfor %}
-    </div>
+    {% if custom_services_url %}
+      <div class="custom-services-url" style="margin-bottom:2em;">
+        <a href="{{ custom_services_url }}" target="_blank" style="font-size:1.2em; color:var(--accent);">Open Custom Services Page</a>
+        <!-- Optionally, embed the page below -->
+        <iframe src="{{ custom_services_url }}" style="width:100%;height:600px;border:1px solid #444;margin-top:1em;"></iframe>
+      </div>
+    {% elif show_services %}
+      <div class="services">
+        {% for service in services %}
+          <a href="{{ service.url }}" class="service-box" target="_blank">
+            <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo">
+            <span>{{ service.name }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    {% endif %}
 
     <h2 style="margin-top:3em;">Plex Requests</h2>
     {% if submissions %}
