@@ -200,51 +200,43 @@
     </details>
   </div>
   <div class="container">
-    {% if pulsarr_enabled %}
+    {% if pulsarr_enabled or overseerr_enabled %}
     <details>
       <summary class="collapsible-heading">5. Requests</summary>
       <div style="margin-left: 1em;">
-    
+        {% if pulsarr_enabled %}
+        <h3>Plex Watchlist Requests (Pulsarr)</h3>
         <p>
           Through some technomancy, requesting movies and shows you want is pretty easy.
         </p>
-    
         <p>
           We have to be "friends" on Plex (different than adding you to my server) for this feature to work so tell me to do that first before you request anything.
         </p>
-    
         <p class="accent">
           Note: This feature does not work for new movies currently in theaters. Anything older or already on streaming services should be available.
         </p>
-    
         <ul class="text-left max-800" style="margin: 1em 0;">
           <li>Go to the search bar or search menu</li>
           <li>Enable "More Ways to Watch" if not already enabled</li>
           <li>Search for the media you want</li>
           <li>Click the "Add to watchlist" icon</li>
         </ul>
-    
         <figure style="width: 100%; margin: 0 0 1em 0;">
           <img src="{{ url_for('static', filename='watchlist.webp') }}" alt="Watchlist" class="toggle-grow" />
           <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
             Desktop Example
           </figcaption>
         </figure>
-        
-    
         <p>
           Movies should show up in less than 30 minutes. Shows can take longer. The first season will show up to start, and others as you watch. If it's a show that's airing now and you want a more recent season, let me know.
         </p>
-    
         <p class="accent">
           Be nice to my hard drives, don't request too much!
         </p>
-    
         <h3>Notifications</h3>
         <p>
           If I added you as a friend, you can receive notifications on phones and tablets when your Watchlisted media is ready to watch. For shows, this only applies when it is added for the first time. For per-episode notifications about currently airing shows, ask me about my Discord.
         </p>
-    
         <ul class="text-left max-800" style="margin: 1em 0;">
           <li>Make sure notifications are enabled for Plex on your phone (Settings app)</li>
           <li>Go to settings in Plex > Notifications</li>
@@ -252,20 +244,12 @@
           <li>Scroll down to Personal Media > New Content Added to Library</li>
           <li>Set the toggles to how they look below (all off except for top one)</li>
         </ul>
-    
         <img src="{{ url_for('static', filename='notifs.webp') }}"
              alt="Notification Settings"
              class="toggle-grow" />
-    
-      </div>
-    </details>
-    {% endif %}
-  </div>
-  <div class="container">
-    {% if overseerr_enabled %}
-    <details>
-      <summary class="collapsible-heading">Overseerr Requests</summary>
-      <div style="margin-left: 1em;">
+        {% endif %}
+        {% if overseerr_enabled %}
+        <h3>Overseerr Requests</h3>
         <p>
           You can request movies and shows directly using Overseerr. Click the link below to open the request page:
         </p>
@@ -275,6 +259,7 @@
         <p class="muted">
           Requests made here will be sent to the admin for approval and processing.
         </p>
+        {% endif %}
       </div>
     </details>
     {% endif %}
@@ -299,21 +284,7 @@
     <details>
       <summary class="collapsible-heading">7. The End</summary>
       <div style="margin-left: 1em;">
-    
-        <p>
-          Why did I do all this? I started out collecting all the Star Trek shows because they kept jumping around to different streaming services. At some point I joined r/datahoarder and now I have about 10TB of movies, shows, music, and books. And I wanted to share! So enjoy. 🖖
-        </p>
-
-        <p>
-          Donate to my hard drive fund:
-        </p>
-
-        <ul class="text-left max-800" style="margin: 1em 0;">
-          <li>Venmo -  </li>
-          <li>Cashapp - </li>
-          <li>Zelle - </li>
-        </ul>
-    
+        {% include "onboarding_section7.html" %}
       </div>
     </details>
   </div>

@@ -21,6 +21,12 @@ import os
 import signal
 import threading
 import time
+import shutil
+
+# Before load_dotenv()
+if not os.path.exists('.env') and os.path.exists('empty.env'):
+    print('\n[WARN] .env file not found. Copying empty.env to .env for you. Please edit .env with your settings!\n')
+    shutil.copyfile('empty.env', '.env')
 
 load_dotenv()
 

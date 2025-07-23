@@ -193,20 +193,25 @@ Create and activate a venv (conda or through system python), then:
 
 # !!! Per-Host Tweaks !!!
 
+
+<!-- NOTES
+USE https://dashboardicons.com/icons FOr icons. 
+https://github.com/homarr-labs/dashboard-icons/tree/main/webp has all icons. 
+-->
+
 After setup, go through the HTMLs and other files, and make any changes to the content to adjust it for you.
 
 Specifically:
 
-- Section 7 in ```onboarding.html``` is personalized to me, you should rewrite it
+- ```onboarding_section7.html``` is personalized, you should change it to what you want it to say.
 - Pick a new ```--accent``` color in the CSS, this will change all instances of ```#d33fbc``` in the HTMLs
 - Make a new logo, favicon, and wordmark. I made the ones it comes with quickly with these sites -
 	- Simple vector editor - https://vectorink.io/app/canvas
    		- clearlogo is ```300x300```, favicon is ```32x32```
 	- Wordmark Generator (make output text as big as slider allows) - https://fontmeme.com/netflix-font/
 - If you don't have Tautulli + Discord set up, remove mentions of "ask me about my discord"
-- In ```app.py```, edit the ```services = [``` list to change the ones availble on the admin page.
 - In ```app.py```, adjust the ```300``` threshold for ```movies_grouped``` and ```shows_grouped```. This controls when the lists switch to alphabetical dropdowns.
-- Delete ```plex_submissions.json``` and ```audiobookshelf_submissions.json```. the ones that come with it have example data to populate the requests sections on ```/services```
+- Delete placeholder ```plex_submissions.json``` and ```audiobookshelf_submissions.json```. the ones that come with it have example data to populate the requests sections on ```/services```
   
 # Sharing
 
