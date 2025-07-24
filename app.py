@@ -1083,26 +1083,7 @@ def check_setup():
         if request.endpoint not in allowed_endpoints and not request.path.startswith("/static"):
             return redirect(url_for("setup"))
 
-@app.before_request
-def show_restarting_page():
-    if os.path.exists("/tmp/restarting_server"):
-        return render_template("restarting.html"), 503
-
-def restart_container_delayed():
-    RESTART_FLAG = os.path.join(tempfile.gettempdir(), "restarting_server")
-    with open(RESTART_FLAG, "w") as f:
-        f.write("restarting")
-    time.sleep(2)  # Give browser time to receive the response
-    if platform.system() == "Windows":
-        sys.exit(0)
-    else:
-        os.kill(os.getpid(), signal.SIGTERM)
-
-@app.route("/trigger_restart", methods=["POST"])
-@csrf.exempt
-def trigger_restart():
-    threading.Thread(target=restart_container_delayed, daemon=True).start()
-    return jsonify({"status": "restarting"})
+# Remove restart_container_delayed and trigger_restart functions
 
 # Update index route to check setup status
 @app.route("/", methods=["GET", "POST"])
@@ -1273,10 +1254,6 @@ def periodic_poster_refresh(libraries, interval_hours=6):
     t.start()
 
 if __name__ == "__main__":
-    # Remove the restart flag file if it exists
-    RESTART_FLAG = os.path.join(tempfile.gettempdir(), "restarting_server")
-    if os.path.exists(RESTART_FLAG):
-        os.remove(RESTART_FLAG)
     # --- Dynamic configuration for section IDs ---
     global MOVIES_SECTION_ID, SHOWS_SECTION_ID, AUDIOBOOKS_SECTION_ID
     MOVIES_SECTION_ID = os.getenv("MOVIES_ID")
