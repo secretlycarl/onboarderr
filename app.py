@@ -252,9 +252,18 @@ def audiobookshelf():
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             return jsonify({"success": False, "error": "Missing required fields."})
 
+    # List all covers in static/posters/audiobooks/
+    abs_covers = []
+    audiobook_dir = os.path.join("static", "posters", "audiobooks")
+    if os.path.exists(audiobook_dir):
+        for fname in sorted(os.listdir(audiobook_dir)):
+            if fname.lower().endswith(('.webp', '.jpg', '.jpeg', '.png')):
+                abs_covers.append(f"/static/posters/audiobooks/{fname}")
+
     return render_template(
         "audiobookshelf.html",
-        submitted=submitted
+        submitted=submitted,
+        abs_covers=abs_covers,
     )
 
 @app.route("/", methods=["GET", "POST"])
@@ -567,11 +576,7 @@ def fetch_libraries():
 # --- Use os.path.join for all file paths ---
 def download_and_cache_posters():
     headers = {'X-Plex-Token': PLEX_TOKEN}
-    movie_dir = os.path.join("static", "posters", "movies")
-    show_dir = os.path.join("static", "posters", "shows")
     audiobook_dir = os.path.join("static", "posters", "audiobooks")
-    os.makedirs(movie_dir, exist_ok=True)
-    os.makedirs(show_dir, exist_ok=True)
     os.makedirs(audiobook_dir, exist_ok=True)
 
     def save_images(section_id, out_dir, tag, limit):
@@ -601,8 +606,8 @@ def download_and_cache_posters():
                                 posters.append(thumb)
         else:
             # Movies: .//Video, Shows: .//Directory
-            elements = root.findall(".//Directory" if section_id != MOVIES_SECTION_ID else ".//Video")
-            posters = [el.attrib.get("thumb") for el in elements if el.attrib.get("thumb")]
+            # (No longer used for movies or shows)
+            pass
         random.shuffle(posters)
 
         for i, rel_path in enumerate(posters[:limit]):
@@ -615,9 +620,7 @@ def download_and_cache_posters():
             except Exception as e:
                 print(f"Error saving {img_url}: {e}")
 
-    save_images(MOVIES_SECTION_ID, movie_dir, "movie", 25)
-    save_images(SHOWS_SECTION_ID, show_dir, "show", 25)
-    # Don't download audiobook posters from Plex when ABS is enabled
+    # Only audiobooks (if ABS is disabled)
     if os.getenv("ABS_ENABLED", "yes") != "yes":
         print("[INFO] ABS disabled, downloading audiobook posters from Plex")
         save_images(AUDIOBOOKS_SECTION_ID, audiobook_dir, "audiobook", 25)
@@ -717,7 +720,7 @@ def download_abs_audiobook_posters():
         import traceback
         traceback.print_exc()
 
-def download_and_cache_posters_for_libraries(libraries, limit=25):
+def download_and_cache_posters_for_libraries(libraries, limit=None):
     headers = {"X-Plex-Token": PLEX_TOKEN}
     for lib in libraries:
         section_id = lib["key"]
@@ -729,26 +732,62 @@ def download_and_cache_posters_for_libraries(libraries, limit=25):
             response.raise_for_status()
             root = ET.fromstring(response.content)
             posters = []
+            items = []
             for el in root.findall(".//Video"):
                 thumb = el.attrib.get("thumb")
-                if thumb:
-                    posters.append(thumb)
+                rating_key = el.attrib.get("ratingKey")
+                title = el.attrib.get("title")
+                if thumb and rating_key:
+                    items.append({"thumb": thumb, "ratingKey": rating_key, "title": title})
             for el in root.findall(".//Directory"):
                 thumb = el.attrib.get("thumb")
-                if thumb and thumb not in posters:
-                    posters.append(thumb)
-            random.shuffle(posters)
-            for i, rel_path in enumerate(posters):
+                rating_key = el.attrib.get("ratingKey")
+                title = el.attrib.get("title")
+                if thumb and rating_key and not any(i["ratingKey"] == rating_key for i in items):
+                    items.append({"thumb": thumb, "ratingKey": rating_key, "title": title})
+            random.shuffle(items)
+            if limit is not None:
+                items = items[:limit]
+            for i, item in enumerate(items):
                 out_path = os.path.join(lib_dir, f"poster{i+1}.webp")
-                if os.path.exists(out_path):
+                meta_path = os.path.join(lib_dir, f"poster{i+1}.json")
+                if os.path.exists(out_path) and os.path.exists(meta_path):
                     continue  # Skip if already cached
-                img_url = f"{PLEX_URL}{rel_path}?X-Plex-Token={PLEX_TOKEN}"
+                img_url = f"{PLEX_URL}{item['thumb']}?X-Plex-Token={PLEX_TOKEN}"
                 try:
                     r = requests.get(img_url, headers=headers)
                     with open(out_path, "wb") as f:
                         f.write(r.content)
                 except Exception as e:
                     print(f"Error saving {img_url}: {e}")
+                # Fetch GUIDs
+                guids = {"imdb": None, "tmdb": None, "tvdb": None}
+                try:
+                    meta_url = f"{PLEX_URL}/library/metadata/{item['ratingKey']}"
+                    meta_resp = requests.get(meta_url, headers=headers, timeout=10)
+                    meta_resp.raise_for_status()
+                    meta_root = ET.fromstring(meta_resp.content)
+                    for guid in meta_root.findall(".//Guid"):
+                        gid = guid.attrib.get("id", "")
+                        if gid.startswith("imdb://"):
+                            guids["imdb"] = gid.replace("imdb://", "")
+                        elif gid.startswith("tmdb://"):
+                            guids["tmdb"] = gid.replace("tmdb://", "")
+                        elif gid.startswith("tvdb://"):
+                            guids["tvdb"] = gid.replace("tvdb://", "")
+                except Exception as e:
+                    print(f"Error fetching GUIDs for {item['ratingKey']}: {e}")
+                # Save metadata JSON
+                meta = {
+                    "title": item["title"],
+                    "ratingKey": item["ratingKey"],
+                    "imdb": guids["imdb"],
+                    "tmdb": guids["tmdb"],
+                    "tvdb": guids["tvdb"],
+                    "poster": f"poster{i+1}.webp"
+                }
+                with open(meta_path, "w", encoding="utf-8") as f:
+                    json.dump(meta, f, indent=2)
         except Exception as e:
             print(f"Error fetching posters for section {section_id}: {e}")
 
@@ -769,6 +808,40 @@ def group_titles_by_letter(titles):
     if 'Other' in groups:
         sorted_keys.append('Other')
     return OrderedDict((k, sorted(groups[k], key=str.casefold)) for k in sorted_keys)
+
+def group_posters_by_letter(posters):
+    groups = defaultdict(list)
+    for poster in posters:
+        title = poster.get("title", "")
+        match = re.search(r'[A-Za-z]', title)
+        if match:
+            letter = match.group(0).upper()
+            groups[letter].append(poster)
+        elif any(c.isdigit() for c in title):
+            groups['0-9'].append(poster)
+        else:
+            groups['Other'].append(poster)
+    sorted_keys = sorted([k for k in groups if k != 'Other'], key=lambda x: (x != '0-9', x))
+    if 'Other' in groups:
+        sorted_keys.append('Other')
+    return OrderedDict((k, sorted(groups[k], key=lambda p: p.get("title", "").casefold())) for k in sorted_keys)
+
+def group_books_by_letter(books):
+    groups = defaultdict(list)
+    for book in books:
+        title = book.get("title", "")
+        match = re.search(r'[A-Za-z]', title)
+        if match:
+            letter = match.group(0).upper()
+            groups[letter].append(book)
+        elif any(c.isdigit() for c in title):
+            groups['0-9'].append(book)
+        else:
+            groups['Other'].append(book)
+    sorted_keys = sorted([k for k in groups if k != 'Other'], key=lambda x: (x != '0-9', x))
+    if 'Other' in groups:
+        sorted_keys.append('Other')
+    return OrderedDict((k, sorted(groups[k], key=lambda b: b.get("title", "").casefold())) for k in sorted_keys)
 
 @app.route("/medialists")
 def medialists():
@@ -865,6 +938,43 @@ def medialists():
                 print(f"Error fetching audiobooks from Plex: {e}")
             return books
 
+    def fetch_abs_books():
+        abs_books = []
+        abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
+        abs_url = os.getenv("AUDIOBOOKSHELF_URL")
+        abs_token = os.getenv("AUDIOBOOKSHELF_TOKEN")
+        if not abs_enabled or not abs_url:
+            return abs_books
+        headers = {}
+        if abs_token:
+            headers["Authorization"] = f"Bearer {abs_token}"
+        try:
+            # Get all libraries
+            resp = requests.get(f"{abs_url}/api/libraries", headers=headers, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            libraries = data.get("libraries", [])
+            for library in libraries:
+                if library.get("mediaType") == "book":
+                    lib_id = library.get("id")
+                    # Get all items in this library
+                    items_resp = requests.get(f"{abs_url}/api/libraries/{lib_id}/items", headers=headers, timeout=10)
+                    items_resp.raise_for_status()
+                    items_data = items_resp.json()
+                    for item in items_data.get("results", []):
+                        title = item.get("media", {}).get("metadata", {}).get("title")
+                        author = item.get("media", {}).get("metadata", {}).get("author")
+                        item_id = item.get("id")
+                        cover_url = f"{abs_url}/api/items/{item_id}/cover" if item_id else None
+                        abs_books.append({
+                            "title": title,
+                            "author": author,
+                            "cover": cover_url,
+                        })
+        except Exception as e:
+            print(f"[ABS] Error fetching books: {e}")
+        return abs_books
+
     # Get all libraries
     try:
         libraries = get_plex_libraries()
@@ -878,11 +988,36 @@ def medialists():
     filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
 
     library_media = {}
+    library_posters = {}
+    library_poster_groups = {}
     for lib in filtered_libraries:
         section_id = lib["key"]
         name = lib["title"]
         titles = fetch_titles_for_library(section_id)
         library_media[name] = group_titles_by_letter(titles)
+        # Load poster metadata for this library
+        poster_dir = os.path.join("static", "posters", section_id)
+        poster_items = []
+        if os.path.exists(poster_dir):
+            for fname in sorted(os.listdir(poster_dir)):
+                if fname.endswith(".json"):
+                    meta_path = os.path.join(poster_dir, fname)
+                    try:
+                        with open(meta_path, "r", encoding="utf-8") as f:
+                            meta = json.load(f)
+                        poster_file = meta.get("poster")
+                        poster_url = f"/static/posters/{section_id}/{poster_file}" if poster_file else None
+                        poster_items.append({
+                            "poster": poster_url,
+                            "title": meta.get("title"),
+                            "imdb": meta.get("imdb"),
+                            "tmdb": meta.get("tmdb"),
+                            "tvdb": meta.get("tvdb"),
+                        })
+                    except Exception as e:
+                        print(f"Error loading poster metadata: {e}")
+        library_posters[name] = poster_items
+        library_poster_groups[name] = group_posters_by_letter(poster_items)
 
     abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
     audiobooks = {}
@@ -893,11 +1028,18 @@ def medialists():
         # Only use Plex section ID if ABS is disabled
         audiobooks = fetch_audiobooks(AUDIOBOOKS_SECTION_ID)
 
+    abs_books = fetch_abs_books() if abs_enabled else []
+    abs_book_groups = group_books_by_letter(abs_books) if abs_books else {}
+
     return render_template(
         "medialists.html",
         library_media=library_media,
         audiobooks=audiobooks,
         abs_enabled=abs_enabled,
+        library_posters=library_posters,
+        library_poster_groups=library_poster_groups,
+        abs_books=abs_books,
+        abs_book_groups=abs_book_groups,
     )
 
 @app.route("/audiobook-covers")
@@ -1051,21 +1193,20 @@ if __name__ == "__main__":
     SHOWS_SECTION_ID = os.getenv("SHOWS_ID")
     AUDIOBOOKS_SECTION_ID = os.getenv("AUDIOBOOKS_ID")
     try:
-        # Download posters for all libraries in LIBRARY_IDS, but only if setup is complete and PLEX_TOKEN is set
         if os.getenv("SETUP_COMPLETE") == "1":
             if not PLEX_TOKEN:
                 print("[WARN] Skipping poster download: PLEX_TOKEN is not set.")
             else:
-                # Download old-style posters (movies, shows, audiobooks)
-                download_and_cache_posters()
-                
                 # Download new-style library posters
                 selected_ids = os.getenv("LIBRARY_IDS", "")
                 selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
                 all_libraries = get_plex_libraries()
                 libraries = [lib for lib in all_libraries if lib["key"] in selected_ids]
                 download_and_cache_posters_for_libraries(libraries)
-                periodic_poster_refresh(libraries, interval_hours=6)  # Only call if libraries is defined
+                periodic_poster_refresh(libraries, interval_hours=6)
+            # --- ADD THIS FOR ABS ---
+            if os.getenv("ABS_ENABLED", "yes") == "yes":
+                download_abs_audiobook_posters()
         else:
             print("[INFO] Skipping poster download: setup is not complete.")
     except Exception as e:

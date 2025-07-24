@@ -21,7 +21,7 @@
       <div class="services">
         {% for service in services %}
           <a href="{{ service.url }}" class="service-box" target="_blank">
-            <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo">
+            <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" style="width: 32px; height: 32px; border-radius: 8px; margin-right: 1em;">
             <span>{{ service.name }}</span>
           </a>
         {% endfor %}
@@ -186,7 +186,7 @@
             <strong style="margin-bottom: 0.5em; display:block;">PUBLIC Service URLs:</strong>
             {% for service in services %}
               <div style="display: flex; align-items: center; margin-bottom: 1em;">
-                <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" style="width: 32px; height: 32px; margin-right: 1em;">
+                <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" style="width: 32px; height: 32px; border-radius: 8px; margin-right: 1em;">
                 <label style="flex: 0 0 120px; font-weight: bold;">{{ service.name }}:</label>
                 <input type="text" name="{{ service.name|upper }}" value="{{ service.url }}" style="flex: 1 1 auto; margin-left: 1em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
               </div>
@@ -197,45 +197,37 @@
             <div style="margin-bottom: 1em;">
               <strong style="display:block; margin-bottom:0.5em;">Notification Events:</strong>
               <div style="display: flex; align-items: center; margin-bottom: 0.7em;">
-                <img src="{{ url_for('static', filename='notifs.webp') }}" alt="Discord" style="width: 28px; height: 28px; margin-right: 0.7em;">
+                <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" style="width: 32px; height: 32px; border-radius: 8px; margin-right: 1em; object-fit: contain; background: #232323;" />
                 <input type="checkbox" name="discord_notify_plex" id="discord_notify_plex" value="1" {% if DISCORD_NOTIFY_PLEX == '1' %}checked{% endif %} style="margin-right: 0.5em;">
                 <label for="discord_notify_plex" style="font-weight: 500;">Notify on new Plex user request</label>
               </div>
               <div style="display: flex; align-items: center; margin-bottom: 0.7em;">
-                <img src="{{ url_for('static', filename='notifs.webp') }}" alt="Discord" style="width: 28px; height: 28px; margin-right: 0.7em;">
+                <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" style="width: 32px; height: 32px; border-radius: 8px; margin-right: 1em; object-fit: contain; background: #232323;" />
                 <input type="checkbox" name="discord_notify_abs" id="discord_notify_abs" value="1" {% if DISCORD_NOTIFY_ABS == '1' %}checked{% endif %} style="margin-right: 0.5em;">
                 <label for="discord_notify_abs" style="font-weight: 500;">Notify on new Audiobookshelf user request</label>
               </div>
             </div>
             <div style="display: flex; align-items: center; margin-bottom: 1em;">
-              <img src="{{ url_for('static', filename='notifs.webp') }}" alt="Discord" style="width: 28px; height: 28px; margin-right: 0.7em;">
               <label style="flex: 0 0 140px; font-weight: bold;">Webhook URL:</label>
               <div style="display: flex; align-items: center; margin-left: 1em;">
-                <img src="{{ url_for('static', filename='notifs.webp') }}" alt="Webhook URL" style="width: 24px; height: 24px; margin-right: 0.7em;">
                 <input type="text" name="discord_webhook" id="discord_webhook_admin" value="{{ DISCORD_WEBHOOK or '' }}" style="flex: 1 1 auto; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
               </div>
             </div>
             <div style="display: flex; align-items: center; margin-bottom: 1em;">
-              <img src="{{ url_for('static', filename='notifs.webp') }}" alt="Discord" style="width: 28px; height: 28px; margin-right: 0.7em;">
               <label style="flex: 0 0 140px; font-weight: bold;">Username (optional):</label>
               <div style="display: flex; align-items: center; margin-left: 1em;">
-                <img src="{{ url_for('static', filename='notifs.webp') }}" alt="Username" style="width: 24px; height: 24px; margin-right: 0.7em;">
-                <input type="text" name="discord_username" id="discord_username_admin" value="{{ DISCORD_USERNAME or '' }}" placeholder="Monitor" style="flex: 1 1 auto; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+                <input type="text" name="discord_username" id="discord_username_admin" value="{{ DISCORD_USERNAME or '' }}" placeholder="Onboarderr" style="flex: 1 1 auto; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
               </div>
             </div>
             <div style="display: flex; align-items: center; margin-bottom: 1em;">
-              <img src="{{ url_for('static', filename='notifs.webp') }}" alt="Discord" style="width: 28px; height: 28px; margin-right: 0.7em;">
               <label style="flex: 0 0 140px; font-weight: bold;">Avatar URL (optional):</label>
               <div style="display: flex; align-items: center; margin-left: 1em;">
-                <img src="{{ url_for('static', filename='notifs.webp') }}" alt="Avatar URL" style="width: 24px; height: 24px; margin-right: 0.7em;">
-                <input type="text" name="discord_avatar" id="discord_avatar_admin" value="{{ DISCORD_AVATAR or '' }}" style="flex: 1 1 auto; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+                <input type="text" name="discord_avatar" id="discord_avatar_admin" value="{{ DISCORD_AVATAR or '' }}" placeholder="Default Logo" style="flex: 1 1 auto; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
               </div>
             </div>
             <div style="display: flex; align-items: center; margin-bottom: 1em;">
-              <img src="{{ url_for('static', filename='notifs.webp') }}" alt="Discord" style="width: 28px; height: 28px; margin-right: 0.7em;">
               <label style="flex: 0 0 140px; font-weight: bold;">Color (optional):</label>
               <div style="display: flex; align-items: center; margin-left: 1em;">
-                <img src="{{ url_for('static', filename='notifs.webp') }}" alt="Color" style="width: 24px; height: 24px; margin-right: 0.7em;">
                 <input type="text" name="discord_color" id="discord_color_admin" value="{{ DISCORD_COLOR or '' }}" placeholder="#000000" style="flex: 1 1 auto; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
               </div>
             </div>
