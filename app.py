@@ -1083,7 +1083,18 @@ def check_setup():
         if request.endpoint not in allowed_endpoints and not request.path.startswith("/static"):
             return redirect(url_for("setup"))
 
-# Remove restart_container_delayed and trigger_restart functions
+def restart_container_delayed():
+    time.sleep(2)  # Give browser time to receive the response
+    if platform.system() == "Windows":
+        sys.exit(0)
+    else:
+        os.kill(os.getpid(), signal.SIGTERM)
+
+@app.route("/trigger_restart", methods=["POST"])
+@csrf.exempt
+def trigger_restart():
+    threading.Thread(target=restart_container_delayed, daemon=True).start()
+    return jsonify({"status": "restarting"})
 
 # Update index route to check setup status
 @app.route("/", methods=["GET", "POST"])
