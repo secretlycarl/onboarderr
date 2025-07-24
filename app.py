@@ -1081,12 +1081,17 @@ def index():
         return redirect(url_for("setup"))
     if request.method == "POST":
         entered_password = request.form.get("password")
+        # Always reload from .env
+        from dotenv import load_dotenv
+        load_dotenv(override=True)
+        admin_password = os.getenv("ADMIN_PASSWORD")
+        site_password = os.getenv("SITE_PASSWORD")
 
-        if entered_password == ADMIN_PASSWORD:
+        if entered_password == admin_password:
             session["authenticated"] = True
             session["admin_authenticated"] = True
             return redirect(url_for("services"))
-        elif entered_password == PASSWORD:
+        elif entered_password == site_password:
             session["authenticated"] = True
             session["admin_authenticated"] = False
             return redirect(url_for("onboarding"))
