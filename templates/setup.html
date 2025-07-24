@@ -12,6 +12,24 @@
         <h1>Setup</h1>
         <form method="post" id="setup-form" style="max-width: 600px; margin: 0 auto;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="margin-bottom: 1.2em; color: #aaa; font-size: 0.98em; display: flex; align-items: center;">
+                <span style="margin-right: 0.5em;">ℹ️</span> These settings can be changed later in the Admin tab.
+            </div>
+            <label style="display:block; margin-bottom: 1.2em;">SITE_PASSWORD (for guests):<br>
+                <input type="text" name="site_password" id="site_password_box" value="{{ site_password }}" required>
+            </label>
+            <label style="display:block; margin-bottom: 1.2em;">ADMIN_PASSWORD (for admin):<br>
+                <input type="text" name="admin_password" id="admin_password_box" value="{{ admin_password }}" required>
+            </label>
+            <label style="display:block; margin-bottom: 1.2em;">DRIVES (for storage bar display):<br>
+                <input type="text" name="drives" id="drives_box" value="{{ drives }}" required>
+            </label>
+            <div style="margin-top: 1em;">
+                <b>Examples for DRIVES:</b><br>
+                <span style="color:#eee">Linux/Docker: <code>/,/data,/mnt/c</code></span><br>
+                <span style="color:#eee">Windows: <code>E:\,F:\</code></span>
+            </div>
+            <div id="passwords-error" style="color:#b00; font-weight:bold; margin-top:1em;"></div>
             <label style="display:block; margin-bottom: 1.2em;">Server Name:<br>
                 <input type="text" name="server_name" id="server_name" required class="max-300">
             </label>
@@ -73,7 +91,7 @@
             <div id="setup-message" style="color: #f00; margin-bottom: 1em;">
                 {% if error_message %}{{ error_message }}{% endif %}
             </div>
-            <button type="submit" id="submit-btn" style="margin-top: 1.5em;" disabled>Save and Finish Setup</button>
+            <button type="submit" id="submit-btn" style="margin-top: 1.5em;">Save and Finish Setup</button>
         </form>
         <script>
             function toggleABS() {

@@ -30,6 +30,7 @@ I handled the layout, all copywriting/instructions, collected and edited screens
 
 - Setup instructions for Plex and Audiobookshelf users
 - Carousel previews and media lists pulled from your server
+- - Seamless infinite scrolling carousel for covers, with smooth, continuous animation
 - Optional Discord notifications when users request access
 - Admin dashboard with basic tools and info
 
@@ -37,7 +38,7 @@ I handled the layout, all copywriting/instructions, collected and edited screens
 
 # Requirements
 
-Python (3.10+)
+Python (3.10+) or Docker
 
 Plex Media Server
 
@@ -63,14 +64,6 @@ Discord - to handle certain admin & user notifications
 
 	cd onboarderr
 
-Rename ```empty.env``` to ```.env```, and set:
-
-- ```SITE_PASSWORD``` - for guests
-- ```ADMIN_PASSWORD``` - for you
-- ```DRIVES``` - for a storage bar display in the admin panel. use Linux style drive names (even on Windows) for it to work in Docker.
-- ```SECRET_KEY``` - should be a long (≥32 chars) string. [pinetools](https://pinetools.com/random-string-generator)
-
-The rest of ```.env``` is filled by [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png) on first startup.
 
 # Dockerized Startup (Recommended)
 
@@ -81,7 +74,7 @@ A `compose.yml` file is included for use with Docker Compose. Before running `do
 
 ### Mounting Drives for Storage Bars
 To display storage bars for specific drives (e.g., E: and F: on Windows, or /mnt/e and /mnt/f on Linux), you must:
-1. **Set the `DRIVES` variable in your `.env` file** to the mount points inside the container (e.g., `/mnt/e,/mnt/f`).
+1. **Set the `DRIVES` During setup or via variable in your `.env` file** to the mount points inside the container (e.g., `/mnt/e,/mnt/f`).
 2. **Add volume mounts for each drive in your `compose.yml`** under the `volumes:` section:
 
 - **Linux Example:**
@@ -210,7 +203,6 @@ Specifically:
    		- clearlogo is ```300x300```, favicon is ```32x32```
 	- Wordmark Generator (make output text as big as slider allows) - https://fontmeme.com/netflix-font/
 - If you don't have Tautulli + Discord set up, remove mentions of "ask me about my discord"
-- In ```app.py```, adjust the ```300``` threshold for ```movies_grouped``` and ```shows_grouped```. This controls when the lists switch to alphabetical dropdowns.
 - Delete placeholder ```plex_submissions.json``` and ```audiobookshelf_submissions.json```. the ones that come with it have example data to populate the requests sections on ```/services```
   
 # Sharing

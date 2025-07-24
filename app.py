@@ -277,8 +277,15 @@ def audiobookshelf():
         abs_covers=abs_covers,
     )
 
-@app.route("/", methods=["GET", "POST"])
+# Add this helper at the top (after imports)
+def is_setup_complete():
+    return os.getenv("SETUP_COMPLETE", "0") == "1"
+
+# Update login route to check setup status
+@app.route("/login", methods=["GET", "POST"])
 def login():
+    if not is_setup_complete():
+        return redirect(url_for("setup"))
     if request.method == "POST":
         entered_password = request.form.get("password")
 
@@ -1098,8 +1105,44 @@ def trigger_restart():
     threading.Thread(target=restart_container_delayed, daemon=True).start()
     return jsonify({"status": "restarting"})
 
+# Update index route to check setup status
+@app.route("/", methods=["GET", "POST"])
+def index():
+    if not is_setup_complete():
+        return redirect(url_for("setup"))
+    if request.method == "POST":
+        entered_password = request.form.get("password")
+
+        if entered_password == ADMIN_PASSWORD:
+            session["authenticated"] = True
+            session["admin_authenticated"] = True
+            return redirect(url_for("services"))
+        elif entered_password == PASSWORD:
+            session["authenticated"] = True
+            session["admin_authenticated"] = False
+            return redirect(url_for("onboarding"))
+        else:
+            return render_template("login.html", error="Incorrect password")
+
+    return render_template("login.html")
+
 @app.route("/setup", methods=["GET", "POST"])
 def setup():
+    # If GET and SETUP_COMPLETE=0, show prompt for SITE_PASSWORD, ADMIN_PASSWORD, DRIVES
+    if request.method == "GET" and not is_setup_complete():
+        site_password = os.getenv("SITE_PASSWORD", "changeme")
+        admin_password = os.getenv("ADMIN_PASSWORD", "changeme2")
+        drives = os.getenv("DRIVES", "")
+        prompt = False
+        if site_password == "changeme" or admin_password == "changeme2" or not drives:
+            prompt = True
+        return render_template(
+            "setup.html",
+            prompt_passwords=prompt,
+            site_password=site_password,
+            admin_password=admin_password,
+            drives=drives
+        )
     if is_setup_complete():
         return redirect(url_for("login"))
     error_message = None
@@ -1107,6 +1150,22 @@ def setup():
         from dotenv import set_key
         env_path = os.path.join(os.getcwd(), ".env")
         form = request.form
+
+        # Save SITE_PASSWORD, ADMIN_PASSWORD, DRIVES from the top entry boxes if present
+        site_password = form.get("site_password_box") or form.get("site_password")
+        admin_password = form.get("admin_password_box") or form.get("admin_password")
+        drives = form.get("drives_box") or form.get("drives")
+        if site_password is not None and admin_password is not None and drives is not None:
+            if not site_password or not admin_password or not drives:
+                error_message = "SITE_PASSWORD, ADMIN_PASSWORD, and DRIVES are required."
+                return render_template("setup.html", error_message=error_message, prompt_passwords=True, site_password=site_password, admin_password=admin_password, drives=drives)
+            if site_password == admin_password:
+                error_message = "SITE_PASSWORD and ADMIN_PASSWORD must be different."
+                return render_template("setup.html", error_message=error_message, prompt_passwords=True, site_password=site_password, admin_password=admin_password, drives=drives)
+            safe_set_key(env_path, "SITE_PASSWORD", site_password)
+            safe_set_key(env_path, "ADMIN_PASSWORD", admin_password)
+            safe_set_key(env_path, "DRIVES", drives)
+
         abs_enabled = form.get("abs_enabled", "")
         audiobooks_id = form.get("audiobooks_id", "").strip()
         audiobookshelf_url = form.get("audiobookshelf_url", "").strip()
