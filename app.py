@@ -1086,7 +1086,7 @@ def check_setup():
 def restart_container_delayed():
     time.sleep(2)  # Give browser time to receive the response
     if platform.system() == "Windows":
-        sys.exit(0)
+        os._exit(0)
     else:
         os.kill(os.getpid(), signal.SIGTERM)
 
