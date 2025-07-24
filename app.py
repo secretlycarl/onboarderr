@@ -1072,7 +1072,6 @@ def get_random_audiobook_covers():
     return jsonify(existing_paths)
 
 def is_setup_complete():
-# DEBUG!!!!
     return os.getenv("SETUP_COMPLETE") == "1"
 
 @app.before_request
@@ -1086,7 +1085,10 @@ def check_setup():
 def restart_container_delayed():
     time.sleep(2)  # Give browser time to receive the response
     if platform.system() == "Windows":
-        os._exit(0)
+        import sys
+        import os
+        # Re-execute the current script with the same arguments
+        os.execv(sys.executable, [sys.executable] + sys.argv)
     else:
         os.kill(os.getpid(), signal.SIGTERM)
 
