@@ -24,6 +24,7 @@ import time
 import shutil
 import secrets
 import tempfile
+import sys
 
 # Before load_dotenv()
 if not os.path.exists('.env') and os.path.exists('empty.env'):
@@ -83,8 +84,10 @@ def inject_admin_status():
     return dict(is_admin=session.get("admin_authenticated", False))
 
 def get_plex_libraries():
+    print("DEBUG: PLEX_URL =", PLEX_URL)
     headers = {"X-Plex-Token": PLEX_TOKEN}
     url = f"{PLEX_URL}/library/sections"
+    print("DEBUG: url =", url)
     response = requests.get(url, headers=headers, timeout=5)
     response.raise_for_status()
     root = ET.fromstring(response.text)
