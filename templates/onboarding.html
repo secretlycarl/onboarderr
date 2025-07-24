@@ -381,6 +381,58 @@
           });
         });
       }
+
+      // --- Seamless Infinite Carousel Logic (transform-based) ---
+      function setupInfiniteCarousel(carousel) {
+        const container = carousel.parentElement;
+        let scrollSpeed = 0.5; // px per frame
+        let rafId;
+        let isPaused = false;
+        let offset = 0;
+
+        // Duplicate initial images to allow seamless looping
+        function duplicateImages() {
+          const imgs = Array.from(carousel.children);
+          imgs.forEach(img => {
+            const clone = img.cloneNode(true);
+            carousel.appendChild(clone);
+          });
+        }
+        duplicateImages();
+
+        // Set carousel width
+        function updateWidth() {
+          let totalWidth = 0;
+          Array.from(carousel.children).forEach(img => {
+            totalWidth += img.offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
+          });
+          carousel.style.width = totalWidth + 'px';
+        }
+        updateWidth();
+
+        // Animation loop using transform
+        function animate() {
+          if (!isPaused) {
+            offset -= scrollSpeed;
+            carousel.style.transform = `translateX(${offset}px)`;
+            const firstImg = carousel.children[0];
+            const firstImgWidth = firstImg.offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
+            if (Math.abs(offset) >= firstImgWidth) {
+              carousel.appendChild(firstImg);
+              offset += firstImgWidth;
+              carousel.style.transform = `translateX(${offset}px)`;
+            }
+          }
+          rafId = requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Pause on hover
+        container.addEventListener('mouseenter', () => { isPaused = true; });
+        container.addEventListener('mouseleave', () => { isPaused = false; });
+      }
+
+      document.querySelectorAll('.poster-carousel').forEach(setupInfiniteCarousel);
     });
   </script>
 
