@@ -352,6 +352,30 @@ def services():
         current_color = os.getenv("DISCORD_COLOR", "")
         if discord_color and discord_color != current_color:
             safe_set_key(env_path, "DISCORD_COLOR", discord_color)
+        
+        # Update service URLs if changed
+        service_defs = [
+            ("Plex", "PLEX", "plex.webp"),
+            ("Tautulli", "TAUTULLI", "tautulli.webp"),
+            ("Audiobookshelf", "AUDIOBOOKSHELF", "abs.webp"),
+            ("qbittorrent", "QBITTORRENT", "qbit.webp"),
+            ("Immich", "IMMICH", "immich.webp"),
+            ("Sonarr", "SONARR", "sonarr.webp"),
+            ("Radarr", "RADARR", "radarr.webp"),
+            ("Lidarr", "LIDARR", "lidarr.webp"),
+            ("Prowlarr", "PROWLARR", "prowlarr.webp"),
+            ("Bazarr", "BAZARR", "bazarr.webp"),
+            ("Pulsarr", "PULSARR", "pulsarr.webp"),
+            ("Overseerr", "OVERSEERR", "overseerr.webp"),
+        ]
+        for name, env, logo in service_defs:
+            url = request.form.get(env, None)
+            if url is not None:
+                url = url.strip()
+                current_url = os.getenv(env, "")
+                if url != current_url:
+                    safe_set_key(env_path, env, url)
+
         return redirect(url_for("setup_complete"))
 
     # Handle Plex/Audiobookshelf request deletion

@@ -112,13 +112,13 @@
         <form method="post" id="admin-settings-form" style="max-width: 600px;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label style="display:block; margin-bottom: 1.2em;">Server Name:<br>
-            <input type="text" name="server_name" id="server_name" value="{{ SERVER_NAME or '' }}" style="width: 100%; margin-top: 0.3em;">
+            <input type="text" name="server_name" id="server_name" value="{{ SERVER_NAME or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
           </label>
           <label style="display:block; margin-bottom: 1.2em;">Plex Token:<br>
-            <input type="text" name="plex_token" id="plex_token" value="{{ PLEX_TOKEN or '' }}" style="width: 100%; margin-top: 0.3em;">
+            <input type="text" name="plex_token" id="plex_token" value="{{ PLEX_TOKEN or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
           </label>
           <label style="display:block; margin-bottom: 1.2em;">Plex URL:<br>
-            <input type="text" name="plex_url" id="plex_url" value="{{ PLEX_URL or '' }}" style="width: 100%; margin-top: 0.3em;">
+            <input type="text" name="plex_url" id="plex_url" value="{{ PLEX_URL or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
           </label>
           <button type="button" onclick="fetchLibrariesAdmin()" style="margin-bottom: 1.5em;">Fetch Plex Libraries</button><br>
           
@@ -156,31 +156,44 @@
           </label>
           <div id="abs-section-admin" style="display: none; margin-left: 20px; margin-bottom: 1.5em;">
             <label>Audiobook Library ID:<br>
-              <input type="text" name="audiobooks_id" id="audiobooks_id" value="{{ AUDIOBOOKS_ID or '' }}" style="width: 100%; margin-top: 0.3em;" disabled>
+              <input type="text" name="audiobooks_id" id="audiobooks_id" value="{{ AUDIOBOOKS_ID or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;" disabled>
             </label><br><br>
             <label>Audiobookshelf Server URL:<br>
-              <input type="text" name="audiobookshelf_url" id="audiobookshelf_url_admin" value="{{ AUDIOBOOKSHELF_URL or '' }}" style="width: 100%; margin-top: 0.3em;" disabled>
+              <input type="text" name="audiobookshelf_url" id="audiobookshelf_url_admin" value="{{ AUDIOBOOKSHELF_URL or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;" disabled>
             </label><br><br>
-            <label>Audiobookshelf API Token (optional):<br>
-              <input type="text" name="audiobookshelf_token" id="audiobookshelf_token_admin" value="{{ AUDIOBOOKSHELF_TOKEN or '' }}" style="width: 100%; margin-top: 0.3em;" disabled>
+            <label>Audiobookshelf API Token:<br>
+              <input type="text" name="audiobookshelf_token" id="audiobookshelf_token_admin" value="{{ AUDIOBOOKSHELF_TOKEN or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;" {% if ABS_ENABLED != 'yes' %}disabled{% endif %}>
             </label><br><br>
           </div>
+
+          <!-- Editable Service URLs -->
+          <div style="margin-bottom: 2em;">
+            <strong style="margin-bottom: 0.5em; display:block;">Service URLs:</strong>
+            {% for service in services %}
+              <div style="display: flex; align-items: center; margin-bottom: 1em;">
+                <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" style="width: 32px; height: 32px; margin-right: 1em;">
+                <label style="flex: 0 0 120px; font-weight: bold;">{{ service.name }}:</label>
+                <input type="text" name="{{ service.name|upper }}" value="{{ service.url }}" style="flex: 1 1 auto; margin-left: 1em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+              </div>
+            {% endfor %}
+          </div>
+
           <label style="display:block; margin-bottom: 1.2em;">Enable Discord Notifications?<br>
             <input type="radio" name="discord_enabled" value="yes" {% if DISCORD_ENABLED == 'yes' %}checked{% endif %} onchange="toggleDiscordAdmin()"> Yes
             <input type="radio" name="discord_enabled" value="no" {% if DISCORD_ENABLED != 'yes' %}checked{% endif %} onchange="toggleDiscordAdmin()"> No
           </label>
           <div id="discord-section-admin" style="display: none; margin-left: 20px; margin-bottom: 1.5em;">
             <label>Discord Webhook URL:<br>
-              <input type="text" name="discord_webhook" id="discord_webhook_admin" value="{{ DISCORD_WEBHOOK or '' }}" style="width: 100%; margin-top: 0.3em;">
+              <input type="text" name="discord_webhook" id="discord_webhook_admin" value="{{ DISCORD_WEBHOOK or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
             </label><br><br>
             <label>Discord Username (optional):<br>
-              <input type="text" name="discord_username" id="discord_username_admin" value="{{ DISCORD_USERNAME or '' }}" placeholder="Monitor" style="width: 100%; margin-top: 0.3em;">
+              <input type="text" name="discord_username" id="discord_username_admin" value="{{ DISCORD_USERNAME or '' }}" placeholder="Monitor" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
             </label><br><br>
             <label>Discord Avatar URL (optional):<br>
-              <input type="text" name="discord_avatar" id="discord_avatar_admin" value="{{ DISCORD_AVATAR or '' }}" style="width: 100%; margin-top: 0.3em;">
+              <input type="text" name="discord_avatar" id="discord_avatar_admin" value="{{ DISCORD_AVATAR or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
             </label><br><br>
             <label>Discord Color (optional):<br>
-              <input type="text" name="discord_color" id="discord_color_admin" value="{{ DISCORD_COLOR or '' }}" placeholder="#000000" style="width: 100%; margin-top: 0.3em;">
+              <input type="text" name="discord_color" id="discord_color_admin" value="{{ DISCORD_COLOR or '' }}" placeholder="#000000" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
             </label><br><br>
           </div>
           <div id="admin-setup-message" style="color: #f00; margin-bottom: 1em;"></div>
@@ -195,14 +208,17 @@
             var absSection = document.getElementById('abs-section-admin');
             var absInput = document.getElementById('audiobooks_id');
             var absUrlInput = document.getElementById('audiobookshelf_url_admin');
+            var absTokenInput = document.getElementById('audiobookshelf_token_admin');
             if (abs === 'yes') {
               absSection.style.display = 'block';
               if (absInput) absInput.disabled = false;
               if (absUrlInput) absUrlInput.disabled = false;
+              if (absTokenInput) absTokenInput.disabled = false;
             } else {
               absSection.style.display = 'none';
               if (absInput) absInput.disabled = true;
               if (absUrlInput) absUrlInput.disabled = true;
+              if (absTokenInput) absTokenInput.disabled = true;
             }
           }
           function toggleDiscordAdmin() {

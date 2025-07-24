@@ -5,6 +5,36 @@
     <title>Setup Complete</title>
     <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp') }}">
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .countdown-bar-container {
+            width: 100%;
+            background: #eee;
+            border-radius: 8px;
+            margin: 2em 0 1em 0;
+            height: 24px;
+            box-shadow: 0 1px 4px #0001;
+            overflow: hidden;
+            position: relative;
+        }
+        .countdown-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #0042ac, #00c6ff);
+            border-radius: 8px 0 0 8px;
+            transition: width 0.2s linear;
+        }
+        .countdown-label {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            transform: translateX(-50%);
+            color: #222;
+            font-weight: bold;
+            font-size: 1.1em;
+            line-height: 24px;
+            z-index: 2;
+        }
+    </style>
 </head>
 <body style="display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
     <div class="container" style="min-width: 400px; margin: 40px 0; padding: 32px 24px; text-align: center;">
@@ -13,16 +43,64 @@
         <p style="font-size: 1.2em; color: #080; margin-top: 2em;">
             Your configuration has been saved.<br>
             <b>The server will restart automatically to apply changes.<br>
-            Please wait a few moments and then click the button below.</b>
+            If you don't see the login page, please check the logs for errors.</b>
         </p>
 
-        <a href="/" style="display: inline-block; margin-top: 1em; padding: 0.7em 1em; background: #0042ac; color: #ffffff; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 1.1em;">Go to Login</a>
+        <div class="countdown-bar-container">
+            <div class="countdown-bar" id="countdownBar"></div>
+            <span class="countdown-label" id="countdownLabel">Reloading in 20 seconds...</span>
+        </div>
+
+        <a href="/" id="loginBtn" style="display: none; margin-top: 1em; padding: 0.7em 1em; background: #0042ac; color: #ffffff; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 1.1em;">Go to Login</a>
     </div>
     <script>
 window.addEventListener('DOMContentLoaded', function() {
     setTimeout(function() {
         fetch('/trigger_restart', {method: 'POST'});
     }, 1000);
+
+    var totalSeconds = 15;
+    var elapsed = 0;
+    var bar = document.getElementById('countdownBar');
+    var label = document.getElementById('countdownLabel');
+    var waiting = false;
+
+    function checkLoginAndRedirect() {
+        document.getElementById('loginBtn').style.display = 'inline-block';
+        label.textContent = 'Checking if login page is online...';
+        fetch('/', {method: 'GET', cache: 'no-store'})
+            .then(function(response) {
+                if (response.ok) {
+                    label.textContent = 'Login page is online! Redirecting...';
+                    setTimeout(function() { window.location.href = '/'; }, 500);
+                } else {
+                    label.textContent = 'Waiting for server to come online...';
+                    setTimeout(checkLoginAndRedirect, 1000);
+                }
+            })
+            .catch(function() {
+                label.textContent = 'Waiting for server to come online...';
+                setTimeout(checkLoginAndRedirect, 1000);
+            });
+    }
+
+    function updateBar() {
+        if (waiting) return;
+        elapsed += 0.2;
+        var percent = Math.min(100, (elapsed / totalSeconds) * 100);
+        bar.style.width = percent + '%';
+        var remaining = Math.ceil(totalSeconds - elapsed);
+        label.textContent = 'Reloading in ' + remaining + ' second' + (remaining !== 1 ? 's' : '') + '...';
+        if (elapsed < totalSeconds) {
+            setTimeout(updateBar, 200);
+        } else {
+            waiting = true;
+            document.getElementById('loginBtn').style.display = 'inline-block';
+            label.textContent = 'Checking if login page is online...';
+            checkLoginAndRedirect();
+        }
+    }
+    updateBar();
 });
 </script>
 </body>
