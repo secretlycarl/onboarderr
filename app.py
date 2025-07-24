@@ -53,6 +53,7 @@ def ensure_secret_key():
 
 ensure_secret_key()
 load_dotenv()
+debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24)
