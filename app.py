@@ -23,6 +23,7 @@ import threading
 import time
 import shutil
 import secrets
+import tempfile
 
 # Before load_dotenv()
 if not os.path.exists('.env') and os.path.exists('empty.env'):
@@ -1052,10 +1053,14 @@ def show_restarting_page():
         return render_template("restarting.html"), 503
 
 def restart_container_delayed():
-    with open("/tmp/restarting_server", "w") as f:
+    RESTART_FLAG = os.path.join(tempfile.gettempdir(), "restarting_server")
+    with open(RESTART_FLAG, "w") as f:
         f.write("restarting")
     time.sleep(2)  # Give browser time to receive the response
-    os.kill(os.getpid(), signal.SIGTERM)
+    if platform.system() == "Windows":
+        sys.exit(0)
+    else:
+        os.kill(os.getpid(), signal.SIGTERM)
 
 @app.route("/trigger_restart", methods=["POST"])
 @csrf.exempt
@@ -1227,8 +1232,9 @@ def periodic_poster_refresh(libraries, interval_hours=6):
 
 if __name__ == "__main__":
     # Remove the restart flag file if it exists
-    if os.path.exists("/tmp/restarting_server"):
-        os.remove("/tmp/restarting_server")
+    RESTART_FLAG = os.path.join(tempfile.gettempdir(), "restarting_server")
+    if os.path.exists(RESTART_FLAG):
+        os.remove(RESTART_FLAG)
     # --- Dynamic configuration for section IDs ---
     global MOVIES_SECTION_ID, SHOWS_SECTION_ID, AUDIOBOOKS_SECTION_ID
     MOVIES_SECTION_ID = os.getenv("MOVIES_ID")
