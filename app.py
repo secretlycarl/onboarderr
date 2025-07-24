@@ -187,17 +187,27 @@ def onboarding():
 
     # Build static poster URLs for each library
     library_posters = {}
+    poster_imdb_ids = {}
     for lib in libraries:
         section_id = lib["key"]
         name = lib["title"]
         poster_dir = os.path.join("static", "posters", section_id)
+        posters = []
+        imdb_ids = []
         if os.path.exists(poster_dir):
             all_files = [f for f in os.listdir(poster_dir) if f.lower().endswith(('.webp', '.jpg', '.jpeg', '.png'))]
-            random.shuffle(all_files)
-            poster_urls = [f"/static/posters/{section_id}/{fname}" for fname in all_files[:25]]
-        else:
-            poster_urls = []
-        library_posters[name] = poster_urls
+            all_files.sort()  # Ensure consistent order
+            for fname in all_files:
+                posters.append(f"/static/posters/{section_id}/{fname}")
+                json_path = os.path.join(poster_dir, fname.rsplit('.', 1)[0] + '.json')
+                imdb_id = None
+                if os.path.exists(json_path):
+                    with open(json_path, 'r', encoding='utf-8') as f:
+                        meta = json.load(f)
+                        imdb_id = meta.get('imdb')
+                imdb_ids.append(imdb_id)
+        library_posters[name] = posters
+        poster_imdb_ids[name] = imdb_ids
 
     pulsarr_enabled = bool(os.getenv("PULSARR"))
     overseerr_enabled = bool(os.getenv("OVERSEERR"))
@@ -211,7 +221,8 @@ def onboarding():
         pulsarr_enabled=pulsarr_enabled,
         overseerr_enabled=overseerr_enabled,
         overseerr_url=overseerr_url,
-        library_posters=library_posters
+        library_posters=library_posters,
+        poster_imdb_ids=poster_imdb_ids
     )
 
 @app.route("/audiobookshelf", methods=["GET", "POST"])

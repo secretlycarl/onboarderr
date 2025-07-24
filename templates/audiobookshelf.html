@@ -11,21 +11,101 @@
   <div class="container">
     <h1>Welcome to Audiobookshelf!</h1>
 
+    {% set min_covers = 10 %}
+    {% set cover_count = abs_covers|length %}
+    {% set repeat_count = (min_covers // cover_count) + 2 if cover_count > 0 and cover_count < min_covers else 1 %}
     <div class="poster-carousel-container">
-      <div id="audiobook-carousel" class="poster-carousel"></div>
+      <div id="audiobook-carousel" class="poster-carousel animate">
+        <!-- Images will be inserted by JS -->
+      </div>
     </div>
     <script>
+    // --- Seamless Infinite Carousel Logic (transform-based) ---
+    function setupInfiniteCarousel(carousel) {
+      const container = carousel.parentElement;
+      let scrollSpeed = 0.5; // px per frame
+      let rafId;
+      let isPaused = false;
+      let offset = 0;
+
+      // Duplicate initial images to allow seamless looping
+      function duplicateImages() {
+        const imgs = Array.from(carousel.children);
+        imgs.forEach(img => {
+          const clone = img.cloneNode(true);
+          carousel.appendChild(clone);
+        });
+      }
+
+      // Set carousel width
+      function updateWidth() {
+        let totalWidth = 0;
+        Array.from(carousel.children).forEach(img => {
+          totalWidth += img.offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
+        });
+        carousel.style.width = totalWidth + 'px';
+      }
+
+      // Animation loop using transform
+      function animate() {
+        if (!isPaused) {
+          offset -= scrollSpeed;
+          carousel.style.transform = `translateX(${offset}px)`;
+          const firstImg = carousel.children[0];
+          const firstImgWidth = firstImg.offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
+          if (Math.abs(offset) >= firstImgWidth) {
+            carousel.appendChild(firstImg);
+            offset += firstImgWidth;
+            carousel.style.transform = `translateX(${offset}px)`;
+          }
+        }
+        rafId = requestAnimationFrame(animate);
+      }
+
+      // Pause on hover
+      container.addEventListener('mouseenter', () => { isPaused = true; });
+      container.addEventListener('mouseleave', () => { isPaused = false; });
+
+      // Wait for images to load before starting
+      const imgs = carousel.querySelectorAll('img');
+      let loaded = 0;
+      if (imgs.length === 0) {
+        animate();
+        return;
+      }
+      imgs.forEach(img => {
+        if (img.complete) {
+          loaded++;
+        } else {
+          img.addEventListener('load', () => {
+            loaded++;
+            if (loaded === imgs.length) {
+              duplicateImages();
+              updateWidth();
+              animate();
+            }
+          });
+        }
+      });
+      if (loaded === imgs.length) {
+        duplicateImages();
+        updateWidth();
+        animate();
+      }
+    }
+
+    // Fetch covers and initialize carousel
     fetch('/audiobook-covers')
       .then(res => res.json())
       .then(paths => {
         const container = document.getElementById('audiobook-carousel');
         container.innerHTML = paths.map(path => `<img src="${path}" class="carousel-img" alt="Audiobook cover" loading="lazy">`).join('');
-        container.classList.add('animate');
+        setupInfiniteCarousel(container);
       });
     </script>
 
     <p style="color: #888">
-     Random selection of 25 audiobooks on my server. Go <a href="/medialists" class="accent">here</a> for the full list.
+     Random selection of some audiobooks on my server. Go <a href="/medialists" class="accent">here</a> for the full list.
     </p>
 
     <p style="max-width:850px">

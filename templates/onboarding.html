@@ -16,7 +16,14 @@
           <div class="poster-carousel-container">
             <div class="poster-carousel animate">
               {% for poster in posters %}
-                <img src="{{ poster }}" class="carousel-img" alt="{{ lib_name }} poster" loading="lazy">
+                {% set imdb_id = poster_imdb_ids[lib_name][loop.index0] if poster_imdb_ids and poster_imdb_ids[lib_name] and poster_imdb_ids[lib_name]|length > loop.index0 else None %}
+                {% if imdb_id %}
+                  <a href="https://www.imdb.com/title/{{ imdb_id }}" target="_blank">
+                    <img src="{{ poster }}" class="carousel-img" alt="{{ lib_name }} poster" loading="lazy">
+                  </a>
+                {% else %}
+                  <img src="{{ poster }}" class="carousel-img" alt="{{ lib_name }} poster" loading="lazy">
+                {% endif %}
               {% endfor %}
             </div>
           </div>

@@ -11,14 +11,19 @@
     <div class="container medialists-container" style="max-width: 1600px; width: 95vw; margin: 0 auto;">
         <h1>Media Lists</h1>
         <div class="plex-libs section-border">
-          <img src="/static/plex.webp" alt="Plex Logo" style="height: 48px; margin-bottom: 0.5em; display: block;" />
+          <div style="display: flex; align-items: center; gap: 1em; margin-bottom: 0.5em;">
+            <img src="/static/plex.webp" alt="Plex Logo" style="height: 48px; display: block;" />
+            <span class="service-libraries-label">Plex Libraries</span>
+          </div>
           <div class="scroll-tip">Tip: Scroll horizontally or vertically to see all libraries.</div>
           <div class="library-grid">
           {% for lib_name, poster_groups in library_poster_groups.items() %}
               <div class="library-col">
                   <h3>{{ lib_name }}</h3>
-                  {% if poster_groups %}
-                      {% for letter, posters in poster_groups.items() %}
+                  {% set all_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|list + ['0-9', 'Other'] %}
+                  {% for letter in all_letters %}
+                      {% set posters = poster_groups.get(letter, []) %}
+                      {% if posters %}
                           <details>
                               <summary class="collapsible-heading">{{ letter }}</summary>
                               <ul>
@@ -37,10 +42,13 @@
                                   {% endfor %}
                               </ul>
                           </details>
-                      {% endfor %}
-                  {% else %}
-                      <p class="muted">No items found in this library.</p>
-                  {% endif %}
+                      {% else %}
+                          <div class="empty-letter-summary">
+                            <span class="dot"></span>
+                            <span class="collapsible-heading">{{ letter }}</span>
+                          </div>
+                      {% endif %}
+                  {% endfor %}
               </div>
           {% endfor %}
           </div>
@@ -63,32 +71,44 @@
         {% endif %}
         {% if abs_book_groups %}
           <div class="abs-libs section-border" style="margin-top: 3em;">
-            <img src="/static/abs.webp" alt="ABS Logo" style="height: 48px; margin-bottom: 0.5em; display: block;" />
+            <div style="display: flex; align-items: center; gap: 1em; margin-bottom: 0.5em;">
+              <img src="/static/abs.webp" alt="ABS Logo" style="height: 48px; display: block;" />
+              <span class="service-libraries-label">ABS Libraries</span>
+            </div>
             <div class="scroll-tip">Tip: Scroll horizontally or vertically to see all libraries.</div>
             <div>
               <h3>Audiobookshelf Books</h3>
               <div class="library-col">
-                {% for letter, books in abs_book_groups.items() %}
-                  <details>
-                    <summary class="collapsible-heading">{{ letter }}</summary>
-                    <ul>
-                      {% for book in books %}
-                        <li>
-                          <img src="{{ book.cover if book.cover else '/static/clearlogo.webp' }}"
-                               alt="{{ book.title }} cover"
-                               style="width: 32px; vertical-align: middle; border-radius: 4px; margin-right: 0.5em;"
-                               onerror="this.onerror=null;this.src='/static/clearlogo.webp';" />
-                          <span style="font-weight: bold;">{{ book.title }}</span>
-                          {% if book.author %}
-                            <span style="font-size: 0.9em; color: #aaa;">by {{ book.author }}</span>
-                          {% endif %}
-                          <span style="font-size: 0.9em; margin-left: 0.5em;">
-                            <a href="https://www.goodreads.com/search?q={{ (book.title ~ ' ' ~ (book.author or '')) | urlencode }}" target="_blank">Goodreads</a>
-                          </span>
-                        </li>
-                      {% endfor %}
-                    </ul>
-                  </details>
+                {% set all_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|list + ['0-9', 'Other'] %}
+                {% for letter in all_letters %}
+                  {% set books = abs_book_groups.get(letter, []) %}
+                  {% if books %}
+                    <details>
+                      <summary class="collapsible-heading">{{ letter }}</summary>
+                      <ul>
+                        {% for book in books %}
+                          <li>
+                            <img src="{{ book.cover if book.cover else '/static/clearlogo.webp' }}"
+                                 alt="{{ book.title }} cover"
+                                 style="width: 32px; vertical-align: middle; border-radius: 4px; margin-right: 0.5em;"
+                                 onerror="this.onerror=null;this.src='/static/clearlogo.webp';" />
+                            <span style="font-weight: bold;">{{ book.title }}</span>
+                            {% if book.author %}
+                              <span style="font-size: 0.9em; color: #aaa;">by {{ book.author }}</span>
+                            {% endif %}
+                            <span style="font-size: 0.9em; margin-left: 0.5em;">
+                              <a href="https://www.goodreads.com/search?q={{ (book.title ~ ' ' ~ (book.author or '')) | urlencode }}" target="_blank">Goodreads</a>
+                            </span>
+                          </li>
+                        {% endfor %}
+                      </ul>
+                    </details>
+                  {% else %}
+                    <div class="empty-letter-summary">
+                      <span class="dot"></span>
+                      <span class="collapsible-heading">{{ letter }}</span>
+                    </div>
+                  {% endif %}
                 {% endfor %}
               </div>
             </div>
@@ -122,6 +142,38 @@
           font-size: 1.05em;
           margin-bottom: 1em;
           font-style: italic;
+        }
+        .dot {
+          display: inline-block;
+          width: 0.7em;
+          height: 0.7em;
+          background: #a84fff;
+          border-radius: 50%;
+          margin-right: 0.7em;
+          vertical-align: middle;
+        }
+        .empty-letter-summary {
+          display: flex;
+          align-items: center;
+          padding: 0.2em 0 0.2em 0.2em; /* Match summary padding */
+          color: #888;
+          font-size: 1.1em;
+          font-weight: 500;
+          margin-bottom: 0.1em; /* Reduce space */
+          line-height: 1.2;     /* Match summary line height */
+          min-height: 1.7em;    /* Try to match summary height */
+        }
+        details > summary.collapsible-heading {
+          /* Ensure summary and empty-letter-summary have the same min-height and padding */
+          min-height: 1.7em;
+          padding: 0.2em 0 0.2em 0.2em;
+          line-height: 1.2;
+        }
+        .service-libraries-label {
+          font-size: 1.5em;
+          font-weight: bold;
+          color: #a84fff;
+          letter-spacing: 0.02em;
         }
         @media (max-width: 900px) {
             .library-grid {
