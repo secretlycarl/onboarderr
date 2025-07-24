@@ -8,20 +8,34 @@
 </head>
 <body>
   {% include "_bottom_nav.html" %}
+  <div style="max-width: 1600px; width: 95vw; margin: 0 auto;">
+    <div class="library-poster-carousels" style="display: flex; flex-wrap: wrap; gap: 2em; align-items: flex-start; justify-content: center;">
+      {% for lib_name, posters in library_posters.items() %}
+        <div style="min-width: 320px; max-width: 400px; flex: 1 1 320px;">
+          <h3 style="text-align:center;">{{ lib_name }}</h3>
+          <div class="poster-carousel-container">
+            <div class="poster-carousel animate" id="poster-carousel">
+              {% for poster in posters %}
+                {% set imdb_id = poster_imdb_ids[lib_name][loop.index0] if poster_imdb_ids and poster_imdb_ids[lib_name] and poster_imdb_ids[lib_name]|length > loop.index0 else None %}
+                {% if imdb_id %}
+                  <a href="https://www.imdb.com/title/{{ imdb_id }}" target="_blank">
+                    <img src="{{ poster }}" class="carousel-img" alt="{{ lib_name }} poster" loading="lazy">
+                  </a>
+                {% else %}
+                  <img src="{{ poster }}" class="carousel-img" alt="{{ lib_name }} poster" loading="lazy">
+                {% endif %}
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    <p class="muted" style="margin-top: 1em; text-align: center; color: #aaa;">
+      Random selection of posters from each library. Go <a href="/medialists" class="accent">here</a> for the full list.
+    </p>
+  </div>
   <div class="container">
     <h1>Welcome to Plex!</h1>
-
-    <div class="poster-carousel-container">
-      <div class="poster-carousel" id="poster-carousel"></div>
-    </div>
-
-    <div class="poster-carousel-container">
-      <div class="poster-carousel" id="show-poster-carousel"></div>
-    </div>
-
-    <p class="muted">
-     Random selection of 25 movies and shows on my server. Go <a href="/medialists" class="accent">here</a> for the full list.
-    </p>
 
     <p class="max-850">
       Plex Media Server (or just <a href="https://support.plex.tv/articles/200288286-what-is-plex/" target="_blank">Plex</a>) lets me share my collection of movies and shows with you, just like Netflix, but you don’t have to pay. You can watch on your TV, computer, phone, or tablet!
@@ -200,50 +214,43 @@
     </details>
   </div>
   <div class="container">
+    {% if pulsarr_enabled or overseerr_enabled %}
     <details>
       <summary class="collapsible-heading">5. Requests</summary>
       <div style="margin-left: 1em;">
-    
+        {% if pulsarr_enabled %}
+        <h3>Plex Watchlist Requests (Pulsarr)</h3>
         <p>
           Through some technomancy, requesting movies and shows you want is pretty easy.
         </p>
-    
         <p>
           We have to be "friends" on Plex (different than adding you to my server) for this feature to work so tell me to do that first before you request anything.
         </p>
-    
         <p class="accent">
           Note: This feature does not work for new movies currently in theaters. Anything older or already on streaming services should be available.
         </p>
-    
         <ul class="text-left max-800" style="margin: 1em 0;">
           <li>Go to the search bar or search menu</li>
           <li>Enable "More Ways to Watch" if not already enabled</li>
           <li>Search for the media you want</li>
           <li>Click the "Add to watchlist" icon</li>
         </ul>
-    
         <figure style="width: 100%; margin: 0 0 1em 0;">
           <img src="{{ url_for('static', filename='watchlist.webp') }}" alt="Watchlist" class="toggle-grow" />
           <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
             Desktop Example
           </figcaption>
         </figure>
-        
-    
         <p>
           Movies should show up in less than 30 minutes. Shows can take longer. The first season will show up to start, and others as you watch. If it's a show that's airing now and you want a more recent season, let me know.
         </p>
-    
         <p class="accent">
           Be nice to my hard drives, don't request too much!
         </p>
-    
         <h3>Notifications</h3>
         <p>
           If I added you as a friend, you can receive notifications on phones and tablets when your Watchlisted media is ready to watch. For shows, this only applies when it is added for the first time. For per-episode notifications about currently airing shows, ask me about my Discord.
         </p>
-    
         <ul class="text-left max-800" style="margin: 1em 0;">
           <li>Make sure notifications are enabled for Plex on your phone (Settings app)</li>
           <li>Go to settings in Plex > Notifications</li>
@@ -251,13 +258,25 @@
           <li>Scroll down to Personal Media > New Content Added to Library</li>
           <li>Set the toggles to how they look below (all off except for top one)</li>
         </ul>
-    
         <img src="{{ url_for('static', filename='notifs.webp') }}"
              alt="Notification Settings"
              class="toggle-grow" />
-    
+        {% endif %}
+        {% if overseerr_enabled %}
+        <h3>Overseerr Requests</h3>
+        <p>
+          You can request movies and shows directly using Overseerr. Click the link below to open the request page:
+        </p>
+        <p>
+          <a href="{{ overseerr_url }}" target="_blank" class="accent">Open Overseerr</a>
+        </p>
+        <p class="muted">
+          Requests made here will be sent to the admin for approval and processing.
+        </p>
+        {% endif %}
       </div>
     </details>
+    {% endif %}
   </div>
   <div class="container">
     <details>
@@ -279,21 +298,7 @@
     <details>
       <summary class="collapsible-heading">7. The End</summary>
       <div style="margin-left: 1em;">
-    
-        <p>
-          Why did I do all this? I started out collecting all the Star Trek shows because they kept jumping around to different streaming services. At some point I joined r/datahoarder and now I have about 10TB of movies, shows, music, and books. And I wanted to share! So enjoy. 🖖
-        </p>
-
-        <p>
-          Donate to my hard drive fund:
-        </p>
-
-        <ul class="text-left max-800" style="margin: 1em 0;">
-          <li>Venmo -  </li>
-          <li>Cashapp - </li>
-          <li>Zelle - </li>
-        </ul>
-    
+        {% include "onboarding_section7.html" %}
       </div>
     </details>
   </div>
@@ -311,70 +316,6 @@
   </script>
 
   <script>
-  fetch('/posters')
-    .then(res => res.json())
-    .then(paths => {
-      const container = document.getElementById('poster-carousel');
-      container.innerHTML = paths.map(path => `<img src="${path}" class="carousel-img" alt="Movie poster" loading="lazy">`).join('');
-      container.classList.add('animate');
-    });
-  fetch('/show-posters')
-    .then(res => res.json())
-    .then(paths => {
-      const container = document.getElementById('show-poster-carousel');
-      container.innerHTML = paths.map(path => `<img src="${path}" class="carousel-img" alt="Show poster" loading="lazy">`).join('');
-      container.classList.add('animate');
-    });
-  </script>
-
-  <script>
-    // AJAX onboarding form submission
-    document.addEventListener('DOMContentLoaded', function() {
-      const form = document.getElementById('onboarding-form');
-      if (form) {
-        form.addEventListener('submit', async function(e) {
-          e.preventDefault();
-          const formData = new FormData(form);
-          const data = new URLSearchParams();
-          for (const pair of formData) {
-            data.append(pair[0], pair[1]);
-          }
-          const submitBtn = form.querySelector('button[type="submit"]');
-          if (submitBtn) submitBtn.disabled = true;
-          // Disable all inputs
-          Array.from(form.elements).forEach(el => el.disabled = true);
-          try {
-            const response = await fetch('/onboarding', {
-              method: 'POST',
-              headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-              },
-              body: data
-            });
-            if (response.ok) {
-              const result = await response.json();
-              if (result.success) {
-                document.getElementById('onboarding-success').style.display = '';
-                form.style.display = 'none';
-              } else {
-                // Show error
-                alert(result.error || 'Submission failed.');
-                Array.from(form.elements).forEach(el => el.disabled = false);
-                if (submitBtn) submitBtn.disabled = false;
-              }
-            } else {
-              alert('Submission failed.');
-              Array.from(form.elements).forEach(el => el.disabled = false);
-              if (submitBtn) submitBtn.disabled = false;
-            }
-          } catch (err) {
-            alert('Submission failed.');
-            Array.from(form.elements).forEach(el => el.disabled = false);
-            if (submitBtn) submitBtn.disabled = false;
-          }
-        });
-      }
-    });
   </script>
 
   <script>
@@ -397,6 +338,58 @@
           });
         });
       }
+
+      // --- Seamless Infinite Carousel Logic (transform-based) ---
+      function setupInfiniteCarousel(carousel) {
+        const container = carousel.parentElement;
+        let scrollSpeed = 0.5; // px per frame
+        let rafId;
+        let isPaused = false;
+        let offset = 0;
+
+        // Duplicate initial images to allow seamless looping
+        function duplicateImages() {
+          const imgs = Array.from(carousel.children);
+          imgs.forEach(img => {
+            const clone = img.cloneNode(true);
+            carousel.appendChild(clone);
+          });
+        }
+        duplicateImages();
+
+        // Set carousel width
+        function updateWidth() {
+          let totalWidth = 0;
+          Array.from(carousel.children).forEach(img => {
+            totalWidth += img.offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
+          });
+          carousel.style.width = totalWidth + 'px';
+        }
+        updateWidth();
+
+        // Animation loop using transform
+        function animate() {
+          if (!isPaused) {
+            offset -= scrollSpeed;
+            carousel.style.transform = `translateX(${offset}px)`;
+            const firstImg = carousel.children[0];
+            const firstImgWidth = firstImg.offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
+            if (Math.abs(offset) >= firstImgWidth) {
+              carousel.appendChild(firstImg);
+              offset += firstImgWidth;
+              carousel.style.transform = `translateX(${offset}px)`;
+            }
+          }
+          rafId = requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Pause on hover
+        container.addEventListener('mouseenter', () => { isPaused = true; });
+        container.addEventListener('mouseleave', () => { isPaused = false; });
+      }
+
+      document.querySelectorAll('.poster-carousel').forEach(setupInfiniteCarousel);
     });
   </script>
 

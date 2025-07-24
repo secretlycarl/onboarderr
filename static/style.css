@@ -122,13 +122,13 @@ button:hover {
 .poster-carousel {
   display: flex;
   gap: 1em;
-  animation: scroll-posters 32s linear infinite;
+  /* animation: scroll-posters 32s linear infinite; */
 }
 
 #show-poster-carousel {
   display: flex;
   gap: 1em;
-  animation: scroll-posters-slow 40s linear infinite;
+  /* animation: scroll-posters-slow 40s linear infinite; */
 }
 
 .carousel-img {
