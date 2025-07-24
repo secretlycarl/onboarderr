@@ -284,8 +284,6 @@ def services():
         "server_name" in request.form or
         "plex_token" in request.form or
         "plex_url" in request.form or
-        "movies_id" in request.form or
-        "shows_id" in request.form or
         "audiobooks_id" in request.form or
         "abs_enabled" in request.form or
         "discord_enabled" in request.form or
@@ -294,7 +292,7 @@ def services():
     ):
         env_path = os.path.join(os.getcwd(), ".env")
         # Update .env with any non-empty fields (only if they changed)
-        for field in ["server_name", "plex_token", "plex_url", "movies_id", "shows_id", "audiobooks_id"]:
+        for field in ["server_name", "plex_token", "plex_url", "audiobooks_id"]:
             value = request.form.get(field, "").strip()
             current_value = os.getenv(field.upper(), "")
             if value and value != current_value:
@@ -309,6 +307,12 @@ def services():
         current_abs_url = os.getenv("AUDIOBOOKSHELF_URL", "")
         if audiobookshelf_url and audiobookshelf_url != current_abs_url:
             safe_set_key(env_path, "AUDIOBOOKSHELF_URL", audiobookshelf_url)
+        
+        # Audiobookshelf Token
+        audiobookshelf_token = request.form.get("audiobookshelf_token", "").strip()
+        current_abs_token = os.getenv("AUDIOBOOKSHELF_TOKEN", "")
+        if audiobookshelf_token and audiobookshelf_token != current_abs_token:
+            safe_set_key(env_path, "AUDIOBOOKSHELF_TOKEN", audiobookshelf_token)
         # Library IDs (checkboxes)
         library_ids = request.form.getlist("library_ids")
         current_library_ids = os.getenv("LIBRARY_IDS", "")
@@ -467,8 +471,6 @@ def services():
         SERVER_NAME=os.getenv("SERVER_NAME", ""),
         PLEX_TOKEN=os.getenv("PLEX_TOKEN", ""),
         PLEX_URL=os.getenv("PLEX_URL", ""),
-        MOVIES_ID=os.getenv("MOVIES_ID", ""),
-        SHOWS_ID=os.getenv("SHOWS_ID", ""),
         AUDIOBOOKS_ID=os.getenv("AUDIOBOOKS_ID", ""),
         ABS_ENABLED=os.getenv("ABS_ENABLED", "no"),
         LIBRARY_IDS=os.getenv("LIBRARY_IDS", ""),
@@ -480,6 +482,7 @@ def services():
         DISCORD_AVATAR=os.getenv("DISCORD_AVATAR", ""),
         DISCORD_COLOR=os.getenv("DISCORD_COLOR", ""),
         AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", ""),
+        AUDIOBOOKSHELF_TOKEN=os.getenv("AUDIOBOOKSHELF_TOKEN", ""),
         show_services=show_services,
         custom_services_url=custom_services_url
     )
@@ -570,8 +573,105 @@ def download_and_cache_posters():
 
     save_images(MOVIES_SECTION_ID, movie_dir, "movie", 25)
     save_images(SHOWS_SECTION_ID, show_dir, "show", 25)
-    if os.getenv("ABS_ENABLED", "yes") == "yes":
+    # Don't download audiobook posters from Plex when ABS is enabled
+    if os.getenv("ABS_ENABLED", "yes") != "yes":
+        print("[INFO] ABS disabled, downloading audiobook posters from Plex")
         save_images(AUDIOBOOKS_SECTION_ID, audiobook_dir, "audiobook", 25)
+    else:
+        # Download audiobook posters from ABS
+        print("[INFO] ABS enabled, downloading audiobook posters from ABS")
+        download_abs_audiobook_posters()
+
+def download_abs_audiobook_posters():
+    """Download audiobook posters from ABS API"""
+    print("[INFO] Starting ABS audiobook poster download...")
+    abs_url = os.getenv("AUDIOBOOKSHELF_URL")
+    if not abs_url:
+        print("[WARN] ABS enabled but AUDIOBOOKSHELF_URL not set")
+        return
+    
+    print(f"[INFO] ABS URL: {abs_url}")
+    audiobook_dir = os.path.join("static", "posters", "audiobooks")
+    os.makedirs(audiobook_dir, exist_ok=True)
+    
+    try:
+        # Fetch audiobooks from ABS API
+        headers = {}
+        abs_token = os.getenv("AUDIOBOOKSHELF_TOKEN")
+        if abs_token:
+            headers["Authorization"] = f"Bearer {abs_token}"
+            print("[INFO] Using ABS token for authentication")
+        else:
+            print("[INFO] No ABS token provided, trying without authentication")
+        
+        print(f"[INFO] Making request to: {abs_url}/api/libraries")
+        response = requests.get(f"{abs_url}/api/libraries", headers=headers, timeout=10)
+        print(f"[INFO] ABS libraries response status: {response.status_code}")
+        print(f"[INFO] Response content: {response.text[:500]}...")
+        
+        if response.status_code == 200:
+            try:
+                response_data = response.json()
+                print(f"[INFO] Response data type: {type(response_data)}")
+                print(f"[INFO] Response data content: {response_data}")
+                
+                # Extract libraries array from response
+                libraries = response_data.get("libraries", [])
+                print(f"[INFO] Found {len(libraries)} libraries")
+                
+                poster_count = 0
+                for library in libraries:
+                    print(f"[INFO] Library item: {library} (type: {type(library)})")
+                    if isinstance(library, dict):
+                        print(f"[INFO] Checking library: {library.get('name', 'Unknown')} (mediaType: {library.get('mediaType', 'Unknown')})")
+                        if library.get("mediaType") == "book":
+                            library_id = library.get("id")
+                            print(f"[INFO] Found audiobooks library with ID: {library_id}")
+                            books_response = requests.get(f"{abs_url}/api/libraries/{library_id}/items", headers=headers, timeout=10)
+                            print(f"[INFO] Books response status: {books_response.status_code}")
+                            if books_response.status_code == 200:
+                                books_data = books_response.json()
+                                print(f"[INFO] Found {len(books_data.get('results', []))} books")
+                                for book in books_data.get("results", []):
+                                    if poster_count >= 25:  # Limit to 25 posters
+                                        break
+                                    
+                                    # Get book details from the nested media structure
+                                    media = book.get("media", {})
+                                    cover_path = media.get("coverPath")
+                                    title = media.get("metadata", {}).get("title", "Unknown")
+                                    
+                                    if cover_path:
+                                        # Use the correct cover URL pattern
+                                        item_id = book.get("id")
+                                        cover_url = f"{abs_url}/api/items/{item_id}/cover"
+                                        print(f"[INFO] Downloading cover: {cover_url}")
+                                        cover_response = requests.get(cover_url, headers=headers, timeout=10)
+                                        if cover_response.status_code == 200:
+                                            out_path = os.path.join(audiobook_dir, f"audiobook{poster_count+1}.webp")
+                                            with open(out_path, "wb") as f:
+                                                f.write(cover_response.content)
+                                            poster_count += 1
+                                            print(f"[INFO] Downloaded poster {poster_count}: {title}")
+                                        else:
+                                            print(f"[WARN] Failed to download cover: {cover_response.status_code}")
+                                    else:
+                                        print(f"[INFO] No cover path for book: {title}")
+                                if poster_count >= 25:
+                                    break
+                            else:
+                                print(f"[WARN] Failed to get books from library {library_id}: {books_response.status_code}")
+                print(f"[INFO] Downloaded {poster_count} audiobook posters")
+            except Exception as e:
+                print(f"[WARN] Error parsing ABS response: {e}")
+                print(f"[WARN] Raw response: {response.text}")
+        else:
+            print(f"[WARN] Failed to connect to ABS API: {response.status_code}")
+            print(f"[WARN] Response content: {response.text[:200]}...")
+    except Exception as e:
+        print(f"[WARN] Error downloading ABS audiobook posters: {e}")
+        import traceback
+        traceback.print_exc()
 
 def download_and_cache_posters_for_libraries(libraries, limit=25):
     headers = {"X-Plex-Token": PLEX_TOKEN}
@@ -655,30 +755,71 @@ def medialists():
 
     def fetch_audiobooks(section_id):
         books = {}
-        if not section_id:
+        abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
+        
+        if abs_enabled:
+            # Fetch from ABS API
+            abs_url = os.getenv("AUDIOBOOKSHELF_URL")
+            if not abs_url:
+                print("[WARN] ABS enabled but AUDIOBOOKSHELF_URL not set")
+                return books
+            
+            try:
+                # Fetch audiobooks from ABS API
+                # Note: This is a basic implementation - you may need to adjust based on your ABS API
+                headers = {}
+                abs_token = os.getenv("AUDIOBOOKSHELF_TOKEN")
+                if abs_token:
+                    headers["Authorization"] = f"Bearer {abs_token}"
+                
+                response = requests.get(f"{abs_url}/api/libraries", headers=headers, timeout=10)
+                if response.status_code == 200:
+                    libraries = response.json()
+                    for library in libraries:
+                        if library.get("type") == "audiobooks":
+                            # Fetch audiobooks from this library
+                            library_id = library.get("id")
+                            books_response = requests.get(f"{abs_url}/api/libraries/{library_id}/items", headers=headers, timeout=10)
+                            if books_response.status_code == 200:
+                                books_data = books_response.json()
+                                # Group by author
+                                for book in books_data.get("results", []):
+                                    author = book.get("author", "Unknown Author")
+                                    title = book.get("title", "Unknown Title")
+                                    if author not in books:
+                                        books[author] = []
+                                    books[author].append(title)
+                else:
+                    print(f"[WARN] Failed to connect to ABS API: {response.status_code}")
+            except Exception as e:
+                print(f"[WARN] Error connecting to ABS API: {e}")
             return books
-        headers = {"X-Plex-Token": PLEX_TOKEN}
-        url = f"{PLEX_URL}/library/sections/{section_id}/all"
-        try:
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            root = ET.fromstring(response.content)
-            for author in root.findall(".//Directory"):
-                author_name = author.attrib.get("title")
-                author_key = author.attrib.get("key")
-                if author_name and author_key:
-                    author_url = f"{PLEX_URL}{author_key}?X-Plex-Token={PLEX_TOKEN}"
-                    author_resp = requests.get(author_url, headers=headers)
-                    if author_resp.status_code == 200:
-                        author_root = ET.fromstring(author_resp.content)
-                        books[author_name] = []
-                        for book in author_root.findall(".//Directory"):
-                            book_title = book.attrib.get("title")
-                            if book_title:
-                                books[author_name].append(book_title)
-        except Exception as e:
-            print(f"Error fetching audiobooks: {e}")
-        return books
+        else:
+            # Only fetch from Plex if ABS is disabled
+            if not section_id:
+                return books
+            headers = {"X-Plex-Token": PLEX_TOKEN}
+            url = f"{PLEX_URL}/library/sections/{section_id}/all"
+            try:
+                response = requests.get(url, headers=headers, timeout=10)
+                response.raise_for_status()
+                root = ET.fromstring(response.content)
+                for author in root.findall(".//Directory"):
+                    author_name = author.attrib.get("title")
+                    author_key = author.attrib.get("key")
+                    if author_name and author_key:
+                        author_url = f"{PLEX_URL}{author_key}?X-Plex-Token={PLEX_TOKEN}"
+                        author_resp = requests.get(author_url, headers=headers)
+                        if author_resp.status_code == 200:
+                            author_root = ET.fromstring(author_resp.content)
+                            books[author_name] = []
+                            for book in author_root.findall(".//Directory"):
+                                book_title = book.attrib.get("title")
+                                if book_title:
+                                    books[author_name].append(book_title)
+            except Exception as e:
+                print(f"Error fetching audiobooks from Plex: {e}")
+            return books
 
     # Get all libraries
     try:
@@ -701,7 +842,11 @@ def medialists():
 
     abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
     audiobooks = {}
-    if abs_enabled and AUDIOBOOKS_SECTION_ID:
+    if abs_enabled:
+        # If ABS is enabled, we don't need the Plex section ID
+        audiobooks = fetch_audiobooks(None)
+    elif AUDIOBOOKS_SECTION_ID:
+        # Only use Plex section ID if ABS is disabled
         audiobooks = fetch_audiobooks(AUDIOBOOKS_SECTION_ID)
 
     return render_template(
@@ -715,9 +860,17 @@ def medialists():
 def get_random_audiobook_covers():
     if os.getenv("ABS_ENABLED", "yes") != "yes":
         return ("Not Found", 404)
-    paths = [f"/static/posters/audiobooks/audiobook{i+1}.webp" for i in range(25)]
-    random.shuffle(paths)
-    return jsonify(paths)
+    
+    # Check which audiobook poster files actually exist
+    audiobook_dir = os.path.join("static", "posters", "audiobooks")
+    existing_paths = []
+    for i in range(25):
+        poster_path = os.path.join(audiobook_dir, f"audiobook{i+1}.webp")
+        if os.path.exists(poster_path):
+            existing_paths.append(f"/static/posters/audiobooks/audiobook{i+1}.webp")
+    
+    random.shuffle(existing_paths)
+    return jsonify(existing_paths)
 
 def is_setup_complete():
 # DEBUG!!!!
@@ -783,12 +936,13 @@ def setup():
         safe_set_key(env_path, "SERVER_NAME", form.get("server_name", ""))
         safe_set_key(env_path, "PLEX_TOKEN", form.get("plex_token", ""))
         safe_set_key(env_path, "PLEX_URL", form.get("plex_url", ""))
-        safe_set_key(env_path, "MOVIES_ID", form.get("movies_id", ""))
-        safe_set_key(env_path, "SHOWS_ID", form.get("shows_id", ""))
         safe_set_key(env_path, "ABS_ENABLED", abs_enabled)
         if abs_enabled == "yes":
             safe_set_key(env_path, "AUDIOBOOKS_ID", audiobooks_id)
             safe_set_key(env_path, "AUDIOBOOKSHELF_URL", audiobookshelf_url)
+            audiobookshelf_token = form.get("audiobookshelf_token", "").strip()
+            if audiobookshelf_token:
+                safe_set_key(env_path, "AUDIOBOOKSHELF_TOKEN", audiobookshelf_token)
         # Save Discord settings
         safe_set_key(env_path, "DISCORD_ENABLED", discord_enabled)
         if discord_enabled == "yes":
@@ -860,6 +1014,10 @@ if __name__ == "__main__":
             if not PLEX_TOKEN:
                 print("[WARN] Skipping poster download: PLEX_TOKEN is not set.")
             else:
+                # Download old-style posters (movies, shows, audiobooks)
+                download_and_cache_posters()
+                
+                # Download new-style library posters
                 selected_ids = os.getenv("LIBRARY_IDS", "")
                 selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
                 all_libraries = get_plex_libraries()

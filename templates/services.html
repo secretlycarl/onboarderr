@@ -149,13 +149,7 @@
             <strong style="margin-bottom: 0.5em; display:block;">Enter a description for each selected library (optional):</strong>
             <div id="library-descriptions-list-admin"></div>
           </div>
-          <p>Enter Library IDs below. Needed to pull posters for the onboarding pages.</p>
-          <label style="display:block; margin-bottom: 1.2em;">Movies Library ID:<br>
-            <input type="text" name="movies_id" id="movies_id" value="{{ MOVIES_ID or '' }}" style="width: 100%; margin-top: 0.3em;">
-          </label>
-          <label style="display:block; margin-bottom: 1.2em;">Shows Library ID:<br>
-            <input type="text" name="shows_id" id="shows_id" value="{{ SHOWS_ID or '' }}" style="width: 100%; margin-top: 0.3em;">
-          </label>
+
           <label style="display:block; margin-bottom: 1.2em;">Enable Audiobookshelf?<br>
             <input type="radio" name="abs_enabled" value="yes" {% if ABS_ENABLED == 'yes' %}checked{% endif %} onchange="toggleABSAdmin()"> Yes
             <input type="radio" name="abs_enabled" value="no" {% if ABS_ENABLED != 'yes' %}checked{% endif %} onchange="toggleABSAdmin()"> No
@@ -166,6 +160,9 @@
             </label><br><br>
             <label>Audiobookshelf Server URL:<br>
               <input type="text" name="audiobookshelf_url" id="audiobookshelf_url_admin" value="{{ AUDIOBOOKSHELF_URL or '' }}" style="width: 100%; margin-top: 0.3em;" disabled>
+            </label><br><br>
+            <label>Audiobookshelf API Token (optional):<br>
+              <input type="text" name="audiobookshelf_token" id="audiobookshelf_token_admin" value="{{ AUDIOBOOKSHELF_TOKEN or '' }}" style="width: 100%; margin-top: 0.3em;" disabled>
             </label><br><br>
           </div>
           <label style="display:block; margin-bottom: 1.2em;">Enable Discord Notifications?<br>

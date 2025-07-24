@@ -35,16 +35,7 @@
 
             </div>
 
-            <p>
-                Enter Library IDs below. Needed to pull posters for the onboarding pages.
-            </p>
 
-            <label style="display:block; margin-bottom: 1.2em;">Movies Library ID:<br>
-                <input type="text" name="movies_id" id="movies_id" required class="max-300">
-            </label>
-            <label style="display:block; margin-bottom: 1.2em;">Shows Library ID:<br>
-                <input type="text" name="shows_id" id="shows_id" required class="max-300">
-            </label>
 
             <label style="display:block; margin-bottom: 1.2em;">Enable Audiobookshelf?<br>
                 <input type="radio" name="abs_enabled" value="yes" checked onchange="toggleABS()"> Yes
@@ -56,6 +47,9 @@
                 </label><br><br>
                 <label>Audiobookshelf Server URL:<br>
                     <input type="text" name="audiobookshelf_url" id="audiobookshelf_url" class="max-300">
+                </label><br><br>
+                <label>Audiobookshelf API Token:<br>
+                    <input type="text" name="audiobookshelf_token" id="audiobookshelf_token" class="max-300" placeholder="Leave empty if no authentication required">
                 </label><br><br>
             </div>
             <label style="display:block; margin-bottom: 1.2em;">Enable Discord Notifications?<br>
@@ -198,8 +192,6 @@
                 var serverName = document.getElementById('server_name').value.trim();
                 var plexToken = document.getElementById('plex_token').value.trim();
                 var plexUrl = document.getElementById('plex_url').value.trim();
-                var moviesId = document.getElementById('movies_id').value.trim();
-                var showsId = document.getElementById('shows_id').value.trim();
                 var absEnabled = document.querySelector('input[name="abs_enabled"]:checked').value;
                 var audiobooksId = document.getElementById('audiobooks_id').value.trim();
                 var audiobookshelfUrl = document.getElementById('audiobookshelf_url').value.trim();
@@ -212,7 +204,7 @@
                 });
                 var submitBtn = document.getElementById('submit-btn');
                 var msgDiv = document.getElementById('setup-message');
-                var valid = serverName && plexToken && plexUrl && moviesId && showsId && anyLibraryChecked;
+                var valid = serverName && plexToken && plexUrl && anyLibraryChecked;
                 if (absEnabled === 'yes') {
                     valid = valid && audiobooksId && audiobookshelfUrl;
                 }
@@ -234,8 +226,6 @@
                 var serverName = document.getElementById('server_name').value.trim();
                 var plexToken = document.getElementById('plex_token').value.trim();
                 var plexUrl = document.getElementById('plex_url').value.trim();
-                var moviesId = document.getElementById('movies_id').value.trim();
-                var showsId = document.getElementById('shows_id').value.trim();
                 var absEnabled = document.querySelector('input[name="abs_enabled"]:checked').value;
                 var audiobooksId = document.getElementById('audiobooks_id').value.trim();
                 var audiobookshelfUrl = document.getElementById('audiobookshelf_url').value.trim();
@@ -251,8 +241,6 @@
                 if (!serverName) missing.push('Server Name');
                 if (!plexToken) missing.push('Plex Token');
                 if (!plexUrl) missing.push('Plex URL');
-                if (!moviesId) missing.push('Movies Library ID');
-                if (!showsId) missing.push('Shows Library ID');
                 if (!anyLibraryChecked) missing.push('At least one Library');
                 if (absEnabled === 'yes' && !audiobooksId) missing.push('Audiobook Library ID');
                 if (absEnabled === 'yes' && !audiobookshelfUrl) missing.push('Audiobookshelf URL');
