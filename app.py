@@ -57,8 +57,6 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24)
 csrf = CSRFProtect(app)
-PASSWORD = os.getenv("SITE_PASSWORD")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
 
 # Plex details
@@ -292,12 +290,17 @@ def login():
         return redirect(url_for("setup"))
     if request.method == "POST":
         entered_password = request.form.get("password")
+        # Always reload from .env
+        from dotenv import load_dotenv
+        load_dotenv(override=True)
+        admin_password = os.getenv("ADMIN_PASSWORD")
+        site_password = os.getenv("SITE_PASSWORD")
 
-        if entered_password == ADMIN_PASSWORD:
+        if entered_password == admin_password:
             session["authenticated"] = True
             session["admin_authenticated"] = True
             return redirect(url_for("services"))
-        elif entered_password == PASSWORD:
+        elif entered_password == site_password:
             session["authenticated"] = True
             session["admin_authenticated"] = False
             return redirect(url_for("onboarding"))
@@ -1137,13 +1140,6 @@ def setup():
             safe_set_key(env_path, "SITE_PASSWORD", site_password)
             safe_set_key(env_path, "ADMIN_PASSWORD", admin_password)
             safe_set_key(env_path, "DRIVES", drives)
-            # Debug: print what was written
-            print("DEBUG: Saved SITE_PASSWORD =", site_password)
-            print("DEBUG: Saved ADMIN_PASSWORD =", admin_password)
-            print("DEBUG: .env path =", env_path)
-            if os.path.exists(env_path):
-                with open(env_path, 'r', encoding='utf-8') as f:
-                    print("DEBUG: .env contents after write:\n" + f.read())
 
         abs_enabled = form.get("abs_enabled", "")
         audiobooks_id = form.get("audiobooks_id", "").strip()
