@@ -1137,6 +1137,13 @@ def setup():
             safe_set_key(env_path, "SITE_PASSWORD", site_password)
             safe_set_key(env_path, "ADMIN_PASSWORD", admin_password)
             safe_set_key(env_path, "DRIVES", drives)
+            # Debug: print what was written
+            print("DEBUG: Saved SITE_PASSWORD =", site_password)
+            print("DEBUG: Saved ADMIN_PASSWORD =", admin_password)
+            print("DEBUG: .env path =", env_path)
+            if os.path.exists(env_path):
+                with open(env_path, 'r', encoding='utf-8') as f:
+                    print("DEBUG: .env contents after write:\n" + f.read())
 
         abs_enabled = form.get("abs_enabled", "")
         audiobooks_id = form.get("audiobooks_id", "").strip()
