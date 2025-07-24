@@ -196,7 +196,8 @@ def onboarding():
         imdb_ids = []
         if os.path.exists(poster_dir):
             all_files = [f for f in os.listdir(poster_dir) if f.lower().endswith(('.webp', '.jpg', '.jpeg', '.png'))]
-            all_files.sort()  # Ensure consistent order
+            import random
+            random.shuffle(all_files)
             for fname in all_files:
                 posters.append(f"/static/posters/{section_id}/{fname}")
                 json_path = os.path.join(poster_dir, fname.rsplit('.', 1)[0] + '.json')
@@ -557,18 +558,6 @@ def services():
         DISCORD_NOTIFY_PLEX=os.getenv("DISCORD_NOTIFY_PLEX", "1"),
         DISCORD_NOTIFY_ABS=os.getenv("DISCORD_NOTIFY_ABS", "1")
     )
-
-@app.route("/posters")
-def get_random_posters():
-    paths = [f"/static/posters/movies/movie{i+1}.webp" for i in range(25)]
-    random.shuffle(paths)
-    return jsonify(paths)
-
-@app.route("/show-posters")
-def get_random_show_posters():
-    paths = [f"/static/posters/shows/show{i+1}.webp" for i in range(25)]
-    random.shuffle(paths)
-    return jsonify(paths)
 
 @app.route("/fetch-libraries", methods=["POST"])
 def fetch_libraries():
@@ -1136,12 +1125,18 @@ def setup():
         prompt = False
         if site_password == "changeme" or admin_password == "changeme2" or not drives:
             prompt = True
+        service_keys = [
+            'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
+            'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR'
+        ]
+        service_urls = {key: os.getenv(key, "") for key in service_keys}
         return render_template(
             "setup.html",
             prompt_passwords=prompt,
             site_password=site_password,
             admin_password=admin_password,
-            drives=drives
+            drives=drives,
+            service_urls=service_urls
         )
     if is_setup_complete():
         return redirect(url_for("login"))
@@ -1235,6 +1230,14 @@ def setup():
             except Exception as e:
                 safe_set_key(env_path, "LIBRARY_IDS", ",".join(library_ids))
                 safe_set_key(env_path, "LIBRARY_NAMES", "")
+        # Save service URLs
+        service_keys = [
+            'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
+            'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR'
+        ]
+        for key in service_keys:
+            url_val = form.get(key, "").strip()
+            safe_set_key(env_path, key, url_val)
         safe_set_key(env_path, "SETUP_COMPLETE", "1")
         load_dotenv(override=True)
         return redirect(url_for("setup_complete"))

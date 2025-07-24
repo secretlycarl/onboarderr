@@ -39,11 +39,15 @@
 
       // Set carousel width
       function updateWidth() {
-        let totalWidth = 0;
-        Array.from(carousel.children).forEach(img => {
-          totalWidth += img.offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
-        });
-        carousel.style.width = totalWidth + 'px';
+        // Instead of setting to total width, set to container's width plus a buffer
+        const containerWidth = container.offsetWidth;
+        // Buffer: add width of 2 images (if available)
+        let buffer = 0;
+        if (carousel.children.length > 0) {
+          const imgWidth = carousel.children[0].offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
+          buffer = imgWidth * 4;
+        }
+        carousel.style.width = (containerWidth + buffer) + 'px';
       }
 
       // Animation loop using transform
@@ -73,24 +77,29 @@
         animate();
         return;
       }
+      let started = false;
+      function maybeStart() {
+        if (!started && loaded > 0) {
+          started = true;
+          duplicateImages();
+          updateWidth();
+          animate();
+        }
+      }
       imgs.forEach(img => {
         if (img.complete) {
           loaded++;
+          maybeStart();
         } else {
           img.addEventListener('load', () => {
             loaded++;
-            if (loaded === imgs.length) {
-              duplicateImages();
-              updateWidth();
-              animate();
-            }
+            maybeStart();
           });
         }
       });
+      // Fallback: if all images are loaded, ensure animation starts
       if (loaded === imgs.length) {
-        duplicateImages();
-        updateWidth();
-        animate();
+        maybeStart();
       }
     }
 
@@ -247,56 +256,6 @@
 
       return true; // let form proceed
     }
-  </script>
-
-  <script>
-  fetch("/posters")
-    .then(res => res.json())
-    .then(urls => {
-      const container = document.getElementById("poster-carousel");
-
-    // Create one set of posters first
-      const fragment = document.createDocumentFragment();
-      urls.forEach(url => {
-        const img = document.createElement("img");
-        img.src = url;
-        img.loading = "lazy";
-        fragment.appendChild(img);
-      });
-
-    // Append twice for seamless loop
-      container.appendChild(fragment.cloneNode(true));
-      container.appendChild(fragment);
-
-    // Trigger animation after images are inserted
-      requestAnimationFrame(() => {
-        container.classList.add("animate");
-      });
-    });
-  </script>
-
-  <script>
-  fetch("/show-posters")
-    .then(res => res.json())
-    .then(urls => {
-      const container = document.getElementById("show-poster-carousel");
-
-      const fragment = document.createDocumentFragment();
-      urls.forEach(url => {
-        const img = document.createElement("img");
-        img.src = url;
-        img.loading = "lazy";
-        fragment.appendChild(img);
-      });
-
-      container.appendChild(fragment.cloneNode(true));
-      container.appendChild(fragment);
-
-      requestAnimationFrame(() => {
-        container.classList.add("animate");
-      });
-    });
-
   </script>
 
   <script>

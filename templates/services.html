@@ -111,6 +111,26 @@
       <div style="margin-left: 1em; margin-bottom:2em;">
         <form method="post" id="admin-settings-form" style="max-width: 600px;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div style="margin-bottom: 1.2em; color: #aaa; font-size: 0.98em; display: flex; align-items: center;">
+            <span style="margin-right: 0.5em;">🔑</span>
+            <span style="font-weight: bold; margin-right: 0.3em;">SITE_PASSWORD</span> and <span style="font-weight: bold; margin-left: 0.3em;">ADMIN_PASSWORD</span> must be different.
+          </div>
+          <div style="margin-bottom: 1.2em; color: #f6b900; font-size: 0.98em; margin-left: 2.1em;">
+            Leaving either field blank will keep the current password.
+          </div>
+          <label style="display:block; margin-bottom: 1.2em;">SITE_PASSWORD (for guests):<br>
+            <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
+              <span style="font-size: 1.2em; margin-right: 0.7em;">🔑</span>
+              <input type="text" name="site_password" id="admin_site_password_box" value="{{ SITE_PASSWORD or '' }}" required style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+            </div>
+          </label>
+          <label style="display:block; margin-bottom: 1.2em;">ADMIN_PASSWORD (for admin):<br>
+            <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
+              <span style="font-size: 1.2em; margin-right: 0.7em;">🔑</span>
+              <input type="text" name="admin_password" id="admin_admin_password_box" value="{{ ADMIN_PASSWORD or '' }}" required style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+            </div>
+          </label>
+          <div id="admin-passwords-error" style="color:#f6b900; font-weight:bold; margin-bottom:1em;"></div>
           <label style="display:block; margin-bottom: 1.2em;">Server Name:<br>
             <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
               <img src="{{ url_for('static', filename='clearlogo.webp') }}" alt="Server Name" style="width: 24px; height: 24px; margin-right: 0.7em;">
@@ -346,6 +366,28 @@
           }
           // ABS toggle on load
           toggleABSAdmin();
+
+          // Password validation for admin settings
+          function validateAdminPasswords() {
+            var site = document.getElementById('admin_site_password_box').value.trim();
+            var admin = document.getElementById('admin_admin_password_box').value.trim();
+            var errorDiv = document.getElementById('admin-passwords-error');
+            var submitBtn = document.getElementById('admin-submit-btn');
+            let valid = true;
+            if (!site || !admin) {
+              errorDiv.textContent = 'SITE_PASSWORD and ADMIN_PASSWORD are required.';
+              valid = false;
+            } else if (site === admin) {
+              errorDiv.textContent = 'SITE_PASSWORD and ADMIN_PASSWORD must be different.';
+              valid = false;
+            } else {
+              errorDiv.textContent = '';
+            }
+            if (submitBtn) submitBtn.disabled = !valid;
+          }
+          document.getElementById('admin_site_password_box').addEventListener('input', validateAdminPasswords);
+          document.getElementById('admin_admin_password_box').addEventListener('input', validateAdminPasswords);
+          window.addEventListener('DOMContentLoaded', validateAdminPasswords);
         </script>
       </div>
     </details>
