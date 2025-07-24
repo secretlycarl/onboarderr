@@ -108,8 +108,7 @@ def save_library_notes(notes):
         json.dump(notes, f, indent=2)
 
 def safe_set_key(env_path, key, value):
-    if value != "":
-        set_key(env_path, key, value, quote_mode="never")
+    set_key(env_path, key, value, quote_mode="never")
 
 
 def send_discord_notification(email, service_type, event_type=None):
@@ -324,7 +323,7 @@ def services():
         for field in ["server_name", "plex_token", "plex_url", "audiobooks_id"]:
             value = request.form.get(field, "").strip()
             current_value = os.getenv(field.upper(), "")
-            if value and value != current_value:
+            if value != current_value:
                 safe_set_key(env_path, field.upper(), value)
 
         # Handle Audiobookshelf fields
@@ -371,22 +370,22 @@ def services():
         # Discord settings
         discord_webhook = request.form.get("discord_webhook", "").strip()
         current_webhook = os.getenv("DISCORD_WEBHOOK", "")
-        if discord_webhook and discord_webhook != current_webhook:
+        if discord_webhook != current_webhook:
             safe_set_key(env_path, "DISCORD_WEBHOOK", discord_webhook)
         
         discord_username = request.form.get("discord_username", "").strip()
         current_username = os.getenv("DISCORD_USERNAME", "")
-        if discord_username and discord_username != current_username:
+        if discord_username != current_username:
             safe_set_key(env_path, "DISCORD_USERNAME", discord_username)
         
         discord_avatar = request.form.get("discord_avatar", "").strip()
         current_avatar = os.getenv("DISCORD_AVATAR", "")
-        if discord_avatar and discord_avatar != current_avatar:
+        if discord_avatar != current_avatar:
             safe_set_key(env_path, "DISCORD_AVATAR", discord_avatar)
         
         discord_color = request.form.get("discord_color", "").strip()
         current_color = os.getenv("DISCORD_COLOR", "")
-        if discord_color and discord_color != current_color:
+        if discord_color != current_color:
             safe_set_key(env_path, "DISCORD_COLOR", discord_color)
         
         # Update service URLs if changed
@@ -422,6 +421,14 @@ def services():
         current_discord_notify_abs = os.getenv("DISCORD_NOTIFY_ABS", "1")
         if discord_notify_abs in ["1", "0"] and discord_notify_abs != current_discord_notify_abs:
             safe_set_key(env_path, "DISCORD_NOTIFY_ABS", discord_notify_abs)
+
+        # Handle password fields
+        site_password = request.form.get("site_password", "").strip()
+        admin_password = request.form.get("admin_password", "").strip()
+        if site_password:
+            safe_set_key(env_path, "SITE_PASSWORD", site_password)
+        if admin_password:
+            safe_set_key(env_path, "ADMIN_PASSWORD", admin_password)
 
         return redirect(url_for("setup_complete"))
 
@@ -482,25 +489,8 @@ def services():
     ]
     services = []
     for name, env, logo in service_defs:
-        url = os.getenv(env)
-        if url:
-            services.append({"name": name, "url": url, "logo": logo})
-    if not services:
-        # Fallback to default list if none are set
-        services = [
-            {"name": "Plex", "url": "https://app.plex.tv", "logo": "plex.webp"},
-            {"name": "Tautulli", "url": "http://localhost:8181", "logo": "tautulli.webp"},
-            {"name": "Audiobookshelf", "url": "http://localhost:13378", "logo": "abs.webp"},
-            {"name": "qbittorrent", "url": "http://localhost:8080/", "logo": "qbit.webp"},
-            {"name": "Immich", "url": "http://localhost:2283/", "logo": "immich.webp"},
-            {"name": "Sonarr", "url": "http://localhost:8989/", "logo": "sonarr.webp"},
-            {"name": "Radarr", "url": "http://localhost:7878/", "logo": "radarr.webp"},
-            {"name": "Lidarr", "url": "http://localhost:8686", "logo": "lidarr.webp"},
-            {"name": "Prowlarr", "url": "http://localhost:9696/", "logo": "prowlarr.webp"},
-            {"name": "Bazarr", "url": "http://localhost:6767/", "logo": "bazarr.webp"},
-            {"name": "Pulsarr", "url": "http://localhost:3003/", "logo": "pulsarr.webp"},
-            {"name": "Overseerr", "url": "http://localhost:5055/", "logo": "overseerr.webp"}
-        ]
+        url = os.getenv(env, "")
+        services.append({"name": name, "url": url or "", "logo": logo})
 
     # Read flags for showing/hiding services and custom URL
     show_services = os.getenv("SHOW_SERVICES", "yes").lower() == "yes"
@@ -638,13 +628,11 @@ def download_and_cache_posters():
 
 def download_abs_audiobook_posters():
     """Download audiobook posters from ABS API"""
-    print("[INFO] Starting ABS audiobook poster download...")
     abs_url = os.getenv("AUDIOBOOKSHELF_URL")
     if not abs_url:
         print("[WARN] ABS enabled but AUDIOBOOKSHELF_URL not set")
         return
     
-    print(f"[INFO] ABS URL: {abs_url}")
     audiobook_dir = os.path.join("static", "posters", "audiobooks")
     os.makedirs(audiobook_dir, exist_ok=True)
     
@@ -654,38 +642,25 @@ def download_abs_audiobook_posters():
         abs_token = os.getenv("AUDIOBOOKSHELF_TOKEN")
         if abs_token:
             headers["Authorization"] = f"Bearer {abs_token}"
-            print("[INFO] Using ABS token for authentication")
         else:
             print("[INFO] No ABS token provided, trying without authentication")
         
-        print(f"[INFO] Making request to: {abs_url}/api/libraries")
         response = requests.get(f"{abs_url}/api/libraries", headers=headers, timeout=10)
-        print(f"[INFO] ABS libraries response status: {response.status_code}")
-        print(f"[INFO] Response content: {response.text[:500]}...")
-        
         if response.status_code == 200:
             try:
                 response_data = response.json()
-                print(f"[INFO] Response data type: {type(response_data)}")
-                print(f"[INFO] Response data content: {response_data}")
                 
                 # Extract libraries array from response
                 libraries = response_data.get("libraries", [])
-                print(f"[INFO] Found {len(libraries)} libraries")
                 
                 poster_count = 0
                 for library in libraries:
-                    print(f"[INFO] Library item: {library} (type: {type(library)})")
                     if isinstance(library, dict):
-                        print(f"[INFO] Checking library: {library.get('name', 'Unknown')} (mediaType: {library.get('mediaType', 'Unknown')})")
                         if library.get("mediaType") == "book":
                             library_id = library.get("id")
-                            print(f"[INFO] Found audiobooks library with ID: {library_id}")
                             books_response = requests.get(f"{abs_url}/api/libraries/{library_id}/items", headers=headers, timeout=10)
-                            print(f"[INFO] Books response status: {books_response.status_code}")
                             if books_response.status_code == 200:
                                 books_data = books_response.json()
-                                print(f"[INFO] Found {len(books_data.get('results', []))} books")
                                 for book in books_data.get("results", []):
                                     if poster_count >= 25:  # Limit to 25 posters
                                         break
@@ -699,18 +674,12 @@ def download_abs_audiobook_posters():
                                         # Use the correct cover URL pattern
                                         item_id = book.get("id")
                                         cover_url = f"{abs_url}/api/items/{item_id}/cover"
-                                        print(f"[INFO] Downloading cover: {cover_url}")
                                         cover_response = requests.get(cover_url, headers=headers, timeout=10)
                                         if cover_response.status_code == 200:
                                             out_path = os.path.join(audiobook_dir, f"audiobook{poster_count+1}.webp")
                                             with open(out_path, "wb") as f:
                                                 f.write(cover_response.content)
                                             poster_count += 1
-                                            print(f"[INFO] Downloaded poster {poster_count}: {title}")
-                                        else:
-                                            print(f"[WARN] Failed to download cover: {cover_response.status_code}")
-                                    else:
-                                        print(f"[INFO] No cover path for book: {title}")
                                 if poster_count >= 25:
                                     break
                             else:

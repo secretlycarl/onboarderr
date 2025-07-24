@@ -121,13 +121,13 @@
           <label style="display:block; margin-bottom: 1.2em;">SITE_PASSWORD (for guests):<br>
             <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
               <span style="font-size: 1.2em; margin-right: 0.7em;">🔑</span>
-              <input type="text" name="site_password" id="admin_site_password_box" value="{{ SITE_PASSWORD or '' }}" required style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+              <input type="text" name="site_password" id="admin_site_password_box" value="{{ SITE_PASSWORD or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
             </div>
           </label>
           <label style="display:block; margin-bottom: 1.2em;">ADMIN_PASSWORD (for admin):<br>
             <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
               <span style="font-size: 1.2em; margin-right: 0.7em;">🔑</span>
-              <input type="text" name="admin_password" id="admin_admin_password_box" value="{{ ADMIN_PASSWORD or '' }}" required style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+              <input type="text" name="admin_password" id="admin_admin_password_box" value="{{ ADMIN_PASSWORD or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
             </div>
           </label>
           <div id="admin-passwords-error" style="color:#f6b900; font-weight:bold; margin-bottom:1em;"></div>
@@ -374,14 +374,19 @@
             var errorDiv = document.getElementById('admin-passwords-error');
             var submitBtn = document.getElementById('admin-submit-btn');
             let valid = true;
-            if (!site || !admin) {
-              errorDiv.textContent = 'SITE_PASSWORD and ADMIN_PASSWORD are required.';
+            // If both are blank, allow (means no change)
+            if (!site && !admin) {
+              errorDiv.textContent = '';
+              valid = true;
+            } else if (!site || !admin) {
+              errorDiv.textContent = 'If changing, both SITE_PASSWORD and ADMIN_PASSWORD are required.';
               valid = false;
             } else if (site === admin) {
               errorDiv.textContent = 'SITE_PASSWORD and ADMIN_PASSWORD must be different.';
               valid = false;
             } else {
               errorDiv.textContent = '';
+              valid = true;
             }
             if (submitBtn) submitBtn.disabled = !valid;
           }
