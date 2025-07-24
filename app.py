@@ -82,10 +82,12 @@ def inject_admin_status():
     return dict(is_admin=session.get("admin_authenticated", False))
 
 def get_plex_libraries():
-    print("DEBUG: PLEX_URL =", PLEX_URL)
+    if debug_mode:
+        print("DEBUG: PLEX_URL =", PLEX_URL)
     headers = {"X-Plex-Token": PLEX_TOKEN}
     url = f"{PLEX_URL}/library/sections"
-    print("DEBUG: url =", url)
+    if debug_mode:
+        print("DEBUG: url =", url)
     response = requests.get(url, headers=headers, timeout=5)
     response.raise_for_status()
     root = ET.fromstring(response.text)
@@ -138,7 +140,8 @@ def send_discord_notification(email, service_type, event_type=None):
     try:
         requests.post(webhook_url, json=payload, timeout=5)
     except Exception as e:
-        print(f"Failed to send Discord notification: {e}")
+        if debug_mode:
+            print(f"Failed to send Discord notification: {e}")
 
 @app.route("/onboarding", methods=["GET", "POST"])
 def onboarding():
@@ -183,7 +186,8 @@ def onboarding():
     try:
         libraries = [lib for lib in get_plex_libraries() if lib["key"] in selected_ids]
     except Exception as e:
-        print(f"Failed to get Plex libraries: {e}")
+        if debug_mode:
+            print(f"Failed to get Plex libraries: {e}")
         libraries = []
 
     # Build static poster URLs for each library
@@ -451,7 +455,8 @@ def services():
                     with open(os.path.join(os.getcwd(), "plex_submissions.json"), "w") as f:
                         json.dump(submissions, f, indent=2)
             except Exception as e:
-                print(f"Error deleting submission: {e}")
+                if debug_mode:
+                    print(f"Error deleting submission: {e}")
         audiobookshelf_delete_index = request.form.get("audiobookshelf_delete_index")
         if audiobookshelf_delete_index is not None:
             try:
@@ -463,7 +468,8 @@ def services():
                     with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "w") as f:
                         json.dump(audiobookshelf_submissions, f, indent=2)
             except Exception as e:
-                print(f"Error deleting audiobookshelf submission: {e}")
+                if debug_mode:
+                    print(f"Error deleting audiobookshelf submission: {e}")
 
     # Load Plex submissions
     try:
@@ -524,7 +530,8 @@ def services():
                 "percent": int(usage.percent)
             })
         except Exception as e:
-            print(f"Error reading {drive}: {e}")
+            if debug_mode:
+                print(f"Error reading {drive}: {e}")
 
     # Load library notes for descriptions
     library_notes = load_library_notes()
@@ -587,7 +594,8 @@ def download_and_cache_posters():
         url = f"{PLEX_URL}/library/sections/{section_id}/all"
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
-            print(f"Failed to fetch from section {section_id}")
+            if debug_mode:
+                print(f"Failed to fetch from section {section_id}")
             return
 
         root = ET.fromstring(response.content)
@@ -622,22 +630,26 @@ def download_and_cache_posters():
                 with open(out_path, "wb") as f:
                     f.write(r.content)
             except Exception as e:
-                print(f"Error saving {img_url}: {e}")
+                if debug_mode:
+                    print(f"Error saving {img_url}: {e}")
 
     # Only audiobooks (if ABS is disabled)
     if os.getenv("ABS_ENABLED", "yes") != "yes":
-        print("[INFO] ABS disabled, downloading audiobook posters from Plex")
+        if debug_mode:
+            print("[INFO] ABS disabled, downloading audiobook posters from Plex")
         save_images(AUDIOBOOKS_SECTION_ID, audiobook_dir, "audiobook", 25)
     else:
         # Download audiobook posters from ABS
-        print("[INFO] ABS enabled, downloading audiobook posters from ABS")
+        if debug_mode:
+            print("[INFO] ABS enabled, downloading audiobook posters from ABS")
         download_abs_audiobook_posters()
 
 def download_abs_audiobook_posters():
     """Download audiobook posters from ABS API"""
     abs_url = os.getenv("AUDIOBOOKSHELF_URL")
     if not abs_url:
-        print("[WARN] ABS enabled but AUDIOBOOKSHELF_URL not set")
+        if debug_mode:
+            print("[WARN] ABS enabled but AUDIOBOOKSHELF_URL not set")
         return
     
     audiobook_dir = os.path.join("static", "posters", "audiobooks")
@@ -650,7 +662,8 @@ def download_abs_audiobook_posters():
         if abs_token:
             headers["Authorization"] = f"Bearer {abs_token}"
         else:
-            print("[INFO] No ABS token provided, trying without authentication")
+            if debug_mode:
+                print("[INFO] No ABS token provided, trying without authentication")
         
         response = requests.get(f"{abs_url}/api/libraries", headers=headers, timeout=10)
         if response.status_code == 200:
@@ -690,18 +703,23 @@ def download_abs_audiobook_posters():
                                 if poster_count >= 25:
                                     break
                             else:
-                                print(f"[WARN] Failed to get books from library {library_id}: {books_response.status_code}")
-                print(f"[INFO] Downloaded {poster_count} audiobook posters")
+                                if debug_mode:
+                                    print(f"[WARN] Failed to get books from library {library_id}: {books_response.status_code}")
+                if debug_mode:
+                    print(f"[INFO] Downloaded {poster_count} audiobook posters")
             except Exception as e:
-                print(f"[WARN] Error parsing ABS response: {e}")
-                print(f"[WARN] Raw response: {response.text}")
+                if debug_mode:
+                    print(f"[WARN] Error parsing ABS response: {e}")
+                    print(f"[WARN] Raw response: {response.text}")
         else:
-            print(f"[WARN] Failed to connect to ABS API: {response.status_code}")
-            print(f"[WARN] Response content: {response.text[:200]}...")
+            if debug_mode:
+                print(f"[WARN] Failed to connect to ABS API: {response.status_code}")
+                print(f"[WARN] Response content: {response.text[:200]}...")
     except Exception as e:
-        print(f"[WARN] Error downloading ABS audiobook posters: {e}")
-        import traceback
-        traceback.print_exc()
+        if debug_mode:
+            print(f"[WARN] Error downloading ABS audiobook posters: {e}")
+            import traceback
+            traceback.print_exc()
 
 def download_and_cache_posters_for_libraries(libraries, limit=None):
     headers = {"X-Plex-Token": PLEX_TOKEN}
@@ -742,7 +760,8 @@ def download_and_cache_posters_for_libraries(libraries, limit=None):
                     with open(out_path, "wb") as f:
                         f.write(r.content)
                 except Exception as e:
-                    print(f"Error saving {img_url}: {e}")
+                    if debug_mode:
+                        print(f"Error saving {img_url}: {e}")
                 # Fetch GUIDs
                 guids = {"imdb": None, "tmdb": None, "tvdb": None}
                 try:
@@ -759,7 +778,8 @@ def download_and_cache_posters_for_libraries(libraries, limit=None):
                         elif gid.startswith("tvdb://"):
                             guids["tvdb"] = gid.replace("tvdb://", "")
                 except Exception as e:
-                    print(f"Error fetching GUIDs for {item['ratingKey']}: {e}")
+                    if debug_mode:
+                        print(f"Error fetching GUIDs for {item['ratingKey']}: {e}")
                 # Save metadata JSON
                 meta = {
                     "title": item["title"],
@@ -772,7 +792,8 @@ def download_and_cache_posters_for_libraries(libraries, limit=None):
                 with open(meta_path, "w", encoding="utf-8") as f:
                     json.dump(meta, f, indent=2)
         except Exception as e:
-            print(f"Error fetching posters for section {section_id}: {e}")
+            if debug_mode:
+                print(f"Error fetching posters for section {section_id}: {e}")
 
 def group_titles_by_letter(titles):
     groups = defaultdict(list)
@@ -850,7 +871,8 @@ def medialists():
                 if title and title not in titles:
                     titles.append(title)
         except Exception as e:
-            print(f"Error fetching titles for section {section_id}: {e}")
+            if debug_mode:
+                print(f"Error fetching titles for section {section_id}: {e}")
         return titles
 
     def fetch_audiobooks(section_id):
@@ -861,7 +883,8 @@ def medialists():
             # Fetch from ABS API
             abs_url = os.getenv("AUDIOBOOKSHELF_URL")
             if not abs_url:
-                print("[WARN] ABS enabled but AUDIOBOOKSHELF_URL not set")
+                if debug_mode:
+                    print("[WARN] ABS enabled but AUDIOBOOKSHELF_URL not set")
                 return books
             
             try:
@@ -890,9 +913,11 @@ def medialists():
                                         books[author] = []
                                     books[author].append(title)
                 else:
-                    print(f"[WARN] Failed to connect to ABS API: {response.status_code}")
+                    if debug_mode:
+                        print(f"[WARN] Failed to connect to ABS API: {response.status_code}")
             except Exception as e:
-                print(f"[WARN] Error connecting to ABS API: {e}")
+                if debug_mode:
+                    print(f"[WARN] Error connecting to ABS API: {e}")
             return books
         else:
             # Only fetch from Plex if ABS is disabled
@@ -918,7 +943,8 @@ def medialists():
                                 if book_title:
                                     books[author_name].append(book_title)
             except Exception as e:
-                print(f"Error fetching audiobooks from Plex: {e}")
+                if debug_mode:
+                    print(f"Error fetching audiobooks from Plex: {e}")
             return books
 
     def fetch_abs_books():
@@ -955,14 +981,16 @@ def medialists():
                             "cover": cover_url,
                         })
         except Exception as e:
-            print(f"[ABS] Error fetching books: {e}")
+            if debug_mode:
+                print(f"[ABS] Error fetching books: {e}")
         return abs_books
 
     # Get all libraries
     try:
         libraries = get_plex_libraries()
     except Exception as e:
-        print(f"Failed to get Plex libraries: {e}")
+        if debug_mode:
+            print(f"Failed to get Plex libraries: {e}")
         libraries = []
 
     # Only include libraries specified in LIBRARY_IDS
@@ -998,7 +1026,8 @@ def medialists():
                             "tvdb": meta.get("tvdb"),
                         })
                     except Exception as e:
-                        print(f"Error loading poster metadata: {e}")
+                        if debug_mode:
+                            print(f"Error loading poster metadata: {e}")
         library_posters[name] = poster_items
         library_poster_groups[name] = group_posters_by_letter(poster_items)
 
@@ -1235,7 +1264,8 @@ def setup_complete():
 def periodic_poster_refresh(libraries, interval_hours=6):
     def refresh():
         while True:
-            print("[INFO] Refreshing library posters...")
+            if debug_mode:
+                print("[INFO] Refreshing library posters...")
             download_and_cache_posters_for_libraries(libraries)
             time.sleep(interval_hours * 3600)
     t = threading.Thread(target=refresh, daemon=True)
@@ -1254,7 +1284,8 @@ if __name__ == "__main__":
     try:
         if os.getenv("SETUP_COMPLETE") == "1":
             if not PLEX_TOKEN:
-                print("[WARN] Skipping poster download: PLEX_TOKEN is not set.")
+                if debug_mode:
+                    print("[WARN] Skipping poster download: PLEX_TOKEN is not set.")
             else:
                 # Download new-style library posters
                 selected_ids = os.getenv("LIBRARY_IDS", "")
@@ -1267,9 +1298,11 @@ if __name__ == "__main__":
             if os.getenv("ABS_ENABLED", "yes") == "yes":
                 download_abs_audiobook_posters()
         else:
-            print("[INFO] Skipping poster download: setup is not complete.")
+            if debug_mode:
+                print("[INFO] Skipping poster download: setup is not complete.")
     except Exception as e:
-        print(f"Warning: Could not download posters: {e}")
+        if debug_mode:
+            print(f"Warning: Could not download posters: {e}")
     # After initial poster download
     debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
     app.run(host="0.0.0.0", port=10000, debug=debug_mode)
