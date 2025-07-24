@@ -112,16 +112,19 @@ def safe_set_key(env_path, key, value):
         set_key(env_path, key, value, quote_mode="never")
 
 
-def send_discord_notification(email, service_type):
-    """Send Discord notification for form submissions"""
+def send_discord_notification(email, service_type, event_type=None):
+    """Send Discord notification for form submissions, respecting notification toggles"""
+    # Notification toggles
+    if event_type == "plex" and os.getenv("DISCORD_NOTIFY_PLEX", "1") != "1":
+        return
+    if event_type == "abs" and os.getenv("DISCORD_NOTIFY_ABS", "1") != "1":
+        return
     webhook_url = os.getenv("DISCORD_WEBHOOK")
     if not webhook_url:
         return
-    
-    username = os.getenv("DISCORD_USERNAME", "Monitor")
-    avatar_url = os.getenv("DISCORD_AVATAR", "")
+    username = os.getenv("DISCORD_USERNAME", "Onboarderr")
+    avatar_url = os.getenv("DISCORD_AVATAR", url_for('static', filename='clearlogo.webp', _external=True))
     color = os.getenv("DISCORD_COLOR", "#000000")
-    
     payload = {
         "username": username,
         "embeds": [{
@@ -129,10 +132,8 @@ def send_discord_notification(email, service_type):
             "color": int(color.lstrip('#'), 16) if color.startswith('#') else 0
         }]
     }
-    
     if avatar_url:
         payload["avatar_url"] = avatar_url
-    
     try:
         requests.post(webhook_url, json=payload, timeout=5)
     except Exception as e:
@@ -170,7 +171,7 @@ def onboarding():
             with open(os.path.join(os.getcwd(), "plex_submissions.json"), "w") as f:
                 json.dump(submissions, f, indent=2)
             submitted = True
-            send_discord_notification(email, "Plex")
+            send_discord_notification(email, "Plex", event_type="plex")
             # AJAX response
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return jsonify({"success": True})
@@ -243,7 +244,7 @@ def audiobookshelf():
             with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "w") as f:
                 json.dump(submissions, f, indent=2)
             submitted = True
-            send_discord_notification(email, "Audiobookshelf")
+            send_discord_notification(email, "Audiobookshelf", event_type="abs")
             # AJAX response
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return jsonify({"success": True})
@@ -286,7 +287,7 @@ def services():
         "plex_url" in request.form or
         "audiobooks_id" in request.form or
         "abs_enabled" in request.form or
-        "discord_enabled" in request.form or
+        "discord_webhook" in request.form or
         "library_ids" in request.form or
         "audiobookshelf_url" in request.form
     ):
@@ -297,22 +298,34 @@ def services():
             current_value = os.getenv(field.upper(), "")
             if value and value != current_value:
                 safe_set_key(env_path, field.upper(), value)
-        # ABS enabled/disabled
+
+        # Handle Audiobookshelf fields
+        audiobooks_id = request.form.get("audiobooks_id", "").strip()
+        audiobookshelf_url = request.form.get("audiobookshelf_url", "").strip()
+        audiobookshelf_token = request.form.get("audiobookshelf_token", "").strip()
+
         abs_enabled = request.form.get("abs_enabled")
         current_abs = os.getenv("ABS_ENABLED", "no")
+
+        if not audiobooks_id and not audiobookshelf_url and not audiobookshelf_token:
+            # If all Audiobookshelf fields are empty, set ABS_ENABLED to 'no' and clear other ABS fields
+            safe_set_key(env_path, "ABS_ENABLED", "no")
+            safe_set_key(env_path, "AUDIOBOOKS_ID", "")
+            safe_set_key(env_path, "AUDIOBOOKSHELF_URL", "")
+            safe_set_key(env_path, "AUDIOBOOKSHELF_TOKEN", "")
+        else:
+            # If any Audiobookshelf field is filled, set ABS_ENABLED to 'yes'
+            safe_set_key(env_path, "ABS_ENABLED", "yes")
+            if audiobooks_id:
+                safe_set_key(env_path, "AUDIOBOOKS_ID", audiobooks_id)
+            if audiobookshelf_url:
+                safe_set_key(env_path, "AUDIOBOOKSHELF_URL", audiobookshelf_url)
+            if audiobookshelf_token:
+                safe_set_key(env_path, "AUDIOBOOKSHELF_TOKEN", audiobookshelf_token)
+
+        # ABS enabled/disabled
         if abs_enabled in ["yes", "no"] and abs_enabled != current_abs:
             safe_set_key(env_path, "ABS_ENABLED", "yes" if abs_enabled == "yes" else "no")
-        # Audiobookshelf URL
-        audiobookshelf_url = request.form.get("audiobookshelf_url", "").strip()
-        current_abs_url = os.getenv("AUDIOBOOKSHELF_URL", "")
-        if audiobookshelf_url and audiobookshelf_url != current_abs_url:
-            safe_set_key(env_path, "AUDIOBOOKSHELF_URL", audiobookshelf_url)
-        
-        # Audiobookshelf Token
-        audiobookshelf_token = request.form.get("audiobookshelf_token", "").strip()
-        current_abs_token = os.getenv("AUDIOBOOKSHELF_TOKEN", "")
-        if audiobookshelf_token and audiobookshelf_token != current_abs_token:
-            safe_set_key(env_path, "AUDIOBOOKSHELF_TOKEN", audiobookshelf_token)
         # Library IDs (checkboxes)
         library_ids = request.form.getlist("library_ids")
         current_library_ids = os.getenv("LIBRARY_IDS", "")
@@ -328,11 +341,6 @@ def services():
             with open(os.path.join(os.getcwd(), "library_notes.json"), "w", encoding="utf-8") as f:
                 json.dump(library_notes, f, indent=2)
         # Discord settings
-        discord_enabled = request.form.get("discord_enabled")
-        current_discord = os.getenv("DISCORD_ENABLED", "no")
-        if discord_enabled in ["yes", "no"] and discord_enabled != current_discord:
-            safe_set_key(env_path, "DISCORD_ENABLED", discord_enabled)
-        
         discord_webhook = request.form.get("discord_webhook", "").strip()
         current_webhook = os.getenv("DISCORD_WEBHOOK", "")
         if discord_webhook and discord_webhook != current_webhook:
@@ -375,6 +383,17 @@ def services():
                 current_url = os.getenv(env, "")
                 if url != current_url:
                     safe_set_key(env_path, env, url)
+
+        # Read new notification toggles
+        discord_notify_plex = request.form.get("discord_notify_plex")
+        current_discord_notify_plex = os.getenv("DISCORD_NOTIFY_PLEX", "1")
+        if discord_notify_plex in ["1", "0"] and discord_notify_plex != current_discord_notify_plex:
+            safe_set_key(env_path, "DISCORD_NOTIFY_PLEX", discord_notify_plex)
+
+        discord_notify_abs = request.form.get("discord_notify_abs")
+        current_discord_notify_abs = os.getenv("DISCORD_NOTIFY_ABS", "1")
+        if discord_notify_abs in ["1", "0"] and discord_notify_abs != current_discord_notify_abs:
+            safe_set_key(env_path, "DISCORD_NOTIFY_ABS", discord_notify_abs)
 
         return redirect(url_for("setup_complete"))
 
@@ -500,7 +519,6 @@ def services():
         LIBRARY_IDS=os.getenv("LIBRARY_IDS", ""),
         library_notes=library_notes,
         # Discord settings
-        DISCORD_ENABLED=os.getenv("DISCORD_ENABLED", "no"),
         DISCORD_WEBHOOK=os.getenv("DISCORD_WEBHOOK", ""),
         DISCORD_USERNAME=os.getenv("DISCORD_USERNAME", ""),
         DISCORD_AVATAR=os.getenv("DISCORD_AVATAR", ""),
@@ -508,7 +526,9 @@ def services():
         AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", ""),
         AUDIOBOOKSHELF_TOKEN=os.getenv("AUDIOBOOKSHELF_TOKEN", ""),
         show_services=show_services,
-        custom_services_url=custom_services_url
+        custom_services_url=custom_services_url,
+        DISCORD_NOTIFY_PLEX=os.getenv("DISCORD_NOTIFY_PLEX", "1"),
+        DISCORD_NOTIFY_ABS=os.getenv("DISCORD_NOTIFY_ABS", "1")
     )
 
 @app.route("/posters")
@@ -937,7 +957,6 @@ def setup():
         abs_enabled = form.get("abs_enabled", "")
         audiobooks_id = form.get("audiobooks_id", "").strip()
         audiobookshelf_url = form.get("audiobookshelf_url", "").strip()
-        discord_enabled = form.get("discord_enabled", "")
         discord_webhook = form.get("discord_webhook", "").strip()
         discord_username = form.get("discord_username", "").strip()
         discord_avatar = form.get("discord_avatar", "").strip()
@@ -953,7 +972,7 @@ def setup():
                 return render_template("setup.html", error_message=error_message)
 
         # Server-side validation for Discord
-        if discord_enabled == "yes" and not discord_webhook:
+        if discord_webhook:
             error_message = "Some entries are missing: Discord Webhook URL"
             return render_template("setup.html", error_message=error_message)
 
@@ -968,9 +987,8 @@ def setup():
             if audiobookshelf_token:
                 safe_set_key(env_path, "AUDIOBOOKSHELF_TOKEN", audiobookshelf_token)
         # Save Discord settings
-        safe_set_key(env_path, "DISCORD_ENABLED", discord_enabled)
-        if discord_enabled == "yes":
-            safe_set_key(env_path, "DISCORD_WEBHOOK", discord_webhook)
+        safe_set_key(env_path, "DISCORD_WEBHOOK", discord_webhook)
+        if discord_webhook:
             if discord_username:
                 safe_set_key(env_path, "DISCORD_USERNAME", discord_username)
             if discord_avatar:
