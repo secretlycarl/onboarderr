@@ -8,7 +8,7 @@
 </head>
 <body style="display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
   <div class="container login-container" style="max-width: 100%;">
-    <img src="{{ url_for('static', filename='clearlogo.webp') }}" alt="Logo" style="display: block; margin: 0 auto; max-width: 200px" >
+    <img src="{{ url_for('static', filename=logo_filename) }}" alt="Logo" style="display: block; margin: 0 auto; max-width: 200px" >
     <h1 style="text-align: center">Welcome to {{ SERVER_NAME }}!</h1>
     <form method="POST">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

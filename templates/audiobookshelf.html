@@ -5,6 +5,13 @@
   <title>{{ SERVER_NAME }}</title>
   <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp') }}" />
   <link rel="stylesheet" href="/static/style.css" />
+  <script>
+    // Set accent color from environment variable
+    document.addEventListener('DOMContentLoaded', function() {
+      const accentColor = '{{ ACCENT_COLOR or "#d33fbc" }}';
+      document.documentElement.style.setProperty('--accent-color', accentColor);
+    });
+  </script>
 </head>
 <body>
   {% include "_bottom_nav.html" %}
@@ -134,7 +141,7 @@
       <div style="margin-left: 1em;">
         <p>To get started, fill out the form below. Let me know when you're done so I can add your account.</p>
 
-        <p class="accent">
+        <p class="muted">
           Note: Please don't share the account you create with others. If you know someone who you think would enjoy having access, let me know. In most cases I'll be happy to add them with their own account.
         </p>
         <form method="POST" action="/audiobookshelf" id="audiobookshelf-form" style="margin-bottom: 1em;">
@@ -157,7 +164,7 @@
           <button type="submit" {% if submitted %}disabled{% endif %}>Submit</button>
         </form>
         <div id="audiobookshelf-success" style="display:none;">
-          <p style="color: #f6b900; font-weight: bold; margin-top: 1em;">
+          <p class="accent" style="font-weight: bold; margin-top: 1em;">
             Thanks! Your request has been submitted.
           </p>
         </div>

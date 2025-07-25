@@ -5,7 +5,13 @@
   <title>{{ SERVER_NAME }}</title>
   <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp') }}">
   <link rel="stylesheet" href="/static/style.css">
-  <script src="{{ url_for('static', filename='admin-shortcut.js') }}"></script>
+  <script>
+    // Set accent color from environment variable
+    document.addEventListener('DOMContentLoaded', function() {
+      const accentColor = '{{ ACCENT_COLOR or "#d33fbc" }}';
+      document.documentElement.style.setProperty('--accent-color', accentColor);
+    });
+  </script>
 </head>
 <body>
   {% include "_bottom_nav.html" %}
@@ -21,7 +27,7 @@
       <div class="services">
         {% for service in services %}
           <a href="{{ service.url }}" class="service-box" target="_blank">
-            <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" style="width: 32px; height: 32px; border-radius: 8px; margin-right: 1em;">
+            <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" style="width: 32px; height: 32px; border-radius: 8px;">
             <span>{{ service.name }}</span>
           </a>
         {% endfor %}
@@ -109,13 +115,13 @@
     <details>
       <summary class="collapsible-heading" style="font-size:1.2em; font-weight:bold; margin-top: 2em;">Settings</summary>
       <div style="margin-left: 1em; margin-bottom:2em;">
-        <form method="post" id="admin-settings-form" style="max-width: 600px;">
+        <form method="post" id="admin-settings-form" style="max-width: 600px;" enctype="multipart/form-data">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div style="margin-bottom: 1.2em; color: #aaa; font-size: 0.98em; display: flex; align-items: center;">
             <span style="margin-right: 0.5em;">🔑</span>
-            <span style="font-weight: bold; margin-right: 0.3em;">SITE_PASSWORD</span> and <span style="font-weight: bold; margin-left: 0.3em;">ADMIN_PASSWORD</span> must be different.
+            <span style="font-weight: bold; margin-right: 0.3em;">SITE_PASSWORD</span> and <span style="font-weight: bold; margin-left: 0.3em;">ADMIN_PASSWORD&nbsp;</span> must be different.
           </div>
-          <div style="margin-bottom: 1.2em; color: #f6b900; font-size: 0.98em; margin-left: 2.1em;">
+          <div class="muted" style="margin-bottom: 1.2em; font-size: 0.98em; margin-left: 2.1em;">
             Leaving either field blank will keep the current password.
           </div>
           <label style="display:block; margin-bottom: 1.2em;">SITE_PASSWORD (for guests):<br>
@@ -133,10 +139,39 @@
           <div id="admin-passwords-error" style="color:#f6b900; font-weight:bold; margin-bottom:1em;"></div>
           <label style="display:block; margin-bottom: 1.2em;">Server Name:<br>
             <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
-              <img src="{{ url_for('static', filename='clearlogo.webp') }}" alt="Server Name" style="width: 24px; height: 24px; margin-right: 0.7em;">
+              <img src="{{ url_for('static', filename=logo_filename) }}" alt="Server Name" style="width: 24px; height: 24px; margin-right: 0.7em;">
               <input type="text" name="server_name" id="server_name" value="{{ SERVER_NAME or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
             </div>
           </label>
+          <label style="display:block; margin-bottom: 1.2em;">Accent Color:<br>
+            <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
+              <input type="color" name="accent_color_picker" id="accent_color_picker" value="{{ ACCENT_COLOR or '#d33fbc' }}" style="width: 60px; height: 40px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+              <input type="text" name="accent_color" id="accent_color_admin" value="{{ ACCENT_COLOR or '#d33fbc' }}" placeholder="#d33fbc" style="width: 120px; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+              <input type="hidden" name="accent_color_hidden" id="accent_color_hidden" value="{{ ACCENT_COLOR or '#d33fbc' }}">
+              <span style="color: #888; font-size: 0.9em; margin-left: 10px;">Choose your theme color</span>
+            </div>
+          </label>
+          
+          <div style="margin-bottom: 2em;">
+            <strong style="margin-bottom: 0.5em; display:block;">Custom Branding:</strong>
+            <div style="color: #888; font-size: 0.95em; margin-bottom: 1em;">
+              Upload your own logo and wordmark to customize the appearance.
+            </div>
+            
+            <label style="display:block; margin-bottom: 1.2em;">Select New Logo (.png or .webp, ~300x300):<br>
+              <input type="file" name="logo_file" id="logo_file_admin" accept=".png,.webp,.jpg,.jpeg" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+              <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
+                This will replace the logo and automatically create a favicon.
+              </div>
+            </label>
+            
+            <label style="display:block; margin-bottom: 1.2em;">Select New Wordmark (.png or .webp, minimum dimensions ~1000x250):<br>
+              <input type="file" name="wordmark_file" id="wordmark_file_admin" accept=".png,.webp,.jpg,.jpeg" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+              <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
+                This will replace the wordmark image.
+              </div>
+            </label>
+          </div>
           <label style="display:block; margin-bottom: 1.2em;">Plex Token:<br>
             <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
               <img src="{{ url_for('static', filename='plex.webp') }}" alt="Plex Token" style="width: 24px; height: 24px; margin-right: 0.7em;">
@@ -159,7 +194,9 @@
             {% for lib_id in selected_ids %}
               {% if lib_id.strip() %}
                 <div style="margin-bottom: 0.5em;">
-                  <strong>{{ lib_id.strip() }}</strong>
+                  <strong>
+                    {% if library_notes[lib_id.strip()] and library_notes[lib_id.strip()]['title'] %}{{ library_notes[lib_id.strip()]['title'] }}{% else %}Unknown{% endif %} ({{ lib_id.strip() }})
+                  </strong>
                   {% if library_notes[lib_id.strip()] and library_notes[lib_id.strip()]['description'] %}
                     <span style="color: #888; font-size: 0.9em;">— {{ library_notes[lib_id.strip()]['description'] }}</span>
                   {% endif %}
@@ -204,11 +241,11 @@
           <!-- Editable Service URLs -->
           <div style="margin-bottom: 2em;">
             <strong style="margin-bottom: 0.5em; display:block;">PUBLIC Service URLs:</strong>
-            {% for service in services %}
+            {% for service in all_services %}
               <div style="display: flex; align-items: center; margin-bottom: 1em;">
                 <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" style="width: 32px; height: 32px; border-radius: 8px; margin-right: 1em;">
                 <label style="flex: 0 0 120px; font-weight: bold;">{{ service.name }}:</label>
-                <input type="text" name="{{ service.name|upper }}" value="{{ service.url }}" style="flex: 1 1 auto; margin-left: 1em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+                <input type="text" name="{{ service.env }}" value="{{ service.url }}" style="flex: 1 1 auto; margin-left: 1em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
               </div>
             {% endfor %}
           </div>
@@ -252,7 +289,11 @@
               </div>
             </div>
           </div>
+          {% if error_message %}
+          <div id="admin-setup-message" style="color: #f00; margin-bottom: 1em; padding: 0.7em 1em; background: #222; border-radius: 6px; border-left: 4px solid #f00;">{{ error_message }}</div>
+          {% else %}
           <div id="admin-setup-message" style="color: #f00; margin-bottom: 1em;"></div>
+          {% endif %}
           <button type="submit" id="admin-submit-btn" style="margin-top: 1.5em;">Apply Settings</button>
           <div style="margin-top:1.5em; color:#888; font-size:0.95em;">
             <b>Note:</b> Changes will only take effect after you restart the server.
@@ -390,9 +431,76 @@
             }
             if (submitBtn) submitBtn.disabled = !valid;
           }
+          // Sync color picker and text input for admin settings
+          document.addEventListener('DOMContentLoaded', function() {
+            const colorPicker = document.getElementById('accent_color_picker');
+            const colorText = document.getElementById('accent_color_admin');
+            const colorHidden = document.getElementById('accent_color_hidden');
+            
+            if (colorPicker && colorText && colorHidden) {
+              // Initial sync
+              colorText.value = colorPicker.value;
+              colorHidden.value = colorPicker.value;
+              
+              // Function to sync all fields
+              function syncColorFields() {
+                const currentValue = colorPicker.value;
+                colorText.value = currentValue;
+                colorHidden.value = currentValue;
+              }
+              
+              // Sync color picker to other fields
+              colorPicker.addEventListener('input', syncColorFields);
+              colorPicker.addEventListener('change', syncColorFields);
+              colorPicker.addEventListener('click', function() {
+                setTimeout(syncColorFields, 100);
+              });
+              colorPicker.addEventListener('mouseup', function() {
+                setTimeout(syncColorFields, 100);
+              });
+              colorPicker.addEventListener('touchend', function() {
+                setTimeout(syncColorFields, 100);
+              });
+              
+              // Sync text input to color picker (if valid hex)
+              colorText.addEventListener('input', function() {
+                if (this.value.match(/^#[0-9A-Fa-f]{6}$/)) {
+                  colorPicker.value = this.value;
+                  colorHidden.value = this.value;
+                }
+              });
+              
+              colorText.addEventListener('change', function() {
+                if (this.value.match(/^#[0-9A-Fa-f]{6}$/)) {
+                  colorPicker.value = this.value;
+                  colorHidden.value = this.value;
+                }
+              });
+            }
+          });
+          
+          // Initialize password validation
+          document.addEventListener('DOMContentLoaded', function() {
+            validateAdminPasswords();
+          });
+          
+          // Ensure color picker value is synced before form submission
+          document.getElementById('admin-settings-form').addEventListener('submit', function(e) {
+            const colorPicker = document.getElementById('accent_color_picker');
+            const colorText = document.getElementById('accent_color_admin');
+            const colorHidden = document.getElementById('accent_color_hidden');
+            if (colorPicker && colorText && colorHidden) {
+              // Force sync the color picker value to all fields
+              const currentValue = colorPicker.value;
+              colorText.value = currentValue;
+              colorHidden.value = currentValue;
+              // Also trigger a change event to ensure the form field is updated
+              colorText.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+          });
+          
           document.getElementById('admin_site_password_box').addEventListener('input', validateAdminPasswords);
           document.getElementById('admin_admin_password_box').addEventListener('input', validateAdminPasswords);
-          window.addEventListener('DOMContentLoaded', validateAdminPasswords);
         </script>
       </div>
     </details>

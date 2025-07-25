@@ -5,6 +5,13 @@
   <title>{{ SERVER_NAME }}</title>
   <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp') }}" />
   <link rel="stylesheet" href="/static/style.css" />
+  <script>
+    // Set accent color from environment variable
+    document.addEventListener('DOMContentLoaded', function() {
+      const accentColor = '{{ ACCENT_COLOR or "#d33fbc" }}';
+      document.documentElement.style.setProperty('--accent-color', accentColor);
+    });
+  </script>
 </head>
 <body>
   {% include "_bottom_nav.html" %}
@@ -53,7 +60,7 @@
       <div style="margin-left: 1em;">
         <p>To get started, enter your email below and select what you want access to. Let me know when you're done, and you'll recieve an email or invite link.</p>
 
-        <p class="accent">
+        <p class="muted">
           Note: Please don't share the account you create with others. If you know someone who you think would enjoy having access, let me know. In most cases I'll be happy to add them with their own account.
         </p>
         <form method="POST" action="/onboarding" id="onboarding-form">
@@ -213,8 +220,8 @@
       </div>
     </details>
   </div>
+  {% if pulsarr_enabled or overseerr_enabled %}
   <div class="container">
-    {% if pulsarr_enabled or overseerr_enabled %}
     <details>
       <summary class="collapsible-heading">5. Requests</summary>
       <div style="margin-left: 1em;">
@@ -276,11 +283,11 @@
         {% endif %}
       </div>
     </details>
-    {% endif %}
   </div>
+  {% endif %}
   <div class="container">
     <details>
-      <summary class="collapsible-heading">6. Issues</summary>
+      <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled %}6{% else %}5{% endif %}. Issues</summary>
       <div style="margin-left: 1em;">
     
         <p>
@@ -296,7 +303,7 @@
   </div>
   <div class="container">
     <details>
-      <summary class="collapsible-heading">7. The End</summary>
+      <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled %}7{% else %}6{% endif %}. The End</summary>
       <div style="margin-left: 1em;">
         {% include "onboarding_section7.html" %}
       </div>
@@ -316,6 +323,51 @@
   </script>
 
   <script>
+    // AJAX onboarding form submission for Plex
+    document.addEventListener('DOMContentLoaded', function() {
+      const form = document.getElementById('onboarding-form');
+      if (form) {
+        form.addEventListener('submit', async function(e) {
+          e.preventDefault();
+          const formData = new FormData(form);
+          const data = new URLSearchParams();
+          for (const pair of formData) {
+            data.append(pair[0], pair[1]);
+          }
+          const submitBtn = form.querySelector('button[type="submit"]');
+          if (submitBtn) submitBtn.disabled = true;
+          Array.from(form.elements).forEach(el => el.disabled = true);
+          try {
+            const response = await fetch('/onboarding', {
+              method: 'POST',
+              headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+              },
+              body: data
+            });
+            if (response.ok) {
+              const result = await response.json();
+              if (result.success) {
+                document.getElementById('onboarding-success').style.display = '';
+                form.style.display = 'none';
+              } else {
+                alert(result.error || 'Submission failed.');
+                Array.from(form.elements).forEach(el => el.disabled = false);
+                if (submitBtn) submitBtn.disabled = false;
+              }
+            } else {
+              alert('Submission failed.');
+              Array.from(form.elements).forEach(el => el.disabled = false);
+              if (submitBtn) submitBtn.disabled = false;
+            }
+          } catch (err) {
+            alert('Submission failed.');
+            Array.from(form.elements).forEach(el => el.disabled = false);
+            if (submitBtn) submitBtn.disabled = false;
+          }
+        });
+      }
+    });
   </script>
 
   <script>

@@ -2,7 +2,7 @@
 :root {
   --bg: #121212;
   --container-bg: #1e1e1e;
-  --accent: #d33fbc;
+  --accent: var(--accent-color, #d33fbc);
   --text: #ffffff;
   --muted: #888888;
   --input-bg: #ffffff;
@@ -476,4 +476,70 @@ figcaption {
   font-size: 1em;
   color: var(--muted);
   width: 100%;
+}
+
+
+.library-col {
+    min-width: 0;
+    max-width: 350px;
+    background: #232323;
+    border-radius: 8px;
+    padding: 1em 1.2em;
+    box-shadow: 0 2px 8px #0002;
+}
+/* .section-border {
+  border: 3px solid var(--accent);
+  border-radius: 18px;
+  box-shadow: 0 6px 32px #0006, 0 0 0 2px rgba(211, 63, 188, 0.2);
+  margin-bottom: 2.5em;
+  padding: 2em 2em 1.5em 2em;
+} */
+.scroll-tip {
+  color: var(--accent);
+  font-size: 1.05em;
+  margin-bottom: 1em;
+  font-style: italic;
+}
+.dot {
+  display: inline-block;
+  width: 0.7em;
+  height: 0.7em;
+  background: var(--accent);
+  border-radius: 50%;
+  margin-right: 0.7em;
+  vertical-align: middle;
+}
+.empty-letter-summary {
+  display: flex;
+  align-items: center;
+  padding: 0.2em 0 0.2em 0.2em; /* Match summary padding */
+  color: #888;
+  font-size: 1.1em;
+  font-weight: 500;
+  margin-bottom: 0.1em; /* Reduce space */
+  line-height: 1.2;     /* Match summary line height */
+  min-height: 1.7em;    /* Try to match summary height */
+}
+details > summary.collapsible-heading {
+  /* Ensure summary and empty-letter-summary have the same min-height and padding */
+  min-height: 1.7em;
+  padding: 0.2em 0 0.2em 0.2em;
+  line-height: 1.2;
+}
+.service-libraries-label {
+  font-size: 1.5em;
+  font-weight: bold;
+  color: #fff;
+  letter-spacing: 0.02em;
+}
+@media (max-width: 900px) {
+    .library-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.medialist-section ul {
+  list-style: none;
+  padding-left: 0;
+  margin-left: 0;
 }

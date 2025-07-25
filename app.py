@@ -25,11 +25,48 @@ import shutil
 import secrets
 import tempfile
 import sys
+from PIL import Image
+import io
+import webbrowser
 
 # Before load_dotenv()
 if not os.path.exists('.env') and os.path.exists('empty.env'):
     print('\n[WARN] .env file not found. Copying empty.env to .env for you. Please edit .env with your settings!\n')
     shutil.copyfile('empty.env', '.env')
+
+def is_running_in_docker():
+    """Detect if the application is running inside a Docker container"""
+    try:
+        with open('/proc/1/cgroup', 'r') as f:
+            return any('docker' in line for line in f)
+    except (FileNotFoundError, PermissionError):
+        # Check for Docker environment variables
+        return any(var in os.environ for var in ['DOCKER_CONTAINER', 'KUBERNETES_SERVICE_HOST'])
+
+def get_app_url():
+    """Determine the correct URL to open in browser"""
+    port = 11000
+    
+    # Check if we're in Docker
+    if is_running_in_docker():
+        # In Docker, we need to determine the external URL
+        # This could be localhost if port is mapped, or a different host
+        # For now, we'll use localhost as the most common case
+        return f"http://localhost:{port}"
+    else:
+        # Native installation
+        return f"http://localhost:{port}"
+
+def open_browser_delayed():
+    """Open browser after a delay to ensure server is running"""
+    time.sleep(2)  # Wait for Flask to start
+    try:
+        url = get_app_url()
+        print(f"\n[INFO] Opening browser to: {url}")
+        webbrowser.open(url)
+    except Exception as e:
+        print(f"[WARN] Failed to open browser: {e}")
+        print(f"[INFO] Please manually open: {get_app_url()}")
 
 # Ensure SECRET_KEY is set
 def ensure_secret_key():
@@ -69,7 +106,8 @@ def inject_server_name():
     return dict(
         SERVER_NAME=os.getenv("SERVER_NAME", "DefaultName"),
         ABS_ENABLED=os.getenv("ABS_ENABLED", "yes"),
-        AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", "")
+        AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", ""),
+        ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc")
     )
 
 @app.context_processor
@@ -80,7 +118,11 @@ def inject_csrf_token():
 def inject_admin_status():
     # Make sure session is available in context
     from flask import session
-    return dict(is_admin=session.get("admin_authenticated", False))
+    return dict(
+        is_admin=session.get("admin_authenticated", False),
+        logo_filename=get_logo_filename(),
+        wordmark_filename=get_wordmark_filename()
+    )
 
 def get_plex_libraries():
     if debug_mode:
@@ -115,6 +157,105 @@ def save_library_notes(notes):
 def safe_set_key(env_path, key, value):
     set_key(env_path, key, value, quote_mode="never")
 
+def process_uploaded_logo(file):
+    """Process uploaded logo file and create favicon"""
+    if not file or file.filename == '':
+        return False
+    
+    # Check file extension
+    allowed_extensions = {'.png', '.webp', '.jpg', '.jpeg'}
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in allowed_extensions:
+        return False
+    
+    try:
+        # Open image with PIL
+        img = Image.open(file.stream)
+        
+        # Convert to RGB if necessary
+        if img.mode in ('RGBA', 'LA', 'P'):
+            img = img.convert('RGB')
+        
+        # Save logo based on original format
+        logo_path = os.path.join('static', 'clearlogo.webp')
+        if file_ext in ['.png', '.webp']:
+            # For PNG and WebP, preserve original format
+            if file_ext == '.png':
+                logo_path = os.path.join('static', 'clearlogo.png')
+                img.save(logo_path, 'PNG')
+            else:  # .webp
+                img.save(logo_path, 'WEBP')
+        else:
+            # For JPG/JPEG, convert to WebP
+            img.save(logo_path, 'WEBP', quality=85)
+        
+        # Create favicon (32x32) - always save as WebP for consistency
+        favicon = img.resize((32, 32), Image.Resampling.LANCZOS)
+        favicon_path = os.path.join('static', 'favicon.webp')
+        favicon.save(favicon_path, 'WEBP', quality=85)
+        
+        return True
+    except Exception as e:
+        if debug_mode:
+            print(f"Error processing logo: {e}")
+        return False
+
+def get_logo_filename():
+    """Get the current logo filename (could be PNG or WebP)"""
+    if os.path.exists(os.path.join('static', 'clearlogo.png')):
+        return 'clearlogo.png'
+    elif os.path.exists(os.path.join('static', 'clearlogo.webp')):
+        return 'clearlogo.webp'
+    else:
+        return 'clearlogo.webp'  # default fallback
+
+def get_wordmark_filename():
+    """Get the current wordmark filename (could be PNG or WebP)"""
+    if os.path.exists(os.path.join('static', 'wordmark.png')):
+        return 'wordmark.png'
+    elif os.path.exists(os.path.join('static', 'wordmark.webp')):
+        return 'wordmark.webp'
+    else:
+        return 'wordmark.webp'  # default fallback
+
+def process_uploaded_wordmark(file):
+    """Process uploaded wordmark file"""
+    if not file or file.filename == '':
+        return False
+    
+    # Check file extension
+    allowed_extensions = {'.png', '.webp', '.jpg', '.jpeg'}
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in allowed_extensions:
+        return False
+    
+    try:
+        # Open image with PIL
+        img = Image.open(file.stream)
+        
+        # Convert to RGB if necessary
+        if img.mode in ('RGBA', 'LA', 'P'):
+            img = img.convert('RGB')
+        
+        # Save wordmark based on original format
+        wordmark_path = os.path.join('static', 'wordmark.webp')
+        if file_ext in ['.png', '.webp']:
+            # For PNG and WebP, preserve original format
+            if file_ext == '.png':
+                wordmark_path = os.path.join('static', 'wordmark.png')
+                img.save(wordmark_path, 'PNG')
+            else:  # .webp
+                img.save(wordmark_path, 'WEBP')
+        else:
+            # For JPG/JPEG, convert to WebP
+            img.save(wordmark_path, 'WEBP', quality=85)
+        
+        return True
+    except Exception as e:
+        if debug_mode:
+            print(f"Error processing wordmark: {e}")
+        return False
+
 
 def send_discord_notification(email, service_type, event_type=None):
     """Send Discord notification for form submissions, respecting notification toggles"""
@@ -127,7 +268,7 @@ def send_discord_notification(email, service_type, event_type=None):
     if not webhook_url:
         return
     username = os.getenv("DISCORD_USERNAME", "Onboarderr")
-    avatar_url = os.getenv("DISCORD_AVATAR", url_for('static', filename='clearlogo.webp', _external=True))
+    avatar_url = os.getenv("DISCORD_AVATAR", url_for('static', filename=get_logo_filename(), _external=True))
     color = os.getenv("DISCORD_COLOR", "#000000")
     payload = {
         "username": username,
@@ -328,9 +469,113 @@ def services():
         "abs_enabled" in request.form or
         "discord_webhook" in request.form or
         "library_ids" in request.form or
-        "audiobookshelf_url" in request.form
+        "audiobookshelf_url" in request.form or
+        "accent_color" in request.form or
+        "logo_file" in request.files or
+        "wordmark_file" in request.files
     ):
         env_path = os.path.join(os.getcwd(), ".env")
+        
+        # Handle file uploads
+        logo_file = request.files.get('logo_file')
+        wordmark_file = request.files.get('wordmark_file')
+        
+        if logo_file and logo_file.filename:
+            if not process_uploaded_logo(logo_file):
+                # Get all the necessary data for the template
+                try:
+                    with open(os.path.join(os.getcwd(), "plex_submissions.json"), "r") as f:
+                        submissions = json.load(f)
+                except FileNotFoundError:
+                    submissions = []
+                try:
+                    with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "r") as f:
+                        audiobookshelf_submissions = json.load(f)
+                except FileNotFoundError:
+                    audiobookshelf_submissions = []
+                
+                # Build services list
+                service_defs = [
+                    ("Plex", "PLEX", "plex.webp"),
+                    ("Tautulli", "TAUTULLI", "tautulli.webp"),
+                    ("Audiobookshelf", "AUDIOBOOKSHELF", "abs.webp"),
+                    ("qbittorrent", "QBITTORRENT", "qbit.webp"),
+                    ("Immich", "IMMICH", "immich.webp"),
+                    ("Sonarr", "SONARR", "sonarr.webp"),
+                    ("Radarr", "RADARR", "radarr.webp"),
+                    ("Lidarr", "LIDARR", "lidarr.webp"),
+                    ("Prowlarr", "PROWLARR", "prowlarr.webp"),
+                    ("Bazarr", "BAZARR", "bazarr.webp"),
+                    ("Pulsarr", "PULSARR", "pulsarr.webp"),
+                    ("Overseerr", "OVERSEERR", "overseerr.webp"),
+                ]
+                services = []
+                all_services = []
+                for name, env, logo in service_defs:
+                    url = os.getenv(env, "")
+                    all_services.append({"name": name, "env": env, "url": url, "logo": logo})
+                    if url:
+                        services.append({"name": name, "url": url, "logo": logo})
+                
+                # Get storage info
+                drives_env = os.getenv("DRIVES")
+                if not drives_env:
+                    if platform.system() == "Windows":
+                        drives = ["C:\\"]
+                    else:
+                        drives = ["/"]
+                else:
+                    drives = [d.strip() for d in drives_env.split(",") if d.strip()]
+                
+                storage_info = []
+                for drive in drives:
+                    try:
+                        usage = psutil.disk_usage(drive)
+                        storage_info.append({
+                            "mount": drive,
+                            "used": round(usage.used / (1024**3), 1),
+                            "total": round(usage.total / (1024**3), 1),
+                            "percent": int(usage.percent)
+                        })
+                    except Exception as e:
+                        if debug_mode:
+                            print(f"Error reading {drive}: {e}")
+                
+                library_notes = load_library_notes()
+                
+                return render_template(
+                    "services.html",
+                    services=services,
+                    all_services=all_services,
+                    submissions=submissions,
+                    storage_info=storage_info,
+                    audiobookshelf_submissions=audiobookshelf_submissions,
+                    SERVER_NAME=os.getenv("SERVER_NAME", ""),
+                    ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc"),
+                    PLEX_TOKEN=os.getenv("PLEX_TOKEN", ""),
+                    PLEX_URL=os.getenv("PLEX_URL", ""),
+                    AUDIOBOOKS_ID=os.getenv("AUDIOBOOKS_ID", ""),
+                    ABS_ENABLED=os.getenv("ABS_ENABLED", "no"),
+                    LIBRARY_IDS=os.getenv("LIBRARY_IDS", ""),
+                    library_notes=library_notes,
+                    DISCORD_WEBHOOK=os.getenv("DISCORD_WEBHOOK", ""),
+                    DISCORD_USERNAME=os.getenv("DISCORD_USERNAME", ""),
+                    DISCORD_AVATAR=os.getenv("DISCORD_AVATAR", ""),
+                    DISCORD_COLOR=os.getenv("DISCORD_COLOR", ""),
+                    AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", ""),
+                    AUDIOBOOKSHELF_TOKEN=os.getenv("AUDIOBOOKSHELF_TOKEN", ""),
+                    show_services=os.getenv("SHOW_SERVICES", "yes").lower() == "yes",
+                    custom_services_url=os.getenv("CUSTOM_SERVICES_URL", "").strip(),
+                    DISCORD_NOTIFY_PLEX=os.getenv("DISCORD_NOTIFY_PLEX", "1"),
+                    DISCORD_NOTIFY_ABS=os.getenv("DISCORD_NOTIFY_ABS", "1"),
+                    error_message="Failed to process logo file. Please ensure it's a valid image file (.png, .webp, .jpg, .jpeg)."
+                )
+        
+        if wordmark_file and wordmark_file.filename:
+            if not process_uploaded_wordmark(wordmark_file):
+                # Similar error handling for wordmark
+                return render_template("services.html", error_message="Failed to process wordmark file. Please ensure it's a valid image file (.png, .webp, .jpg, .jpeg).")
+        
         # Update .env with any non-empty fields (only if they changed)
         for field in ["server_name", "plex_token", "plex_url", "audiobooks_id"]:
             value = request.form.get(field, "").strip()
@@ -442,6 +687,11 @@ def services():
         if admin_password:
             safe_set_key(env_path, "ADMIN_PASSWORD", admin_password)
 
+        # Handle accent color
+        accent_color = request.form.get("accent_color", "").strip()
+        if accent_color:
+            safe_set_key(env_path, "ACCENT_COLOR", accent_color)
+
         return redirect(url_for("setup_complete"))
 
     # Handle Plex/Audiobookshelf request deletion
@@ -502,9 +752,12 @@ def services():
         ("Overseerr", "OVERSEERR", "overseerr.webp"),
     ]
     services = []
+    all_services = []
     for name, env, logo in service_defs:
         url = os.getenv(env, "")
-        services.append({"name": name, "url": url or "", "logo": logo})
+        all_services.append({"name": name, "env": env, "url": url, "logo": logo})
+        if url:
+            services.append({"name": name, "url": url, "logo": logo})
 
     # Read flags for showing/hiding services and custom URL
     show_services = os.getenv("SHOW_SERVICES", "yes").lower() == "yes"
@@ -540,11 +793,13 @@ def services():
     return render_template(
         "services.html",
         services=services,
+        all_services=all_services,
         submissions=submissions,
         storage_info=storage_info,
         audiobookshelf_submissions=audiobookshelf_submissions,
         # Current configuration values
         SERVER_NAME=os.getenv("SERVER_NAME", ""),
+        ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc"),
         PLEX_TOKEN=os.getenv("PLEX_TOKEN", ""),
         PLEX_URL=os.getenv("PLEX_URL", ""),
         AUDIOBOOKS_ID=os.getenv("AUDIOBOOKS_ID", ""),
@@ -1154,6 +1409,18 @@ def setup():
         from dotenv import set_key
         env_path = os.path.join(os.getcwd(), ".env")
         form = request.form
+        
+        # Handle file uploads
+        logo_file = request.files.get('logo_file')
+        wordmark_file = request.files.get('wordmark_file')
+        
+        if logo_file:
+            if not process_uploaded_logo(logo_file):
+                error_message = "Failed to process logo file. Please ensure it's a valid image file (.png, .webp, .jpg, .jpeg)."
+        
+        if wordmark_file:
+            if not process_uploaded_wordmark(wordmark_file):
+                error_message = "Failed to process wordmark file. Please ensure it's a valid image file (.png, .webp, .jpg, .jpeg)."
 
         # Save SITE_PASSWORD, ADMIN_PASSWORD, DRIVES from the top entry boxes if present
         site_password = form.get("site_password_box") or form.get("site_password")
@@ -1162,10 +1429,20 @@ def setup():
         if site_password is not None and admin_password is not None and drives is not None:
             if not site_password or not admin_password or not drives:
                 error_message = "SITE_PASSWORD, ADMIN_PASSWORD, and DRIVES are required."
-                return render_template("setup.html", error_message=error_message, prompt_passwords=True, site_password=site_password, admin_password=admin_password, drives=drives)
+                service_keys = [
+                    'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
+                    'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR'
+                ]
+                service_urls = {key: os.getenv(key, "") for key in service_keys}
+                return render_template("setup.html", error_message=error_message, prompt_passwords=True, site_password=site_password, admin_password=admin_password, drives=drives, service_urls=service_urls)
             if site_password == admin_password:
                 error_message = "SITE_PASSWORD and ADMIN_PASSWORD must be different."
-                return render_template("setup.html", error_message=error_message, prompt_passwords=True, site_password=site_password, admin_password=admin_password, drives=drives)
+                service_keys = [
+                    'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
+                    'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR'
+                ]
+                service_urls = {key: os.getenv(key, "") for key in service_keys}
+                return render_template("setup.html", error_message=error_message, prompt_passwords=True, site_password=site_password, admin_password=admin_password, drives=drives, service_urls=service_urls)
             safe_set_key(env_path, "SITE_PASSWORD", site_password)
             safe_set_key(env_path, "ADMIN_PASSWORD", admin_password)
             safe_set_key(env_path, "DRIVES", drives)
@@ -1173,26 +1450,16 @@ def setup():
         abs_enabled = form.get("abs_enabled", "")
         audiobooks_id = form.get("audiobooks_id", "").strip()
         audiobookshelf_url = form.get("audiobookshelf_url", "").strip()
+        discord_enabled = form.get("discord_enabled", "")
         discord_webhook = form.get("discord_webhook", "").strip()
         discord_username = form.get("discord_username", "").strip()
         discord_avatar = form.get("discord_avatar", "").strip()
         discord_color = form.get("discord_color", "").strip()
 
-        # Server-side validation for ABS
-        if abs_enabled == "yes":
-            if not audiobooks_id:
-                error_message = "Some entries are missing: Audiobook Library ID"
-                return render_template("setup.html", error_message=error_message)
-            if not audiobookshelf_url:
-                error_message = "Some entries are missing: Audiobookshelf URL"
-                return render_template("setup.html", error_message=error_message)
 
-        # Server-side validation for Discord
-        if discord_webhook:
-            error_message = "Some entries are missing: Discord Webhook URL"
-            return render_template("setup.html", error_message=error_message)
 
         safe_set_key(env_path, "SERVER_NAME", form.get("server_name", ""))
+        safe_set_key(env_path, "ACCENT_COLOR", form.get("accent_color_text", "#d33fbc"))
         safe_set_key(env_path, "PLEX_TOKEN", form.get("plex_token", ""))
         safe_set_key(env_path, "PLEX_URL", form.get("plex_url", ""))
         safe_set_key(env_path, "ABS_ENABLED", abs_enabled)
@@ -1272,6 +1539,10 @@ if __name__ == "__main__":
     MOVIES_SECTION_ID = os.getenv("MOVIES_ID")
     SHOWS_SECTION_ID = os.getenv("SHOWS_ID")
     AUDIOBOOKS_SECTION_ID = os.getenv("AUDIOBOOKS_ID")
+    
+    # Check if this is the first run (setup not complete)
+    is_first_run = os.getenv("SETUP_COMPLETE", "0") != "1"
+    
     try:
         if os.getenv("SETUP_COMPLETE") == "1":
             if not PLEX_TOKEN:
@@ -1294,6 +1565,16 @@ if __name__ == "__main__":
     except Exception as e:
         if debug_mode:
             print(f"Warning: Could not download posters: {e}")
+    
     # After initial poster download
     debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
+    
+    # Start browser opening thread if this is the first run
+    # Only open browser in the main process (not the reloader)
+    if is_first_run and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        print(f"\n[INFO] First run detected! Setup not complete.")
+        print(f"[INFO] Server will start and browser will open automatically.")
+        browser_thread = threading.Thread(target=open_browser_delayed, daemon=True)
+        browser_thread.start()
+    
     app.run(host="0.0.0.0", port=10000, debug=debug_mode)

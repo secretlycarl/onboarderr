@@ -4,3 +4,4 @@ WTForms>=3.0
 requests>=2.25
 python-dotenv>=0.19
 psutil>=5.8
+Pillow>=9.0

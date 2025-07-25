@@ -8,199 +8,100 @@
 </head>
 <body>
     {% include "_bottom_nav.html" %}
-    <div class="container medialists-container" style="max-width: 1600px; width: 95vw; margin: 0 auto;">
+    <div class="container medialists-container">
         <h1>Media Lists</h1>
-        <div class="plex-libs section-border">
-          <div style="display: flex; align-items: center; gap: 1em; margin-bottom: 0.5em;">
-            <img src="/static/plex.webp" alt="Plex Logo" style="height: 48px; display: block;" />
-            <span class="service-libraries-label">Plex Libraries</span>
-          </div>
-          <div class="scroll-tip">Tip: Scroll horizontally or vertically to see all libraries.</div>
-          <div class="library-grid">
-          {% for lib_name, poster_groups in library_poster_groups.items() %}
-              <div class="library-col">
-                  <h3>{{ lib_name }}</h3>
-                  {% set all_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|list + ['0-9', 'Other'] %}
-                  {% for letter in all_letters %}
-                      {% set posters = poster_groups.get(letter, []) %}
-                      {% if posters %}
-                          <details>
-                              <summary class="collapsible-heading">{{ letter }}</summary>
-                              <ul>
-                                  {% for poster in posters %}
-                                      <li>
-                                          {% if poster.poster %}
-                                            <img src="{{ poster.poster }}" alt="{{ poster.title }} poster" style="width: 32px; vertical-align: middle; border-radius: 4px; margin-right: 0.5em;" />
-                                          {% endif %}
-                                          <span style="font-weight: bold;">{{ poster.title }}</span>
-                                          <span style="font-size: 0.9em;">
-                                            {% if poster.imdb %}
-                                              <a href="https://www.imdb.com/title/{{ poster.imdb }}" target="_blank">IMDB</a>
-                                            {% endif %}
-                                          </span>
-                                      </li>
-                                  {% endfor %}
-                              </ul>
-                          </details>
-                      {% else %}
-                          <div class="empty-letter-summary">
-                            <span class="dot"></span>
-                            <span class="collapsible-heading">{{ letter }}</span>
-                          </div>
-                      {% endif %}
-                  {% endfor %}
-              </div>
+        <label for="list-select" style="font-weight:bold; margin-bottom:0.7em; display:block;">Select Library:</label>
+        <select id="list-select" style="margin-bottom:1.5em; max-width: 350px;">
+          {% for lib_name in library_poster_groups.keys() %}
+            <option value="plex-{{ loop.index0 }}">Plex - {{ lib_name }}</option>
           {% endfor %}
+          {% if abs_book_groups %}
+            <option value="abs">Audiobookshelf</option>
+          {% endif %}
+        </select>
+        {% for lib_name, poster_groups in library_poster_groups.items() %}
+        <div class="medialist-section" id="plex-{{ loop.index0 }}" style="display:none;">
+          <div style="display: flex; align-items: center; gap: 1em; margin-bottom: 0.5em;">
+            <img src="/static/plex.webp" alt="Plex Logo" style="height: 32px; display: block;" />
+            <span class="service-libraries-label">Plex - {{ lib_name }}</span>
           </div>
-        </div>
-        {% if abs_enabled and audiobooks %}
-          <div>
-            <h3>Audiobooks</h3>
-            {% for author, books in audiobooks.items() %}
-              <p style="font-weight: bold; margin-top: 1em;">{{ author }}</p>
-              <ul>
-                {% for book in books %}
-                  <li>
-                    {{ book }} -
-                    <a href="https://www.goodreads.com/search?q={{ book | urlencode }}" target="_blank">Goodreads</a>
-                  </li>
-                {% endfor %}
-              </ul>
-            {% endfor %}
-          </div>
-        {% endif %}
-        {% if abs_book_groups %}
-          <div class="abs-libs section-border" style="margin-top: 3em;">
-            <div style="display: flex; align-items: center; gap: 1em; margin-bottom: 0.5em;">
-              <img src="/static/abs.webp" alt="ABS Logo" style="height: 48px; display: block;" />
-              <span class="service-libraries-label">ABS Libraries</span>
-            </div>
-            <div class="scroll-tip">Tip: Scroll horizontally or vertically to see all libraries.</div>
-            <div>
-              <h3>Audiobookshelf Books</h3>
-              <div class="library-col">
-                {% set all_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|list + ['0-9', 'Other'] %}
-                {% for letter in all_letters %}
-                  {% set books = abs_book_groups.get(letter, []) %}
-                  {% if books %}
-                    <details>
+          {% set all_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|list + ['0-9', 'Other'] %}
+          {% for letter in all_letters %}
+              {% set posters = poster_groups.get(letter, []) %}
+              {% if posters %}
+                  <details style="margin-bottom: 0.7em;">
                       <summary class="collapsible-heading">{{ letter }}</summary>
                       <ul>
-                        {% for book in books %}
-                          <li>
-                            <img src="{{ book.cover if book.cover else '/static/clearlogo.webp' }}"
-                                 alt="{{ book.title }} cover"
-                                 style="width: 32px; vertical-align: middle; border-radius: 4px; margin-right: 0.5em;"
-                                 onerror="this.onerror=null;this.src='/static/clearlogo.webp';" />
-                            <span style="font-weight: bold;">{{ book.title }}</span>
-                            {% if book.author %}
-                              <span style="font-size: 0.9em; color: #aaa;">by {{ book.author }}</span>
-                            {% endif %}
-                            <span style="font-size: 0.9em; margin-left: 0.5em;">
-                              <a href="https://www.goodreads.com/search?q={{ (book.title ~ ' ' ~ (book.author or '')) | urlencode }}" target="_blank">Goodreads</a>
-                            </span>
-                          </li>
-                        {% endfor %}
+                          {% for poster in posters %}
+                              <li>
+                                  {% if poster.poster %}
+                                    <img src="{{ poster.poster }}" alt="{{ poster.title }} poster" style="width: 32px; vertical-align: middle; border-radius: 4px; margin-right: 0.5em;" />
+                                  {% endif %}
+                                  <span style="font-weight: bold;">{{ poster.title }}</span>
+                                  <span style="font-size: 0.9em;">
+                                    {% if poster.imdb %}
+                                      <a href="https://www.imdb.com/title/{{ poster.imdb }}" target="_blank">IMDB</a>
+                                    {% endif %}
+                                  </span>
+                              </li>
+                          {% endfor %}
                       </ul>
-                    </details>
-                  {% else %}
-                    <div class="empty-letter-summary">
-                      <span class="dot"></span>
-                      <span class="collapsible-heading">{{ letter }}</span>
-                    </div>
-                  {% endif %}
-                {% endfor %}
-              </div>
+                  </details>
+              {% endif %}
+          {% endfor %}
+        </div>
+        {% endfor %}
+        {% if abs_book_groups %}
+        <div class="medialist-section" id="abs" style="display:none; margin-top: 2em;">
+            <div style="display: flex; align-items: center; gap: 1em; margin-bottom: 0.5em;">
+              <img src="/static/abs.webp" alt="ABS Logo" style="height: 32px; display: block;" />
+              <span class="service-libraries-label">Audiobookshelf</span>
             </div>
-          </div>
+            {% set all_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|list + ['0-9', 'Other'] %}
+            {% for letter in all_letters %}
+              {% set books = abs_book_groups.get(letter, []) %}
+              {% if books %}
+                <details style="margin-bottom: 0.7em;">
+                  <summary class="collapsible-heading">{{ letter }}</summary>
+                  <ul>
+                    {% for book in books %}
+                      <li>
+                        <img src="{{ book.cover if book.cover else url_for('static', filename=logo_filename) }}"
+                             alt="{{ book.title }} cover"
+                             style="width: 32px; vertical-align: middle; border-radius: 4px; margin-right: 0.5em;"
+                             onerror="this.onerror=null;this.src='{{ url_for('static', filename=logo_filename) }}';" />
+                        <span style="font-weight: bold;">{{ book.title }}</span>
+                        {% if book.author %}
+                          <span style="font-size: 0.9em; color: #aaa;">by {{ book.author }}</span>
+                        {% endif %}
+                        <span style="font-size: 0.9em; margin-left: 0.5em;">
+                          <a href="https://www.goodreads.com/search?q={{ (book.title ~ ' ' ~ (book.author or '')) | urlencode }}" target="_blank">Goodreads</a>
+                        </span>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                </details>
+              {% endif %}
+            {% endfor %}
+        </div>
         {% endif %}
-        <style>
-        .library-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 2em;
-            align-items: flex-start;
-        }
-        .library-col {
-            min-width: 0;
-            max-width: 350px;
-            background: #232323;
-            border-radius: 8px;
-            padding: 1em 1.2em;
-            box-shadow: 0 2px 8px #0002;
-        }
-        .section-border {
-          border: 3px solid #a84fff;
-          border-radius: 18px;
-          background: linear-gradient(135deg, #181818 80%, #2a004f 100%);
-          box-shadow: 0 6px 32px #0006, 0 0 0 2px #a84fff33;
-          margin-bottom: 2.5em;
-          padding: 2em 2em 1.5em 2em;
-        }
-        .scroll-tip {
-          color: #a84fff;
-          font-size: 1.05em;
-          margin-bottom: 1em;
-          font-style: italic;
-        }
-        .dot {
-          display: inline-block;
-          width: 0.7em;
-          height: 0.7em;
-          background: #a84fff;
-          border-radius: 50%;
-          margin-right: 0.7em;
-          vertical-align: middle;
-        }
-        .empty-letter-summary {
-          display: flex;
-          align-items: center;
-          padding: 0.2em 0 0.2em 0.2em; /* Match summary padding */
-          color: #888;
-          font-size: 1.1em;
-          font-weight: 500;
-          margin-bottom: 0.1em; /* Reduce space */
-          line-height: 1.2;     /* Match summary line height */
-          min-height: 1.7em;    /* Try to match summary height */
-        }
-        details > summary.collapsible-heading {
-          /* Ensure summary and empty-letter-summary have the same min-height and padding */
-          min-height: 1.7em;
-          padding: 0.2em 0 0.2em 0.2em;
-          line-height: 1.2;
-        }
-        .service-libraries-label {
-          font-size: 1.5em;
-          font-weight: bold;
-          color: #a84fff;
-          letter-spacing: 0.02em;
-        }
-        @media (max-width: 900px) {
-            .library-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        </style>
     </div>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
           const select = document.getElementById("list-select");
-          const movies = document.getElementById("movies-list");
-          const shows = document.getElementById("shows-list");
-          const audiobooks = document.getElementById("audiobooks-list");
-      
-          function hideAll() {
-            movies.style.display = "none";
-            shows.style.display = "none";
-            if (audiobooks) audiobooks.style.display = "none";
+          const sections = document.querySelectorAll(".medialist-section");
+          function showSection(id) {
+            sections.forEach(sec => sec.style.display = "none");
+            const el = document.getElementById(id);
+            if (el) el.style.display = "block";
           }
-      
+          // Show the first section by default
+          if (select.options.length > 0) {
+            showSection(select.options[0].value);
+            select.value = select.options[0].value;
+          }
           select.addEventListener("change", function () {
-            hideAll();
-            const value = select.value;
-            if (value === "movies") movies.style.display = "block";
-            else if (value === "shows") shows.style.display = "block";
-            else if (value === "audiobooks" && audiobooks) audiobooks.style.display = "block";
+            showSection(this.value);
           });
         });
       </script>
