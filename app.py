@@ -46,7 +46,7 @@ def is_running_in_docker():
 
 def get_app_url():
     """Determine the correct URL to open in browser"""
-    port = 11000
+    port = 10000
     
     # Check if we're in Docker
     if is_running_in_docker():
@@ -145,15 +145,10 @@ def get_plex_libraries():
 
 # --- File read/write: always use utf-8 encoding and os.path.join ---
 def load_library_notes():
-    try:
-        with open(os.path.join(os.getcwd(), "library_notes.json"), "r", encoding="utf-8") as f:
-            notes = json.load(f)
-        if debug_mode:
-            print(f"[DEBUG] Loaded {len(notes)} library notes from file")
-    except Exception as e:
-        notes = {}
-        if debug_mode:
-            print(f"[DEBUG] No library_notes.json file found or error reading it: {e}")
+    notes = load_json_file("library_notes.json", {})
+    if debug_mode:
+        print(f"[DEBUG] Loaded {len(notes)} library notes from file")
+    return notes
     
     # Check if we need to fetch missing library titles
     library_ids = os.getenv("LIBRARY_IDS", "")
@@ -213,8 +208,7 @@ def load_library_notes():
     return notes
 
 def save_library_notes(notes):
-    with open(os.path.join(os.getcwd(), "library_notes.json"), "w", encoding="utf-8") as f:
-        json.dump(notes, f, indent=2)
+    save_json_file("library_notes.json", notes)
 
 def safe_set_key(env_path, key, value):
     set_key(env_path, key, value, quote_mode="never")
@@ -504,14 +498,9 @@ def onboarding():
                 "libraries_titles": selected_titles,
                 "submitted_at": datetime.utcnow().isoformat() + "Z"
             }
-            try:
-                with open(os.path.join(os.getcwd(), "plex_submissions.json"), "r") as f:
-                    submissions = json.load(f)
-            except FileNotFoundError:
-                submissions = []
+            submissions = load_json_file("plex_submissions.json", [])
             submissions.append(submission_entry)
-            with open(os.path.join(os.getcwd(), "plex_submissions.json"), "w") as f:
-                json.dump(submissions, f, indent=2)
+            save_json_file("plex_submissions.json", submissions)
             submitted = True
             send_discord_notification(email, "Plex", event_type="plex")
             # AJAX response
@@ -592,14 +581,9 @@ def audiobookshelf():
                 "password": password,
                 "submitted_at": datetime.utcnow().isoformat() + "Z"
             }
-            try:
-                with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "r") as f:
-                    submissions = json.load(f)
-            except FileNotFoundError:
-                submissions = []
+            submissions = load_json_file("audiobookshelf_submissions.json", [])
             submissions.append(submission_entry)
-            with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "w") as f:
-                json.dump(submissions, f, indent=2)
+            save_json_file("audiobookshelf_submissions.json", submissions)
             submitted = True
             send_discord_notification(email, "Audiobookshelf", event_type="abs")
             # AJAX response
@@ -681,98 +665,17 @@ def services():
         if logo_file and logo_file.filename:
             if not process_uploaded_logo(logo_file):
                 # Get all the necessary data for the template
-                try:
-                    with open(os.path.join(os.getcwd(), "plex_submissions.json"), "r") as f:
-                        submissions = json.load(f)
-                except FileNotFoundError:
-                    submissions = []
-                try:
-                    with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "r") as f:
-                        audiobookshelf_submissions = json.load(f)
-                except FileNotFoundError:
-                    audiobookshelf_submissions = []
+                context = get_template_context()
                 
-                # Build services list
-                service_defs = [
-                    ("Plex", "PLEX", "plex.webp"),
-                    ("Tautulli", "TAUTULLI", "tautulli.webp"),
-                    ("Audiobookshelf", "AUDIOBOOKSHELF", "abs.webp"),
-                    ("qbittorrent", "QBITTORRENT", "qbit.webp"),
-                    ("Immich", "IMMICH", "immich.webp"),
-                    ("Sonarr", "SONARR", "sonarr.webp"),
-                    ("Radarr", "RADARR", "radarr.webp"),
-                    ("Lidarr", "LIDARR", "lidarr.webp"),
-                    ("Prowlarr", "PROWLARR", "prowlarr.webp"),
-                    ("Bazarr", "BAZARR", "bazarr.webp"),
-                    ("Pulsarr", "PULSARR", "pulsarr.webp"),
-                    ("Overseerr", "OVERSEERR", "overseerr.webp"),
-                ]
-                services = []
-                all_services = []
-                for name, env, logo in service_defs:
-                    url = os.getenv(env, "")
-                    all_services.append({"name": name, "env": env, "url": url, "logo": logo})
-                    if url:
-                        services.append({"name": name, "url": url, "logo": logo})
-                
-                # Get storage info
-                drives_env = os.getenv("DRIVES")
-                if not drives_env:
-                    if platform.system() == "Windows":
-                        drives = ["C:\\"]
-                    else:
-                        drives = ["/"]
-                else:
-                    drives = [d.strip() for d in drives_env.split(",") if d.strip()]
-                
-                storage_info = []
-                for drive in drives:
-                    try:
-                        usage = psutil.disk_usage(drive)
-                        storage_info.append({
-                            "mount": drive,
-                            "used": round(usage.used / (1024**3), 1),
-                            "total": round(usage.total / (1024**3), 1),
-                            "percent": int(usage.percent)
-                        })
-                    except Exception as e:
-                        if debug_mode:
-                            print(f"Error reading {drive}: {e}")
-                
-                library_notes = load_library_notes()
-                
-                return render_template(
-                    "services.html",
-                    services=services,
-                    all_services=all_services,
-                    submissions=submissions,
-                    storage_info=storage_info,
-                    audiobookshelf_submissions=audiobookshelf_submissions,
-                    SERVER_NAME=os.getenv("SERVER_NAME", ""),
-                    ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc"),
-                    PLEX_TOKEN=os.getenv("PLEX_TOKEN", ""),
-                    PLEX_URL=os.getenv("PLEX_URL", ""),
-                    AUDIOBOOKS_ID=os.getenv("AUDIOBOOKS_ID", ""),
-                    ABS_ENABLED=os.getenv("ABS_ENABLED", "no"),
-                    LIBRARY_IDS=os.getenv("LIBRARY_IDS", ""),
-                    library_notes=library_notes,
-                    DISCORD_WEBHOOK=os.getenv("DISCORD_WEBHOOK", ""),
-                    DISCORD_USERNAME=os.getenv("DISCORD_USERNAME", ""),
-                    DISCORD_AVATAR=os.getenv("DISCORD_AVATAR", ""),
-                    DISCORD_COLOR=os.getenv("DISCORD_COLOR", ""),
-                    AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", ""),
-                    AUDIOBOOKSHELF_TOKEN=os.getenv("AUDIOBOOKSHELF_TOKEN", ""),
-                    show_services=os.getenv("SHOW_SERVICES", "yes").lower() == "yes",
-                    custom_services_url=os.getenv("CUSTOM_SERVICES_URL", "").strip(),
-                    DISCORD_NOTIFY_PLEX=os.getenv("DISCORD_NOTIFY_PLEX", "1"),
-                    DISCORD_NOTIFY_ABS=os.getenv("DISCORD_NOTIFY_ABS", "1"),
-                    error_message="Failed to process logo file. Please ensure it's a valid image file (.png, .webp, .jpg, .jpeg)."
-                )
+                context["error_message"] = "Failed to process logo file. Please ensure it's a valid image file (.png, .webp, .jpg, .jpeg)."
+                return render_template("services.html", **context)
         
         if wordmark_file and wordmark_file.filename:
             if not process_uploaded_wordmark(wordmark_file):
                 # Similar error handling for wordmark
-                return render_template("services.html", error_message="Failed to process wordmark file. Please ensure it's a valid image file (.png, .webp, .jpg, .jpeg).")
+                context = get_template_context()
+                context["error_message"] = "Failed to process wordmark file. Please ensure it's a valid image file (.png, .webp, .jpg, .jpeg)."
+                return render_template("services.html", **context)
         
         # Update .env with any non-empty fields (only if they changed)
         for field in ["server_name", "plex_token", "plex_url", "audiobooks_id"]:
@@ -844,20 +747,7 @@ def services():
             safe_set_key(env_path, "DISCORD_COLOR", discord_color)
         
         # Update service URLs if changed
-        service_defs = [
-            ("Plex", "PLEX", "plex.webp"),
-            ("Tautulli", "TAUTULLI", "tautulli.webp"),
-            ("Audiobookshelf", "AUDIOBOOKSHELF", "abs.webp"),
-            ("qbittorrent", "QBITTORRENT", "qbit.webp"),
-            ("Immich", "IMMICH", "immich.webp"),
-            ("Sonarr", "SONARR", "sonarr.webp"),
-            ("Radarr", "RADARR", "radarr.webp"),
-            ("Lidarr", "LIDARR", "lidarr.webp"),
-            ("Prowlarr", "PROWLARR", "prowlarr.webp"),
-            ("Bazarr", "BAZARR", "bazarr.webp"),
-            ("Pulsarr", "PULSARR", "pulsarr.webp"),
-            ("Overseerr", "OVERSEERR", "overseerr.webp"),
-        ]
+        service_defs = get_service_definitions()
         for name, env, logo in service_defs:
             url = request.form.get(env, None)
             if url is not None:
@@ -898,12 +788,10 @@ def services():
         delete_index = int(request.form.get("delete_index", -1))
         if delete_index >= 0:
             try:
-                with open(os.path.join(os.getcwd(), "plex_submissions.json"), "r") as f:
-                    submissions = json.load(f)
+                submissions = load_json_file("plex_submissions.json", [])
                 if 0 <= delete_index < len(submissions):
                     del submissions[delete_index]
-                    with open(os.path.join(os.getcwd(), "plex_submissions.json"), "w") as f:
-                        json.dump(submissions, f, indent=2)
+                    save_json_file("plex_submissions.json", submissions)
             except Exception as e:
                 if debug_mode:
                     print(f"Error deleting submission: {e}")
@@ -911,12 +799,10 @@ def services():
         if audiobookshelf_delete_index is not None:
             try:
                 audiobookshelf_delete_index = int(audiobookshelf_delete_index)
-                with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "r") as f:
-                    audiobookshelf_submissions = json.load(f)
+                audiobookshelf_submissions = load_json_file("audiobookshelf_submissions.json", [])
                 if 0 <= audiobookshelf_delete_index < len(audiobookshelf_submissions):
                     del audiobookshelf_submissions[audiobookshelf_delete_index]
-                    with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "w") as f:
-                        json.dump(audiobookshelf_submissions, f, indent=2)
+                    save_json_file("audiobookshelf_submissions.json", audiobookshelf_submissions)
             except Exception as e:
                 if debug_mode:
                     print(f"Error deleting audiobookshelf submission: {e}")
@@ -925,8 +811,7 @@ def services():
         if "create_abs_users" in request.form:
             try:
                 # Load current submissions
-                with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "r") as f:
-                    audiobookshelf_submissions = json.load(f)
+                audiobookshelf_submissions = load_json_file("audiobookshelf_submissions.json", [])
                 
                 # Get form data
                 selected_indices = request.form.getlist("create_users")
@@ -964,8 +849,7 @@ def services():
                             if result["success"]:
                                 del audiobookshelf_submissions[index]
                                 # Update the file
-                                with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "w") as f:
-                                    json.dump(audiobookshelf_submissions, f, indent=2)
+                                save_json_file("audiobookshelf_submissions.json", audiobookshelf_submissions)
                     except Exception as e:
                         if debug_mode:
                             print(f"Error creating ABS user for index {index_str}: {e}")
@@ -977,167 +861,23 @@ def services():
                         })
                 
                 # Load all necessary data for template
-                try:
-                    with open(os.path.join(os.getcwd(), "plex_submissions.json"), "r") as f:
-                        submissions = json.load(f)
-                except FileNotFoundError:
-                    submissions = []
+                context = get_template_context()
                 
-                # Build services list
-                service_defs = [
-                    ("Plex", "PLEX", "plex.webp"),
-                    ("Tautulli", "TAUTULLI", "tautulli.webp"),
-                    ("Audiobookshelf", "AUDIOBOOKSHELF", "abs.webp"),
-                    ("qbittorrent", "QBITTORRENT", "qbit.webp"),
-                    ("Immich", "IMMICH", "immich.webp"),
-                    ("Sonarr", "SONARR", "sonarr.webp"),
-                    ("Radarr", "RADARR", "radarr.webp"),
-                    ("Lidarr", "LIDARR", "lidarr.webp"),
-                    ("Prowlarr", "PROWLARR", "prowlarr.webp"),
-                    ("Bazarr", "BAZARR", "bazarr.webp"),
-                    ("Pulsarr", "PULSARR", "pulsarr.webp"),
-                    ("Overseerr", "OVERSEERR", "overseerr.webp"),
-                ]
-                services = []
-                all_services = []
-                for name, env, logo in service_defs:
-                    url = os.getenv(env, "")
-                    all_services.append({"name": name, "env": env, "url": url, "logo": logo})
-                    if url:
-                        services.append({"name": name, "url": url, "logo": logo})
-                
-                # Get storage info
-                drives_env = os.getenv("DRIVES")
-                if not drives_env:
-                    if platform.system() == "Windows":
-                        drives = ["C:\\"]
-                    else:
-                        drives = ["/"]
-                else:
-                    drives = [d.strip() for d in drives_env.split(",") if d.strip()]
-                
-                storage_info = []
-                for drive in drives:
-                    try:
-                        usage = psutil.disk_usage(drive)
-                        storage_info.append({
-                            "mount": drive,
-                            "used": round(usage.used / (1024**3), 1),
-                            "total": round(usage.total / (1024**3), 1),
-                            "percent": int(usage.percent)
-                        })
-                    except Exception as e:
-                        if debug_mode:
-                            print(f"Error reading {drive}: {e}")
-                
-                library_notes = load_library_notes()
-                
-                return render_template(
-                    "services.html",
-                    services=services,
-                    all_services=all_services,
-                    submissions=submissions,
-                    storage_info=storage_info,
-                    audiobookshelf_submissions=audiobookshelf_submissions,
-                    abs_user_creation_results=creation_results,
-                    SERVER_NAME=os.getenv("SERVER_NAME", ""),
-                    ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc"),
-                    PLEX_TOKEN=os.getenv("PLEX_TOKEN", ""),
-                    PLEX_URL=os.getenv("PLEX_URL", ""),
-                    AUDIOBOOKS_ID=os.getenv("AUDIOBOOKS_ID", ""),
-                    ABS_ENABLED=os.getenv("ABS_ENABLED", "no"),
-                    LIBRARY_IDS=os.getenv("LIBRARY_IDS", ""),
-                    library_notes=library_notes,
-                    DISCORD_WEBHOOK=os.getenv("DISCORD_WEBHOOK", ""),
-                    DISCORD_USERNAME=os.getenv("DISCORD_USERNAME", ""),
-                    DISCORD_AVATAR=os.getenv("DISCORD_AVATAR", ""),
-                    DISCORD_COLOR=os.getenv("DISCORD_COLOR", ""),
-                    AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", ""),
-                    AUDIOBOOKSHELF_TOKEN=os.getenv("AUDIOBOOKSHELF_TOKEN", ""),
-                    show_services=os.getenv("SHOW_SERVICES", "yes").lower() == "yes",
-                    custom_services_url=os.getenv("CUSTOM_SERVICES_URL", "").strip(),
-                    DISCORD_NOTIFY_PLEX=os.getenv("DISCORD_NOTIFY_PLEX", "1"),
-                    DISCORD_NOTIFY_ABS=os.getenv("DISCORD_NOTIFY_ABS", "1")
-                )
+                context["abs_user_creation_results"] = creation_results
+                return render_template("services.html", **context)
                 
             except Exception as e:
                 if debug_mode:
                     print(f"Error in ABS user creation: {e}")
                 # Continue to normal template rendering with error
 
-    # Load Plex submissions
-    try:
-        with open(os.path.join(os.getcwd(), "plex_submissions.json"), "r") as f:
-            submissions = json.load(f)
-    except FileNotFoundError:
-        submissions = []
-
-    # Load Audiobookshelf submissions
-    try:
-        with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "r") as f:
-            audiobookshelf_submissions = json.load(f)
-    except FileNotFoundError:
-        audiobookshelf_submissions = []
-
-    # Build services list from per-service environment variables
-    service_defs = [
-        ("Plex", "PLEX", "plex.webp"),
-        ("Tautulli", "TAUTULLI", "tautulli.webp"),
-        ("Audiobookshelf", "AUDIOBOOKSHELF", "abs.webp"),
-        ("qbittorrent", "QBITTORRENT", "qbit.webp"),
-        ("Immich", "IMMICH", "immich.webp"),
-        ("Sonarr", "SONARR", "sonarr.webp"),
-        ("Radarr", "RADARR", "radarr.webp"),
-        ("Lidarr", "LIDARR", "lidarr.webp"),
-        ("Prowlarr", "PROWLARR", "prowlarr.webp"),
-        ("Bazarr", "BAZARR", "bazarr.webp"),
-        ("Pulsarr", "PULSARR", "pulsarr.webp"),
-        ("Overseerr", "OVERSEERR", "overseerr.webp"),
-    ]
-    services = []
-    all_services = []
-    for name, env, logo in service_defs:
-        url = os.getenv(env, "")
-        all_services.append({"name": name, "env": env, "url": url, "logo": logo})
-        if url:
-            services.append({"name": name, "url": url, "logo": logo})
-
-    # Read flags for showing/hiding services and custom URL
-    show_services = os.getenv("SHOW_SERVICES", "yes").lower() == "yes"
-    custom_services_url = os.getenv("CUSTOM_SERVICES_URL", "").strip()
-
-    # --- Platform-agnostic drive detection ---
-    drives_env = os.getenv("DRIVES")
-    if not drives_env:
-        if platform.system() == "Windows":
-            drives = ["C:\\"]
-        else:
-            drives = ["/"]
-    else:
-        drives = [d.strip() for d in drives_env.split(",") if d.strip()]
-
-    storage_info = []
-    for drive in drives:
-        try:
-            usage = psutil.disk_usage(drive)
-            storage_info.append({
-                "mount": drive,
-                "used": round(usage.used / (1024**3), 1),
-                "total": round(usage.total / (1024**3), 1),
-                "percent": int(usage.percent)
-            })
-        except Exception as e:
-            if debug_mode:
-                print(f"Error reading {drive}: {e}")
-
-    # Load library notes for descriptions
-    library_notes = load_library_notes()
+    # Get template context
+    context = get_template_context()
     
     # Handle Plex user invitation (parallel to ABS user creation)
     if request.method == "POST" and "invite_plex_users" in request.form:
         try:
-            with open(os.path.join(os.getcwd(), "plex_submissions.json"), "r") as f:
-                plex_submissions = json.load(f)
+            plex_submissions = load_json_file("plex_submissions.json", [])
         except FileNotFoundError:
             plex_submissions = []
         selected_indices = request.form.getlist("invite_users")
@@ -1155,73 +895,17 @@ def services():
                     # If successful, remove from submissions
                     if result["success"]:
                         del plex_submissions[index]
-                        with open(os.path.join(os.getcwd(), "plex_submissions.json"), "w") as f:
-                            json.dump(plex_submissions, f, indent=2)
+                        save_json_file("plex_submissions.json", plex_submissions)
             except Exception as e:
                 invite_results.append({"success": False, "email": "Unknown", "error": f"Error processing submission: {str(e)}"})
         # Load all necessary data for template
-        try:
-            with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "r") as f:
-                audiobookshelf_submissions = json.load(f)
-        except FileNotFoundError:
-            audiobookshelf_submissions = []
-        return render_template(
-            "services.html",
-            services=services,
-            all_services=all_services,
-            submissions=plex_submissions,
-            storage_info=storage_info,
-            audiobookshelf_submissions=audiobookshelf_submissions,
-            plex_invite_results=invite_results,
-            SERVER_NAME=os.getenv("SERVER_NAME", ""),
-            ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc"),
-            PLEX_TOKEN=os.getenv("PLEX_TOKEN", ""),
-            PLEX_URL=os.getenv("PLEX_URL", ""),
-            AUDIOBOOKS_ID=os.getenv("AUDIOBOOKS_ID", ""),
-            ABS_ENABLED=os.getenv("ABS_ENABLED", "no"),
-            LIBRARY_IDS=os.getenv("LIBRARY_IDS", ""),
-            library_notes=library_notes,
-            DISCORD_WEBHOOK=os.getenv("DISCORD_WEBHOOK", ""),
-            DISCORD_USERNAME=os.getenv("DISCORD_USERNAME", ""),
-            DISCORD_AVATAR=os.getenv("DISCORD_AVATAR", ""),
-            DISCORD_COLOR=os.getenv("DISCORD_COLOR", ""),
-            AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", ""),
-            AUDIOBOOKSHELF_TOKEN=os.getenv("AUDIOBOOKSHELF_TOKEN", ""),
-            show_services=os.getenv("SHOW_SERVICES", "yes").lower() == "yes",
-            custom_services_url=os.getenv("CUSTOM_SERVICES_URL", "").strip(),
-            DISCORD_NOTIFY_PLEX=os.getenv("DISCORD_NOTIFY_PLEX", "1"),
-            DISCORD_NOTIFY_ABS=os.getenv("DISCORD_NOTIFY_ABS", "1")
-        )
+        context = get_template_context()
+        context["submissions"] = plex_submissions
+        context["plex_invite_results"] = invite_results
+        return render_template("services.html", **context)
 
-    return render_template(
-        "services.html",
-        services=services,
-        all_services=all_services,
-        submissions=submissions,
-        storage_info=storage_info,
-        audiobookshelf_submissions=audiobookshelf_submissions,
-        abs_user_creation_results=None,  # Will be populated if user creation was attempted
-        # Current configuration values
-        SERVER_NAME=os.getenv("SERVER_NAME", ""),
-        ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc"),
-        PLEX_TOKEN=os.getenv("PLEX_TOKEN", ""),
-        PLEX_URL=os.getenv("PLEX_URL", ""),
-        AUDIOBOOKS_ID=os.getenv("AUDIOBOOKS_ID", ""),
-        ABS_ENABLED=os.getenv("ABS_ENABLED", "no"),
-        LIBRARY_IDS=os.getenv("LIBRARY_IDS", ""),
-        library_notes=library_notes,
-        # Discord settings
-        DISCORD_WEBHOOK=os.getenv("DISCORD_WEBHOOK", ""),
-        DISCORD_USERNAME=os.getenv("DISCORD_USERNAME", ""),
-        DISCORD_AVATAR=os.getenv("DISCORD_AVATAR", ""),
-        DISCORD_COLOR=os.getenv("DISCORD_COLOR", ""),
-        AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", ""),
-        AUDIOBOOKSHELF_TOKEN=os.getenv("AUDIOBOOKSHELF_TOKEN", ""),
-        show_services=show_services,
-        custom_services_url=custom_services_url,
-        DISCORD_NOTIFY_PLEX=os.getenv("DISCORD_NOTIFY_PLEX", "1"),
-        DISCORD_NOTIFY_ABS=os.getenv("DISCORD_NOTIFY_ABS", "1")
-    )
+    context["abs_user_creation_results"] = None  # Will be populated if user creation was attempted
+    return render_template("services.html", **context)
 
 @app.route("/fetch-libraries", methods=["POST"])
 def fetch_libraries():
@@ -2009,6 +1693,135 @@ def invite_plex_user(email, libraries_titles):
         return {"success": True, "email": email, "message": "Invited new Plex user."}
     except Exception as e:
         return {"success": False, "email": email, "error": str(e)}
+
+# --- Utility Functions for DRY Code ---
+
+def get_service_definitions():
+    """Centralized service definitions to avoid repetition"""
+    return [
+        ("Plex", "PLEX", "plex.webp"),
+        ("Tautulli", "TAUTULLI", "tautulli.webp"),
+        ("Audiobookshelf", "AUDIOBOOKSHELF", "abs.webp"),
+        ("qbittorrent", "QBITTORRENT", "qbit.webp"),
+        ("Immich", "IMMICH", "immich.webp"),
+        ("Sonarr", "SONARR", "sonarr.webp"),
+        ("Radarr", "RADARR", "radarr.webp"),
+        ("Lidarr", "LIDARR", "lidarr.webp"),
+        ("Prowlarr", "PROWLARR", "prowlarr.webp"),
+        ("Bazarr", "BAZARR", "bazarr.webp"),
+        ("Pulsarr", "PULSARR", "pulsarr.webp"),
+        ("Overseerr", "OVERSEERR", "overseerr.webp"),
+    ]
+
+def load_json_file(filename, default=None):
+    """Utility function to load JSON files with consistent error handling"""
+    if default is None:
+        default = []
+    
+    try:
+        with open(os.path.join(os.getcwd(), filename), "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if debug_mode:
+            print(f"[DEBUG] Loaded {len(data)} entries from {filename}")
+        return data
+    except FileNotFoundError:
+        if debug_mode:
+            print(f"[DEBUG] No {filename} file found, using default")
+        return default
+    except Exception as e:
+        if debug_mode:
+            print(f"[DEBUG] Error reading {filename}: {e}")
+        return default
+
+def save_json_file(filename, data):
+    """Utility function to save JSON files with consistent formatting"""
+    try:
+        with open(os.path.join(os.getcwd(), filename), "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        if debug_mode:
+            print(f"[DEBUG] Saved {len(data)} entries to {filename}")
+        return True
+    except Exception as e:
+        if debug_mode:
+            print(f"[DEBUG] Error writing {filename}: {e}")
+        return False
+
+def build_services_data():
+    """Build services data for templates, avoiding repetition"""
+    service_defs = get_service_definitions()
+    services = []
+    all_services = []
+    
+    for name, env, logo in service_defs:
+        url = os.getenv(env, "")
+        all_services.append({"name": name, "env": env, "url": url, "logo": logo})
+        if url:
+            services.append({"name": name, "url": url, "logo": logo})
+    
+    return services, all_services
+
+def get_storage_info():
+    """Get storage information for templates"""
+    drives_env = os.getenv("DRIVES")
+    if not drives_env:
+        if platform.system() == "Windows":
+            drives = ["C:\\"]
+        else:
+            drives = ["/"]
+    else:
+        drives = [d.strip() for d in drives_env.split(",") if d.strip()]
+    
+    storage_info = []
+    for drive in drives:
+        try:
+            usage = psutil.disk_usage(drive)
+            storage_info.append({
+                "mount": drive,
+                "used": round(usage.used / (1024**3), 1),
+                "total": round(usage.total / (1024**3), 1),
+                "percent": int(usage.percent)
+            })
+        except Exception as e:
+            if debug_mode:
+                print(f"Error reading {drive}: {e}")
+    
+    return storage_info
+
+def get_template_context():
+    """Get common template context data to avoid repetition"""
+    services, all_services = build_services_data()
+    storage_info = get_storage_info()
+    library_notes = load_library_notes()
+    
+    # Load submissions
+    submissions = load_json_file("plex_submissions.json", [])
+    audiobookshelf_submissions = load_json_file("audiobookshelf_submissions.json", [])
+    
+    return {
+        "services": services,
+        "all_services": all_services,
+        "submissions": submissions,
+        "storage_info": storage_info,
+        "audiobookshelf_submissions": audiobookshelf_submissions,
+        "library_notes": library_notes,
+        "SERVER_NAME": os.getenv("SERVER_NAME", ""),
+        "ACCENT_COLOR": os.getenv("ACCENT_COLOR", "#d33fbc"),
+        "PLEX_TOKEN": os.getenv("PLEX_TOKEN", ""),
+        "PLEX_URL": os.getenv("PLEX_URL", ""),
+        "AUDIOBOOKS_ID": os.getenv("AUDIOBOOKS_ID", ""),
+        "ABS_ENABLED": os.getenv("ABS_ENABLED", "no"),
+        "LIBRARY_IDS": os.getenv("LIBRARY_IDS", ""),
+        "DISCORD_WEBHOOK": os.getenv("DISCORD_WEBHOOK", ""),
+        "DISCORD_USERNAME": os.getenv("DISCORD_USERNAME", ""),
+        "DISCORD_AVATAR": os.getenv("DISCORD_AVATAR", ""),
+        "DISCORD_COLOR": os.getenv("DISCORD_COLOR", ""),
+        "AUDIOBOOKSHELF_URL": os.getenv("AUDIOBOOKSHELF_URL", ""),
+        "AUDIOBOOKSHELF_TOKEN": os.getenv("AUDIOBOOKSHELF_TOKEN", ""),
+        "show_services": os.getenv("SHOW_SERVICES", "yes").lower() == "yes",
+        "custom_services_url": os.getenv("CUSTOM_SERVICES_URL", "").strip(),
+        "DISCORD_NOTIFY_PLEX": os.getenv("DISCORD_NOTIFY_PLEX", "1"),
+        "DISCORD_NOTIFY_ABS": os.getenv("DISCORD_NOTIFY_ABS", "1")
+    }
 
 if __name__ == "__main__":
     # --- Dynamic configuration for section IDs ---
