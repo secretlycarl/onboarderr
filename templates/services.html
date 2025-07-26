@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>{{ SERVER_NAME }}</title>
-  <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp') }}">
+      <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}">
   <link rel="stylesheet" href="/static/style.css">
   <script>
     // Set accent color from environment variable

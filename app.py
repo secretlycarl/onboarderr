@@ -128,6 +128,18 @@ def inject_admin_status():
         wordmark_filename=get_wordmark_filename()
     )
 
+@app.context_processor
+def inject_favicon_timestamp():
+    """Inject favicon timestamp to force browser cache updates"""
+    favicon_path = os.path.join('static', 'favicon.webp')
+    try:
+        # Get file modification time as timestamp
+        favicon_timestamp = int(os.path.getmtime(favicon_path))
+    except (OSError, FileNotFoundError):
+        # If favicon doesn't exist, use current time
+        favicon_timestamp = int(time.time())
+    return dict(favicon_timestamp=favicon_timestamp)
+
 def get_plex_libraries():
     if debug_mode:
         print("DEBUG: PLEX_URL =", PLEX_URL)
@@ -231,27 +243,60 @@ def process_uploaded_logo(file):
         # Open image with PIL
         img = Image.open(file.stream)
         
-        # Convert to RGB if necessary
-        if img.mode in ('RGBA', 'LA', 'P'):
+        # Handle different image modes properly
+        if img.mode == 'P':
+            # Convert palette images to RGBA to preserve transparency
+            img = img.convert('RGBA')
+        elif img.mode == 'LA':
+            # Convert grayscale with alpha to RGBA
+            img = img.convert('RGBA')
+        elif img.mode == 'L':
+            # Convert grayscale to RGB (no transparency)
+            img = img.convert('RGB')
+        elif img.mode == 'RGB':
+            # RGB is fine as-is
+            pass
+        elif img.mode == 'RGBA':
+            # RGBA is fine as-is (preserves transparency)
+            pass
+        else:
+            # Convert any other modes to RGB
             img = img.convert('RGB')
         
         # Save logo based on original format
         logo_path = os.path.join('static', 'clearlogo.webp')
         if file_ext in ['.png', '.webp']:
-            # For PNG and WebP, preserve original format
+            # For PNG and WebP, preserve original format and transparency
             if file_ext == '.png':
                 logo_path = os.path.join('static', 'clearlogo.png')
-                img.save(logo_path, 'PNG')
+                # Preserve transparency for PNG
+                if img.mode == 'RGBA':
+                    img.save(logo_path, 'PNG')
+                else:
+                    img.save(logo_path, 'PNG')
             else:  # .webp
-                img.save(logo_path, 'WEBP')
+                # Preserve transparency for WebP
+                if img.mode == 'RGBA':
+                    img.save(logo_path, 'WEBP', lossless=True)
+                else:
+                    img.save(logo_path, 'WEBP', quality=95)
         else:
-            # For JPG/JPEG, convert to WebP
-            img.save(logo_path, 'WEBP', quality=85)
+            # For JPG/JPEG, convert to WebP (no transparency support)
+            if img.mode == 'RGBA':
+                # Convert RGBA to RGB for JPEG compatibility
+                rgb_img = Image.new('RGB', img.size, (255, 255, 255))
+                rgb_img.paste(img, mask=img.split()[-1])  # Use alpha channel as mask
+                rgb_img.save(logo_path, 'WEBP', quality=95)
+            else:
+                img.save(logo_path, 'WEBP', quality=95)
         
-        # Create favicon (32x32) - always save as WebP for consistency
+        # Create favicon (32x32) - preserve transparency if available
         favicon = img.resize((32, 32), Image.Resampling.LANCZOS)
         favicon_path = os.path.join('static', 'favicon.webp')
-        favicon.save(favicon_path, 'WEBP', quality=85)
+        if favicon.mode == 'RGBA':
+            favicon.save(favicon_path, 'WEBP', lossless=True)
+        else:
+            favicon.save(favicon_path, 'WEBP', quality=95)
         
         return True
     except Exception as e:
@@ -292,22 +337,52 @@ def process_uploaded_wordmark(file):
         # Open image with PIL
         img = Image.open(file.stream)
         
-        # Convert to RGB if necessary
-        if img.mode in ('RGBA', 'LA', 'P'):
+        # Handle different image modes properly
+        if img.mode == 'P':
+            # Convert palette images to RGBA to preserve transparency
+            img = img.convert('RGBA')
+        elif img.mode == 'LA':
+            # Convert grayscale with alpha to RGBA
+            img = img.convert('RGBA')
+        elif img.mode == 'L':
+            # Convert grayscale to RGB (no transparency)
+            img = img.convert('RGB')
+        elif img.mode == 'RGB':
+            # RGB is fine as-is
+            pass
+        elif img.mode == 'RGBA':
+            # RGBA is fine as-is (preserves transparency)
+            pass
+        else:
+            # Convert any other modes to RGB
             img = img.convert('RGB')
         
         # Save wordmark based on original format
         wordmark_path = os.path.join('static', 'wordmark.webp')
         if file_ext in ['.png', '.webp']:
-            # For PNG and WebP, preserve original format
+            # For PNG and WebP, preserve original format and transparency
             if file_ext == '.png':
                 wordmark_path = os.path.join('static', 'wordmark.png')
-                img.save(wordmark_path, 'PNG')
+                # Preserve transparency for PNG
+                if img.mode == 'RGBA':
+                    img.save(wordmark_path, 'PNG')
+                else:
+                    img.save(wordmark_path, 'PNG')
             else:  # .webp
-                img.save(wordmark_path, 'WEBP')
+                # Preserve transparency for WebP
+                if img.mode == 'RGBA':
+                    img.save(wordmark_path, 'WEBP', lossless=True)
+                else:
+                    img.save(wordmark_path, 'WEBP', quality=95)
         else:
-            # For JPG/JPEG, convert to WebP
-            img.save(wordmark_path, 'WEBP', quality=85)
+            # For JPG/JPEG, convert to WebP (no transparency support)
+            if img.mode == 'RGBA':
+                # Convert RGBA to RGB for JPEG compatibility
+                rgb_img = Image.new('RGB', img.size, (255, 255, 255))
+                rgb_img.paste(img, mask=img.split()[-1])  # Use alpha channel as mask
+                rgb_img.save(wordmark_path, 'WEBP', quality=95)
+            else:
+                img.save(wordmark_path, 'WEBP', quality=95)
         
         return True
     except Exception as e:
