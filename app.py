@@ -28,6 +28,7 @@ import sys
 from PIL import Image
 import io
 import webbrowser
+from plexapi.server import PlexServer
 
 # Before load_dotenv()
 if not os.path.exists('.env') and os.path.exists('empty.env'):
@@ -146,9 +147,70 @@ def get_plex_libraries():
 def load_library_notes():
     try:
         with open(os.path.join(os.getcwd(), "library_notes.json"), "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {}
+            notes = json.load(f)
+        if debug_mode:
+            print(f"[DEBUG] Loaded {len(notes)} library notes from file")
+    except Exception as e:
+        notes = {}
+        if debug_mode:
+            print(f"[DEBUG] No library_notes.json file found or error reading it: {e}")
+    
+    # Check if we need to fetch missing library titles
+    library_ids = os.getenv("LIBRARY_IDS", "")
+    if library_ids:
+        selected_ids = [i.strip() for i in library_ids.split(",") if i.strip()]
+        missing_titles = []
+        
+        for lib_id in selected_ids:
+            if lib_id not in notes or not notes[lib_id].get('title') or notes[lib_id].get('title') == f"Unknown ({lib_id})":
+                missing_titles.append(lib_id)
+        
+        if missing_titles:
+            if debug_mode:
+                print(f"[DEBUG] Found {len(missing_titles)} libraries with missing titles: {missing_titles}")
+            # Try to fetch missing titles from Plex
+            try:
+                plex_token = os.getenv("PLEX_TOKEN")
+                plex_url = os.getenv("PLEX_URL")
+                if plex_token and plex_url:
+                    headers = {"X-Plex-Token": plex_token}
+                    url = f"{plex_url}/library/sections"
+                    response = requests.get(url, headers=headers, timeout=5)
+                    response.raise_for_status()
+                    root = ET.fromstring(response.text)
+                    id_to_title = {d.attrib.get("key"): d.attrib.get("title") for d in root.findall(".//Directory")}
+                    
+                    if debug_mode:
+                        print(f"[DEBUG] Fetched {len(id_to_title)} libraries from Plex")
+                    
+                    # Update missing titles
+                    updated = False
+                    for lib_id in missing_titles:
+                        title = id_to_title.get(lib_id)
+                        if title:
+                            if lib_id not in notes:
+                                notes[lib_id] = {}
+                            notes[lib_id]['title'] = title
+                            updated = True
+                            if debug_mode:
+                                print(f"[DEBUG] Updated title for library {lib_id}: {title}")
+                    
+                    # Save updated notes if we found any titles
+                    if updated:
+                        save_library_notes(notes)
+                        if debug_mode:
+                            print(f"[INFO] Updated {len([lib_id for lib_id in missing_titles if notes.get(lib_id, {}).get('title')])} library titles")
+                    else:
+                        if debug_mode:
+                            print(f"[DEBUG] No library titles were found for the missing IDs")
+                else:
+                    if debug_mode:
+                        print(f"[DEBUG] Plex token or URL not configured, cannot fetch titles")
+            except Exception as e:
+                if debug_mode:
+                    print(f"[WARN] Failed to fetch missing library titles: {e}")
+    
+    return notes
 
 def save_library_notes(notes):
     with open(os.path.join(os.getcwd(), "library_notes.json"), "w", encoding="utf-8") as f:
@@ -285,6 +347,140 @@ def send_discord_notification(email, service_type, event_type=None):
         if debug_mode:
             print(f"Failed to send Discord notification: {e}")
 
+def create_abs_user(username, password, user_type="user", permissions=None):
+    """Create a user in Audiobookshelf using the API"""
+    abs_url = os.getenv("AUDIOBOOKSHELF_URL")
+    abs_token = os.getenv("AUDIOBOOKSHELF_TOKEN")
+    
+    if not abs_url:
+        return {"success": False, "error": "Audiobookshelf URL not configured"}
+    
+    if not abs_token:
+        return {"success": False, "error": "Audiobookshelf API token not configured"}
+    
+    # Validate inputs
+    if not username or not password:
+        return {"success": False, "error": "Username and password are required"}
+    
+    if user_type not in ["user", "admin", "guest"]:
+        return {"success": False, "error": "Invalid user type. Must be 'user', 'admin', or 'guest'"}
+    
+    # Default permissions based on user type
+    if permissions is None:
+        if user_type == "admin":
+            permissions = {
+                "download": True,
+                "update": True,
+                "delete": True,
+                "upload": True,
+                "accessAllLibraries": True,
+                "accessAllTags": True,
+                "accessExplicitContent": True
+            }
+        elif user_type == "user":
+            permissions = {
+                "download": True,
+                "update": True,
+                "delete": False,
+                "upload": False,
+                "accessAllLibraries": True,
+                "accessAllTags": True,
+                "accessExplicitContent": True
+            }
+        else:  # guest
+            permissions = {
+                "download": False,
+                "update": False,
+                "delete": False,
+                "upload": False,
+                "accessAllLibraries": True,
+                "accessAllTags": True,
+                "accessExplicitContent": False
+            }
+    
+    # Prepare the user data
+    user_data = {
+        "username": username,
+        "password": password,
+        "type": user_type,
+        "permissions": permissions,
+        "librariesAccessible": [],
+        "itemTagsAccessible": [],
+        "isActive": True,
+        "isLocked": False
+    }
+    
+    try:
+        headers = {
+            "Authorization": f"Bearer {abs_token}",
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.post(
+            f"{abs_url}/api/users",
+            headers=headers,
+            json=user_data,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            user_info = response.json()
+            return {
+                "success": True,
+                "user_id": user_info.get("id"),
+                "username": username,
+                "email": "",  # Will be filled by caller
+                "message": "User created successfully"
+            }
+        elif response.status_code == 500:
+            # Check if it's a username already taken error
+            try:
+                error_data = response.json()
+                if "username" in error_data.get("error", "").lower():
+                    return {
+                        "success": False,
+                        "username": username,
+                        "email": "",  # Will be filled by caller
+                        "error": "Username already exists"
+                    }
+            except:
+                pass
+            return {
+                "success": False,
+                "username": username,
+                "email": "",  # Will be filled by caller
+                "error": f"Server error: {response.text}"
+            }
+        else:
+            error_msg = "Unknown error"
+            try:
+                error_data = response.json()
+                error_msg = error_data.get("error", error_data.get("message", "Unknown error"))
+            except:
+                error_msg = f"HTTP {response.status_code}: {response.text}"
+            
+            return {
+                "success": False,
+                "username": username,
+                "email": "",  # Will be filled by caller
+                "error": error_msg
+            }
+            
+    except requests.exceptions.RequestException as e:
+        return {
+            "success": False,
+            "username": username,
+            "email": "",  # Will be filled by caller
+            "error": f"Connection error: {str(e)}"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "username": username,
+            "email": "",  # Will be filled by caller
+            "error": f"Unexpected error: {str(e)}"
+        }
+
 @app.route("/onboarding", methods=["GET", "POST"])
 def onboarding():
     if not session.get("authenticated"):
@@ -332,7 +528,7 @@ def onboarding():
             print(f"Failed to get Plex libraries: {e}")
         libraries = []
 
-    # Build static poster URLs for each library
+    # Build static poster URLs for each library (limit to 10 per library)
     library_posters = {}
     poster_imdb_ids = {}
     for lib in libraries:
@@ -345,7 +541,9 @@ def onboarding():
             all_files = [f for f in os.listdir(poster_dir) if f.lower().endswith(('.webp', '.jpg', '.jpeg', '.png'))]
             import random
             random.shuffle(all_files)
-            for fname in all_files:
+            # Limit to 10 posters per library
+            limited_files = all_files[:10]
+            for fname in limited_files:
                 posters.append(f"/static/posters/{section_id}/{fname}")
                 json_path = os.path.join(poster_dir, fname.rsplit('.', 1)[0] + '.json')
                 imdb_id = None
@@ -688,8 +886,9 @@ def services():
             safe_set_key(env_path, "ADMIN_PASSWORD", admin_password)
 
         # Handle accent color
-        accent_color = request.form.get("accent_color", "").strip()
-        if accent_color:
+        accent_color = request.form.get("accent_color_text", "").strip()
+        current_accent_color = os.getenv("ACCENT_COLOR", "")
+        if accent_color and accent_color != current_accent_color:
             safe_set_key(env_path, "ACCENT_COLOR", accent_color)
 
         return redirect(url_for("setup_complete"))
@@ -721,6 +920,150 @@ def services():
             except Exception as e:
                 if debug_mode:
                     print(f"Error deleting audiobookshelf submission: {e}")
+
+        # Handle ABS user creation
+        if "create_abs_users" in request.form:
+            try:
+                # Load current submissions
+                with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "r") as f:
+                    audiobookshelf_submissions = json.load(f)
+                
+                # Get form data
+                selected_indices = request.form.getlist("create_users")
+                user_type = request.form.get("user_type", "user")
+                selected_permissions = request.form.getlist("permissions")
+                
+                # Build permissions object
+                permissions = {
+                    "download": "download" in selected_permissions,
+                    "update": "update" in selected_permissions,
+                    "delete": "delete" in selected_permissions,
+                    "upload": "upload" in selected_permissions,
+                    "accessAllLibraries": "accessAllLibraries" in selected_permissions,
+                    "accessAllTags": "accessAllTags" in selected_permissions,
+                    "accessExplicitContent": "accessExplicitContent" in selected_permissions
+                }
+                
+                # Create users
+                creation_results = []
+                for index_str in selected_indices:
+                    try:
+                        index = int(index_str)
+                        if 0 <= index < len(audiobookshelf_submissions):
+                            submission = audiobookshelf_submissions[index]
+                            result = create_abs_user(
+                                username=submission["username"],
+                                password=submission["password"],
+                                user_type=user_type,
+                                permissions=permissions
+                            )
+                            result["email"] = submission["email"]
+                            creation_results.append(result)
+                            
+                            # If successful, remove from submissions
+                            if result["success"]:
+                                del audiobookshelf_submissions[index]
+                                # Update the file
+                                with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "w") as f:
+                                    json.dump(audiobookshelf_submissions, f, indent=2)
+                    except Exception as e:
+                        if debug_mode:
+                            print(f"Error creating ABS user for index {index_str}: {e}")
+                        creation_results.append({
+                            "success": False,
+                            "username": "Unknown",
+                            "email": "Unknown",
+                            "error": f"Error processing submission: {str(e)}"
+                        })
+                
+                # Load all necessary data for template
+                try:
+                    with open(os.path.join(os.getcwd(), "plex_submissions.json"), "r") as f:
+                        submissions = json.load(f)
+                except FileNotFoundError:
+                    submissions = []
+                
+                # Build services list
+                service_defs = [
+                    ("Plex", "PLEX", "plex.webp"),
+                    ("Tautulli", "TAUTULLI", "tautulli.webp"),
+                    ("Audiobookshelf", "AUDIOBOOKSHELF", "abs.webp"),
+                    ("qbittorrent", "QBITTORRENT", "qbit.webp"),
+                    ("Immich", "IMMICH", "immich.webp"),
+                    ("Sonarr", "SONARR", "sonarr.webp"),
+                    ("Radarr", "RADARR", "radarr.webp"),
+                    ("Lidarr", "LIDARR", "lidarr.webp"),
+                    ("Prowlarr", "PROWLARR", "prowlarr.webp"),
+                    ("Bazarr", "BAZARR", "bazarr.webp"),
+                    ("Pulsarr", "PULSARR", "pulsarr.webp"),
+                    ("Overseerr", "OVERSEERR", "overseerr.webp"),
+                ]
+                services = []
+                all_services = []
+                for name, env, logo in service_defs:
+                    url = os.getenv(env, "")
+                    all_services.append({"name": name, "env": env, "url": url, "logo": logo})
+                    if url:
+                        services.append({"name": name, "url": url, "logo": logo})
+                
+                # Get storage info
+                drives_env = os.getenv("DRIVES")
+                if not drives_env:
+                    if platform.system() == "Windows":
+                        drives = ["C:\\"]
+                    else:
+                        drives = ["/"]
+                else:
+                    drives = [d.strip() for d in drives_env.split(",") if d.strip()]
+                
+                storage_info = []
+                for drive in drives:
+                    try:
+                        usage = psutil.disk_usage(drive)
+                        storage_info.append({
+                            "mount": drive,
+                            "used": round(usage.used / (1024**3), 1),
+                            "total": round(usage.total / (1024**3), 1),
+                            "percent": int(usage.percent)
+                        })
+                    except Exception as e:
+                        if debug_mode:
+                            print(f"Error reading {drive}: {e}")
+                
+                library_notes = load_library_notes()
+                
+                return render_template(
+                    "services.html",
+                    services=services,
+                    all_services=all_services,
+                    submissions=submissions,
+                    storage_info=storage_info,
+                    audiobookshelf_submissions=audiobookshelf_submissions,
+                    abs_user_creation_results=creation_results,
+                    SERVER_NAME=os.getenv("SERVER_NAME", ""),
+                    ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc"),
+                    PLEX_TOKEN=os.getenv("PLEX_TOKEN", ""),
+                    PLEX_URL=os.getenv("PLEX_URL", ""),
+                    AUDIOBOOKS_ID=os.getenv("AUDIOBOOKS_ID", ""),
+                    ABS_ENABLED=os.getenv("ABS_ENABLED", "no"),
+                    LIBRARY_IDS=os.getenv("LIBRARY_IDS", ""),
+                    library_notes=library_notes,
+                    DISCORD_WEBHOOK=os.getenv("DISCORD_WEBHOOK", ""),
+                    DISCORD_USERNAME=os.getenv("DISCORD_USERNAME", ""),
+                    DISCORD_AVATAR=os.getenv("DISCORD_AVATAR", ""),
+                    DISCORD_COLOR=os.getenv("DISCORD_COLOR", ""),
+                    AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", ""),
+                    AUDIOBOOKSHELF_TOKEN=os.getenv("AUDIOBOOKSHELF_TOKEN", ""),
+                    show_services=os.getenv("SHOW_SERVICES", "yes").lower() == "yes",
+                    custom_services_url=os.getenv("CUSTOM_SERVICES_URL", "").strip(),
+                    DISCORD_NOTIFY_PLEX=os.getenv("DISCORD_NOTIFY_PLEX", "1"),
+                    DISCORD_NOTIFY_ABS=os.getenv("DISCORD_NOTIFY_ABS", "1")
+                )
+                
+            except Exception as e:
+                if debug_mode:
+                    print(f"Error in ABS user creation: {e}")
+                # Continue to normal template rendering with error
 
     # Load Plex submissions
     try:
@@ -790,6 +1133,66 @@ def services():
     # Load library notes for descriptions
     library_notes = load_library_notes()
     
+    # Handle Plex user invitation (parallel to ABS user creation)
+    if request.method == "POST" and "invite_plex_users" in request.form:
+        try:
+            with open(os.path.join(os.getcwd(), "plex_submissions.json"), "r") as f:
+                plex_submissions = json.load(f)
+        except FileNotFoundError:
+            plex_submissions = []
+        selected_indices = request.form.getlist("invite_users")
+        invite_results = []
+        # Invite each selected user
+        for index_str in selected_indices:
+            try:
+                index = int(index_str)
+                if 0 <= index < len(plex_submissions):
+                    submission = plex_submissions[index]
+                    email = submission["email"]
+                    libraries_titles = submission.get("libraries_titles", [])
+                    result = invite_plex_user(email, libraries_titles)
+                    invite_results.append(result)
+                    # If successful, remove from submissions
+                    if result["success"]:
+                        del plex_submissions[index]
+                        with open(os.path.join(os.getcwd(), "plex_submissions.json"), "w") as f:
+                            json.dump(plex_submissions, f, indent=2)
+            except Exception as e:
+                invite_results.append({"success": False, "email": "Unknown", "error": f"Error processing submission: {str(e)}"})
+        # Load all necessary data for template
+        try:
+            with open(os.path.join(os.getcwd(), "audiobookshelf_submissions.json"), "r") as f:
+                audiobookshelf_submissions = json.load(f)
+        except FileNotFoundError:
+            audiobookshelf_submissions = []
+        return render_template(
+            "services.html",
+            services=services,
+            all_services=all_services,
+            submissions=plex_submissions,
+            storage_info=storage_info,
+            audiobookshelf_submissions=audiobookshelf_submissions,
+            plex_invite_results=invite_results,
+            SERVER_NAME=os.getenv("SERVER_NAME", ""),
+            ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc"),
+            PLEX_TOKEN=os.getenv("PLEX_TOKEN", ""),
+            PLEX_URL=os.getenv("PLEX_URL", ""),
+            AUDIOBOOKS_ID=os.getenv("AUDIOBOOKS_ID", ""),
+            ABS_ENABLED=os.getenv("ABS_ENABLED", "no"),
+            LIBRARY_IDS=os.getenv("LIBRARY_IDS", ""),
+            library_notes=library_notes,
+            DISCORD_WEBHOOK=os.getenv("DISCORD_WEBHOOK", ""),
+            DISCORD_USERNAME=os.getenv("DISCORD_USERNAME", ""),
+            DISCORD_AVATAR=os.getenv("DISCORD_AVATAR", ""),
+            DISCORD_COLOR=os.getenv("DISCORD_COLOR", ""),
+            AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", ""),
+            AUDIOBOOKSHELF_TOKEN=os.getenv("AUDIOBOOKSHELF_TOKEN", ""),
+            show_services=os.getenv("SHOW_SERVICES", "yes").lower() == "yes",
+            custom_services_url=os.getenv("CUSTOM_SERVICES_URL", "").strip(),
+            DISCORD_NOTIFY_PLEX=os.getenv("DISCORD_NOTIFY_PLEX", "1"),
+            DISCORD_NOTIFY_ABS=os.getenv("DISCORD_NOTIFY_ABS", "1")
+        )
+
     return render_template(
         "services.html",
         services=services,
@@ -797,6 +1200,7 @@ def services():
         submissions=submissions,
         storage_info=storage_info,
         audiobookshelf_submissions=audiobookshelf_submissions,
+        abs_user_creation_results=None,  # Will be populated if user creation was attempted
         # Current configuration values
         SERVER_NAME=os.getenv("SERVER_NAME", ""),
         ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc"),
@@ -839,6 +1243,58 @@ def fetch_libraries():
         return jsonify({"libraries": libraries})
     except Exception as e:
         return jsonify({"libraries": [], "error": str(e)})
+
+@app.route("/refresh-library-titles", methods=["POST"])
+def refresh_library_titles():
+    if not session.get("admin_authenticated"):
+        return jsonify({"success": False, "error": "Unauthorized"})
+    
+    try:
+        # Get current library notes
+        library_notes = load_library_notes()
+        
+        # Get selected library IDs
+        library_ids = os.getenv("LIBRARY_IDS", "")
+        if not library_ids:
+            return jsonify({"success": False, "error": "No libraries selected"})
+        
+        selected_ids = [i.strip() for i in library_ids.split(",") if i.strip()]
+        
+        # Fetch current titles from Plex
+        plex_token = os.getenv("PLEX_TOKEN")
+        plex_url = os.getenv("PLEX_URL")
+        
+        if not plex_token or not plex_url:
+            return jsonify({"success": False, "error": "Plex token or URL not configured"})
+        
+        headers = {"X-Plex-Token": plex_token}
+        url = f"{plex_url}/library/sections"
+        response = requests.get(url, headers=headers, timeout=5)
+        response.raise_for_status()
+        root = ET.fromstring(response.text)
+        id_to_title = {d.attrib.get("key"): d.attrib.get("title") for d in root.findall(".//Directory")}
+        
+        # Update library notes with current titles
+        updated = False
+        for lib_id in selected_ids:
+            title = id_to_title.get(lib_id)
+            if title:
+                if lib_id not in library_notes:
+                    library_notes[lib_id] = {}
+                library_notes[lib_id]['title'] = title
+                updated = True
+        
+        if updated:
+            save_library_notes(library_notes)
+            if debug_mode:
+                print(f"[INFO] Refreshed {len([lib_id for lib_id in selected_ids if library_notes.get(lib_id, {}).get('title')])} library titles")
+        
+        return jsonify({"success": True})
+        
+    except Exception as e:
+        if debug_mode:
+            print(f"[ERROR] Failed to refresh library titles: {e}")
+        return jsonify({"success": False, "error": str(e)})
 
 # --- Use os.path.join for all file paths ---
 def download_and_cache_posters():
@@ -1532,6 +1988,27 @@ def periodic_poster_refresh(libraries, interval_hours=6):
             time.sleep(interval_hours * 3600)
     t = threading.Thread(target=refresh, daemon=True)
     t.start()
+
+def invite_plex_user(email, libraries_titles):
+    """Invite/share Plex libraries with a user via the Plex API."""
+    plex_url = os.getenv("PLEX_URL")
+    plex_token = os.getenv("PLEX_TOKEN")
+    if not plex_url or not plex_token:
+        return {"success": False, "email": email, "error": "Plex URL or token not configured"}
+    try:
+        plex = PlexServer(plex_url, plex_token)
+        account = plex.myPlexAccount()
+        # Check if user already exists as a friend
+        for user in account.users():
+            if user.email and user.email.lower() == email.lower():
+                # Update libraries for existing user
+                account.updateFriend(user=user, server=plex, sections=libraries_titles)
+                return {"success": True, "email": email, "message": "Updated existing Plex friend with new libraries."}
+        # If not, invite as new friend
+        account.inviteFriend(user=email, server=plex, sections=libraries_titles)
+        return {"success": True, "email": email, "message": "Invited new Plex user."}
+    except Exception as e:
+        return {"success": False, "email": email, "error": str(e)}
 
 if __name__ == "__main__":
     # --- Dynamic configuration for section IDs ---
