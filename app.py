@@ -44,9 +44,12 @@ def is_running_in_docker():
         # Check for Docker environment variables
         return any(var in os.environ for var in ['DOCKER_CONTAINER', 'KUBERNETES_SERVICE_HOST'])
 
+# Application configuration
+APP_PORT = 10000
+
 def get_app_url():
     """Determine the correct URL to open in browser"""
-    port = 10000
+    port = APP_PORT
     
     # Check if we're in Docker
     if is_running_in_docker():
@@ -912,6 +915,10 @@ def fetch_libraries():
     data = request.get_json()
     plex_token = data.get("plex_token")
     plex_url = data.get("plex_url")
+    
+    if not plex_token or not plex_url:
+        return jsonify({"error": "Plex token and URL are required"})
+    
     try:
         headers = {"X-Plex-Token": plex_token}
         url = f"{plex_url}/library/sections"
@@ -926,7 +933,191 @@ def fetch_libraries():
                 libraries.append({"title": title, "key": key})
         return jsonify({"libraries": libraries})
     except Exception as e:
-        return jsonify({"libraries": [], "error": str(e)})
+        return jsonify({"error": str(e)})
+
+@app.route("/ajax/delete-plex-request", methods=["POST"])
+def ajax_delete_plex_request():
+    if not session.get("admin_authenticated"):
+        return jsonify({"success": False, "error": "Unauthorized"})
+    
+    try:
+        data = request.get_json()
+        delete_index = data.get("delete_index")
+        
+        if delete_index is None:
+            return jsonify({"success": False, "error": "Missing delete_index"})
+        
+        delete_index = int(delete_index)
+        submissions = load_json_file("plex_submissions.json", [])
+        
+        if 0 <= delete_index < len(submissions):
+            del submissions[delete_index]
+            save_json_file("plex_submissions.json", submissions)
+            return jsonify({"success": True})
+        else:
+            return jsonify({"success": False, "error": "Invalid index"})
+    except Exception as e:
+        if debug_mode:
+            print(f"Error deleting Plex submission: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/ajax/delete-abs-request", methods=["POST"])
+def ajax_delete_abs_request():
+    if not session.get("admin_authenticated"):
+        return jsonify({"success": False, "error": "Unauthorized"})
+    
+    try:
+        data = request.get_json()
+        delete_index = data.get("delete_index")
+        
+        if delete_index is None:
+            return jsonify({"success": False, "error": "Missing delete_index"})
+        
+        delete_index = int(delete_index)
+        audiobookshelf_submissions = load_json_file("audiobookshelf_submissions.json", [])
+        
+        if 0 <= delete_index < len(audiobookshelf_submissions):
+            del audiobookshelf_submissions[delete_index]
+            save_json_file("audiobookshelf_submissions.json", audiobookshelf_submissions)
+            return jsonify({"success": True})
+        else:
+            return jsonify({"success": False, "error": "Invalid index"})
+    except Exception as e:
+        if debug_mode:
+            print(f"Error deleting Audiobookshelf submission: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/ajax/invite-plex-users", methods=["POST"])
+def ajax_invite_plex_users():
+    if not session.get("admin_authenticated"):
+        return jsonify({"success": False, "error": "Unauthorized"})
+    
+    try:
+        data = request.get_json()
+        selected_indices = data.get("selected_indices", [])
+        
+        if not selected_indices:
+            return jsonify({"success": False, "error": "No users selected"})
+        
+        plex_submissions = load_json_file("plex_submissions.json", [])
+        invite_results = []
+        
+        # Sort indices in descending order to avoid index shifting issues
+        selected_indices.sort(reverse=True)
+        
+        for index in selected_indices:
+            try:
+                if 0 <= index < len(plex_submissions):
+                    submission = plex_submissions[index]
+                    email = submission["email"]
+                    libraries_titles = submission.get("libraries_titles", [])
+                    result = invite_plex_user(email, libraries_titles)
+                    result["email"] = email
+                    invite_results.append(result)
+                    
+                    # If successful, remove from submissions
+                    if result["success"]:
+                        del plex_submissions[index]
+                else:
+                    invite_results.append({
+                        "success": False, 
+                        "email": "Unknown", 
+                        "error": "Invalid index"
+                    })
+            except Exception as e:
+                invite_results.append({
+                    "success": False, 
+                    "email": "Unknown", 
+                    "error": f"Error processing submission: {str(e)}"
+                })
+        
+        # Save updated submissions
+        save_json_file("plex_submissions.json", plex_submissions)
+        
+        return jsonify({
+            "success": True,
+            "results": invite_results
+        })
+        
+    except Exception as e:
+        if debug_mode:
+            print(f"Error in Plex user invitation: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/ajax/create-abs-users", methods=["POST"])
+def ajax_create_abs_users():
+    if not session.get("admin_authenticated"):
+        return jsonify({"success": False, "error": "Unauthorized"})
+    
+    try:
+        data = request.get_json()
+        selected_indices = data.get("selected_indices", [])
+        user_type = data.get("user_type", "user")
+        selected_permissions = data.get("permissions", [])
+        
+        if not selected_indices:
+            return jsonify({"success": False, "error": "No users selected"})
+        
+        # Build permissions object
+        permissions = {
+            "download": "download" in selected_permissions,
+            "update": "update" in selected_permissions,
+            "delete": "delete" in selected_permissions,
+            "upload": "upload" in selected_permissions,
+            "accessAllLibraries": "accessAllLibraries" in selected_permissions,
+            "accessAllTags": "accessAllTags" in selected_permissions,
+            "accessExplicitContent": "accessExplicitContent" in selected_permissions
+        }
+        
+        audiobookshelf_submissions = load_json_file("audiobookshelf_submissions.json", [])
+        creation_results = []
+        
+        # Sort indices in descending order to avoid index shifting issues
+        selected_indices.sort(reverse=True)
+        
+        for index in selected_indices:
+            try:
+                if 0 <= index < len(audiobookshelf_submissions):
+                    submission = audiobookshelf_submissions[index]
+                    result = create_abs_user(
+                        username=submission["username"],
+                        password=submission["password"],
+                        user_type=user_type,
+                        permissions=permissions
+                    )
+                    result["email"] = submission["email"]
+                    creation_results.append(result)
+                    
+                    # If successful, remove from submissions
+                    if result["success"]:
+                        del audiobookshelf_submissions[index]
+                else:
+                    creation_results.append({
+                        "success": False,
+                        "username": "Unknown",
+                        "email": "Unknown",
+                        "error": "Invalid index"
+                    })
+            except Exception as e:
+                creation_results.append({
+                    "success": False,
+                    "username": "Unknown",
+                    "email": "Unknown",
+                    "error": f"Error processing submission: {str(e)}"
+                })
+        
+        # Save updated submissions
+        save_json_file("audiobookshelf_submissions.json", audiobookshelf_submissions)
+        
+        return jsonify({
+            "success": True,
+            "results": creation_results
+        })
+        
+    except Exception as e:
+        if debug_mode:
+            print(f"Error in ABS user creation: {e}")
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route("/refresh-library-titles", methods=["POST"])
 def refresh_library_titles():
@@ -1867,4 +2058,4 @@ if __name__ == "__main__":
         browser_thread = threading.Thread(target=open_browser_delayed, daemon=True)
         browser_thread.start()
     
-    app.run(host="0.0.0.0", port=10000, debug=debug_mode)
+    app.run(host="0.0.0.0", port=APP_PORT, debug=debug_mode)

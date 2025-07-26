@@ -46,15 +46,11 @@
         </thead>
         <tbody>
           {% for submission in submissions %}
-            <tr>
+            <tr data-plex-index="{{ loop.index0 }}">
               <td style="padding:0.5em;">{{ submission.email }}</td>
               <td style="padding:0.5em;">{{ submission.libraries_titles | join(', ') }}</td>
               <td style="padding:0.5em;">
-                <form method="POST" style="display:inline;">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <input type="hidden" name="delete_index" value="{{ loop.index0 }}">
-                  <button type="submit" style="padding:0.3em 0.8em; font-size:0.9em; margin-top:1em;">Delete</button>
-                </form>
+                <button type="button" onclick="deletePlexRequest({{ loop.index0 }})" style="padding:0.3em 0.8em; font-size:0.9em; margin-top:1em;">Delete</button>
               </td>
             </tr>
           {% endfor %}
@@ -71,8 +67,7 @@
       <div style="color: #888; font-size: 0.95em; margin-bottom: 1.5em;">
         Select submissions to invite users to your Plex server. Users will be invited with access to the selected libraries.
       </div>
-      <form method="POST" id="plex-user-invite-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <form id="plex-user-invite-form">
         <div style="margin-bottom: 1.5em;">
           <label style="display: block; margin-bottom: 0.5em; font-weight: bold;">Select submissions to invite:</label>
           <div style="margin-bottom: 1em;">
@@ -93,7 +88,7 @@
             </div>
           {% endfor %}
         </div>
-        <button type="submit" name="invite_plex_users" style="padding: 0.6em 1.2em; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; font-weight: bold;">
+        <button type="button" onclick="invitePlexUsers()" style="padding: 0.6em 1.2em; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; font-weight: bold;">
           Invite Selected Users to Plex
         </button>
       </form>
@@ -156,16 +151,12 @@
           </thead>
           <tbody>
             {% for submission in audiobookshelf_submissions %}
-              <tr>
+              <tr data-abs-index="{{ loop.index0 }}">
                 <td style="padding:0.5em;">{{ submission.email }}</td>
                 <td style="padding:0.5em;">{{ submission.username }}</td>
                 <td style="padding:0.5em;">{{ submission.password }}</td>
                 <td style="padding:0.5em;">
-                  <form method="POST" style="display:inline;">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="audiobookshelf_delete_index" value="{{ loop.index0 }}">
-                    <button type="submit" style="padding:0.3em 0.8em; font-size:0.9em; margin-top:1em;">Delete</button>
-                  </form>
+                  <button type="button" onclick="deleteAbsRequest({{ loop.index0 }})" style="padding:0.3em 0.8em; font-size:0.9em; margin-top:1em;">Delete</button>
                 </td>
               </tr>
             {% endfor %}
@@ -180,8 +171,7 @@
             Select submissions to create users in Audiobookshelf. Users will be created with the specified username and password.
           </div>
           
-          <form method="POST" id="abs-user-creation-form">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <form id="abs-user-creation-form">
             <div style="margin-bottom: 1.5em;">
               <label style="display: block; margin-bottom: 0.5em; font-weight: bold;">Select submissions to create users:</label>
               <div style="margin-bottom: 1em;">
@@ -205,7 +195,7 @@
             
             <div style="margin-bottom: 1.5em;">
               <label style="display: block; margin-bottom: 0.5em; font-weight: bold;">User Type:</label>
-              <select name="user_type" style="padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff; width: 200px;">
+              <select name="user_type" id="abs_user_type" style="padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff; width: 200px;">
                 <option value="user">User</option>
                 <option value="admin">Admin</option>
                 <option value="guest">Guest</option>
@@ -249,7 +239,7 @@
               </div>
             </div>
             
-            <button type="submit" name="create_abs_users" style="padding: 0.6em 1.2em; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; font-weight: bold;">
+            <button type="button" onclick="createAbsUsers()" style="padding: 0.6em 1.2em; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; font-weight: bold;">
               Create Selected Users in Audiobookshelf
             </button>
           </form>
@@ -655,6 +645,256 @@
                 button.disabled = false;
             });
         }
+        </script>
+        
+        <!-- AJAX Functions for Services Page -->
+        <script>
+          // Delete Plex request
+          async function deletePlexRequest(index) {
+            if (!confirm('Are you sure you want to delete this Plex request?')) {
+              return;
+            }
+            
+            try {
+              const response = await fetch('/ajax/delete-plex-request', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                },
+                body: JSON.stringify({ delete_index: index })
+              });
+              
+              const result = await response.json();
+              if (result.success) {
+                // Remove the row from the table
+                const row = document.querySelector(`tr[data-plex-index="${index}"]`);
+                if (row) {
+                  row.remove();
+                }
+                // If no more submissions, reload the page to show "No Plex requests found"
+                const tbody = document.querySelector('table tbody');
+                if (tbody && tbody.children.length === 0) {
+                  window.location.reload();
+                }
+              } else {
+                alert('Failed to delete request: ' + (result.error || 'Unknown error'));
+              }
+            } catch (error) {
+              console.error('Error:', error);
+              alert('Failed to delete request. Please try again.');
+            }
+          }
+          
+          // Delete Audiobookshelf request
+          async function deleteAbsRequest(index) {
+            if (!confirm('Are you sure you want to delete this Audiobookshelf request?')) {
+              return;
+            }
+            
+            try {
+              const response = await fetch('/ajax/delete-abs-request', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                },
+                body: JSON.stringify({ delete_index: index })
+              });
+              
+              const result = await response.json();
+              if (result.success) {
+                // Remove the row from the table
+                const row = document.querySelector(`tr[data-abs-index="${index}"]`);
+                if (row) {
+                  row.remove();
+                }
+                // If no more submissions, reload the page to show "No Audiobookshelf requests found"
+                const tbody = document.querySelector('.scrollable-table-container table tbody');
+                if (tbody && tbody.children.length === 0) {
+                  window.location.reload();
+                }
+              } else {
+                alert('Failed to delete request: ' + (result.error || 'Unknown error'));
+              }
+            } catch (error) {
+              console.error('Error:', error);
+              alert('Failed to delete request. Please try again.');
+            }
+          }
+          
+          // Invite Plex users
+          async function invitePlexUsers() {
+            const selectedCheckboxes = document.querySelectorAll('.plex-user-checkbox:checked');
+            if (selectedCheckboxes.length === 0) {
+              alert('Please select at least one user to invite.');
+              return;
+            }
+            
+            const selectedIndices = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = 'Inviting...';
+            button.disabled = true;
+            
+            try {
+              const response = await fetch('/ajax/invite-plex-users', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                },
+                body: JSON.stringify({ selected_indices: selectedIndices })
+              });
+              
+              const result = await response.json();
+              if (result.success) {
+                // Show results
+                showPlexInviteResults(result.results);
+                // Reload page to update the list
+                setTimeout(() => {
+                  window.location.reload();
+                }, 3000);
+              } else {
+                alert('Failed to invite users: ' + (result.error || 'Unknown error'));
+                button.textContent = originalText;
+                button.disabled = false;
+              }
+            } catch (error) {
+              console.error('Error:', error);
+              alert('Failed to invite users. Please try again.');
+              button.textContent = originalText;
+              button.disabled = false;
+            }
+          }
+          
+          // Create Audiobookshelf users
+          async function createAbsUsers() {
+            const selectedCheckboxes = document.querySelectorAll('.user-checkbox:checked');
+            if (selectedCheckboxes.length === 0) {
+              alert('Please select at least one user to create.');
+              return;
+            }
+            
+            const selectedIndices = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+            const userType = document.getElementById('abs_user_type').value;
+            const selectedPermissions = Array.from(document.querySelectorAll('input[name="permissions"]:checked')).map(cb => cb.value);
+            
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = 'Creating...';
+            button.disabled = true;
+            
+            try {
+              const response = await fetch('/ajax/create-abs-users', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                },
+                body: JSON.stringify({ 
+                  selected_indices: selectedIndices,
+                  user_type: userType,
+                  permissions: selectedPermissions
+                })
+              });
+              
+              const result = await response.json();
+              if (result.success) {
+                // Show results
+                showAbsCreationResults(result.results);
+                // Reload page to update the list
+                setTimeout(() => {
+                  window.location.reload();
+                }, 3000);
+              } else {
+                alert('Failed to create users: ' + (result.error || 'Unknown error'));
+                button.textContent = originalText;
+                button.disabled = false;
+              }
+            } catch (error) {
+              console.error('Error:', error);
+              alert('Failed to create users. Please try again.');
+              button.textContent = originalText;
+              button.disabled = false;
+            }
+          }
+          
+          // Show Plex invite results
+          function showPlexInviteResults(results) {
+            const form = document.getElementById('plex-user-invite-form');
+            const resultsDiv = document.createElement('div');
+            resultsDiv.style.marginTop = '2em';
+            resultsDiv.innerHTML = '<h4 style="margin-bottom: 1em; color: var(--accent);">Invitation Results:</h4>';
+            
+            results.forEach(result => {
+              const resultDiv = document.createElement('div');
+              resultDiv.style.marginBottom = '1em';
+              resultDiv.style.padding = '0.8em';
+              resultDiv.style.borderRadius = '0.3em';
+              resultDiv.style.borderLeft = '4px solid';
+              
+              if (result.success) {
+                resultDiv.style.background = '#1a3a1a';
+                resultDiv.style.borderLeftColor = '#4CAF50';
+                resultDiv.innerHTML = `
+                  <div style="font-weight: bold; margin-bottom: 0.3em;">${result.email}</div>
+                  <div style="color: #4CAF50; font-weight: 500;">✅ ${result.message || 'Successfully invited user'}</div>
+                `;
+              } else {
+                resultDiv.style.background = '#3a1a1a';
+                resultDiv.style.borderLeftColor = '#f44336';
+                resultDiv.innerHTML = `
+                  <div style="font-weight: bold; margin-bottom: 0.3em;">${result.email}</div>
+                  <div style="color: #f44336; font-weight: 500;">❌ Failed to invite user: ${result.error}</div>
+                `;
+              }
+              
+              resultsDiv.appendChild(resultDiv);
+            });
+            
+            form.appendChild(resultsDiv);
+          }
+          
+          // Show ABS creation results
+          function showAbsCreationResults(results) {
+            const form = document.getElementById('abs-user-creation-form');
+            const resultsDiv = document.createElement('div');
+            resultsDiv.style.marginTop = '2em';
+            resultsDiv.innerHTML = '<h4 style="margin-bottom: 1em; color: var(--accent);">Creation Results:</h4>';
+            
+            results.forEach(result => {
+              const resultDiv = document.createElement('div');
+              resultDiv.style.marginBottom = '1em';
+              resultDiv.style.padding = '0.8em';
+              resultDiv.style.borderRadius = '0.3em';
+              resultDiv.style.borderLeft = '4px solid';
+              
+              if (result.success) {
+                resultDiv.style.background = '#1a3a1a';
+                resultDiv.style.borderLeftColor = '#4CAF50';
+                let resultHtml = `
+                  <div style="font-weight: bold; margin-bottom: 0.3em;">${result.username} (${result.email})</div>
+                  <div style="color: #4CAF50; font-weight: 500;">✅ Successfully created user</div>
+                `;
+                if (result.user_id) {
+                  resultHtml += `<div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">User ID: ${result.user_id}</div>`;
+                }
+                resultDiv.innerHTML = resultHtml;
+              } else {
+                resultDiv.style.background = '#3a1a1a';
+                resultDiv.style.borderLeftColor = '#f44336';
+                resultDiv.innerHTML = `
+                  <div style="font-weight: bold; margin-bottom: 0.3em;">${result.username} (${result.email})</div>
+                  <div style="color: #f44336; font-weight: 500;">❌ Failed to create user: ${result.error}</div>
+                `;
+              }
+              
+              resultsDiv.appendChild(resultDiv);
+            });
+            
+            form.appendChild(resultsDiv);
+          }
         </script>
     </div>
   </div>
