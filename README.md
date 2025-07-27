@@ -1,5 +1,6 @@
 # ATTENTION
 If you're reading this, the repo recently had a big update that might break current installs, and makes some sections of the readme inaccurate. You no longer need to edit the `.env` file before running app.py for the first time. 
+
 Setup is much easier now! just docker compose and tweak all initial settings on the site.
 
 The readme (and screenshots) will be updated soon.
