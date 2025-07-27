@@ -3,29 +3,125 @@
 <head>
   <meta charset="UTF-8" />
   <title>{{ SERVER_NAME }}</title>
-  <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp') }}" />
+      <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}" />
   <link rel="stylesheet" href="/static/style.css" />
+  <script>
+    // Set accent color from environment variable
+    document.addEventListener('DOMContentLoaded', function() {
+      const accentColor = '{{ ACCENT_COLOR or "#d33fbc" }}';
+      document.documentElement.style.setProperty('--accent-color', accentColor);
+    });
+  </script>
 </head>
 <body>
   {% include "_bottom_nav.html" %}
   <div class="container">
     <h1>Welcome to Audiobookshelf!</h1>
 
+    {% set min_covers = 10 %}
+    {% set cover_count = abs_covers|length %}
+    {% set repeat_count = (min_covers // cover_count) + 2 if cover_count > 0 and cover_count < min_covers else 1 %}
     <div class="poster-carousel-container">
-      <div id="audiobook-carousel" class="poster-carousel"></div>
+      <div id="audiobook-carousel" class="poster-carousel animate">
+        <!-- Images will be inserted by JS -->
+      </div>
     </div>
     <script>
+    // --- Seamless Infinite Carousel Logic (transform-based) ---
+    function setupInfiniteCarousel(carousel) {
+      const container = carousel.parentElement;
+      let scrollSpeed = 0.5; // px per frame
+      let rafId;
+      let isPaused = false;
+      let offset = 0;
+
+      // Duplicate initial images to allow seamless looping
+      function duplicateImages() {
+        const imgs = Array.from(carousel.children);
+        imgs.forEach(img => {
+          const clone = img.cloneNode(true);
+          carousel.appendChild(clone);
+        });
+      }
+
+      // Set carousel width
+      function updateWidth() {
+        // Instead of setting to total width, set to container's width plus a buffer
+        const containerWidth = container.offsetWidth;
+        // Buffer: add width of 2 images (if available)
+        let buffer = 0;
+        if (carousel.children.length > 0) {
+          const imgWidth = carousel.children[0].offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
+          buffer = imgWidth * 4;
+        }
+        carousel.style.width = (containerWidth + buffer) + 'px';
+      }
+
+      // Animation loop using transform
+      function animate() {
+        if (!isPaused) {
+          offset -= scrollSpeed;
+          carousel.style.transform = `translateX(${offset}px)`;
+          const firstImg = carousel.children[0];
+          const firstImgWidth = firstImg.offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
+          if (Math.abs(offset) >= firstImgWidth) {
+            carousel.appendChild(firstImg);
+            offset += firstImgWidth;
+            carousel.style.transform = `translateX(${offset}px)`;
+          }
+        }
+        rafId = requestAnimationFrame(animate);
+      }
+
+      // Pause on hover
+      container.addEventListener('mouseenter', () => { isPaused = true; });
+      container.addEventListener('mouseleave', () => { isPaused = false; });
+
+      // Wait for images to load before starting
+      const imgs = carousel.querySelectorAll('img');
+      let loaded = 0;
+      if (imgs.length === 0) {
+        animate();
+        return;
+      }
+      let started = false;
+      function maybeStart() {
+        if (!started && loaded > 0) {
+          started = true;
+          duplicateImages();
+          updateWidth();
+          animate();
+        }
+      }
+      imgs.forEach(img => {
+        if (img.complete) {
+          loaded++;
+          maybeStart();
+        } else {
+          img.addEventListener('load', () => {
+            loaded++;
+            maybeStart();
+          });
+        }
+      });
+      // Fallback: if all images are loaded, ensure animation starts
+      if (loaded === imgs.length) {
+        maybeStart();
+      }
+    }
+
+    // Fetch covers and initialize carousel
     fetch('/audiobook-covers')
       .then(res => res.json())
       .then(paths => {
         const container = document.getElementById('audiobook-carousel');
         container.innerHTML = paths.map(path => `<img src="${path}" class="carousel-img" alt="Audiobook cover" loading="lazy">`).join('');
-        container.classList.add('animate');
+        setupInfiniteCarousel(container);
       });
     </script>
 
     <p style="color: #888">
-     Random selection of 25 audiobooks on my server. Go <a href="/medialists" class="accent">here</a> for the full list.
+     Random selection of some audiobooks on my server. Go <a href="/medialists" class="accent">here</a> for the full list.
     </p>
 
     <p style="max-width:850px">
@@ -45,7 +141,7 @@
       <div style="margin-left: 1em;">
         <p>To get started, fill out the form below. Let me know when you're done so I can add your account.</p>
 
-        <p class="accent">
+        <p class="muted">
           Note: Please don't share the account you create with others. If you know someone who you think would enjoy having access, let me know. In most cases I'll be happy to add them with their own account.
         </p>
         <form method="POST" action="/audiobookshelf" id="audiobookshelf-form" style="margin-bottom: 1em;">
@@ -68,7 +164,7 @@
           <button type="submit" {% if submitted %}disabled{% endif %}>Submit</button>
         </form>
         <div id="audiobookshelf-success" style="display:none;">
-          <p style="color: #f6b900; font-weight: bold; margin-top: 1em;">
+          <p class="accent" style="font-weight: bold; margin-top: 1em;">
             Thanks! Your request has been submitted.
           </p>
         </div>
@@ -167,56 +263,6 @@
 
       return true; // let form proceed
     }
-  </script>
-
-  <script>
-  fetch("/posters")
-    .then(res => res.json())
-    .then(urls => {
-      const container = document.getElementById("poster-carousel");
-
-    // Create one set of posters first
-      const fragment = document.createDocumentFragment();
-      urls.forEach(url => {
-        const img = document.createElement("img");
-        img.src = url;
-        img.loading = "lazy";
-        fragment.appendChild(img);
-      });
-
-    // Append twice for seamless loop
-      container.appendChild(fragment.cloneNode(true));
-      container.appendChild(fragment);
-
-    // Trigger animation after images are inserted
-      requestAnimationFrame(() => {
-        container.classList.add("animate");
-      });
-    });
-  </script>
-
-  <script>
-  fetch("/show-posters")
-    .then(res => res.json())
-    .then(urls => {
-      const container = document.getElementById("show-poster-carousel");
-
-      const fragment = document.createDocumentFragment();
-      urls.forEach(url => {
-        const img = document.createElement("img");
-        img.src = url;
-        img.loading = "lazy";
-        fragment.appendChild(img);
-      });
-
-      container.appendChild(fragment.cloneNode(true));
-      container.appendChild(fragment);
-
-      requestAnimationFrame(() => {
-        container.classList.add("animate");
-      });
-    });
-
   </script>
 
   <script>

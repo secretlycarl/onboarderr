@@ -3,18 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <title>Onboarderr Setup</title>
-    <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp') }}">
+    <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}">
     <link rel="stylesheet" href="/static/style.css">
+    <script>
+      // Set accent color from environment variable
+      document.addEventListener('DOMContentLoaded', function() {
+        const accentColor = '{{ ACCENT_COLOR or "#d33fbc" }}';
+        document.documentElement.style.setProperty('--accent-color', accentColor);
+      });
+    </script>
 </head>
 <body>
     <div class="container">
-        <img src="{{ url_for('static', filename='clearlogo.webp') }}" alt="Logo" style="display: block; margin: 0 auto; max-width: 200px" >
+        <img src="{{ url_for('static', filename=logo_filename) }}" alt="Logo" style="display: block; margin: 0 auto; max-width: 200px" >
         <h1>Setup</h1>
-        <form method="post" id="setup-form" style="max-width: 600px; margin: 0 auto;">
+        <form method="post" id="setup-form" style="max-width: 600px; margin: 0 auto;" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div style="margin-bottom: 1.2em; color: #aaa; font-size: 0.98em; display: flex; align-items: center;">
+                <span style="margin-right: 0.5em;">ℹ️</span> These settings can be changed later in the Admin tab.
+            </div>
+            <label style="display:block; margin-bottom: 1.2em;">SITE_PASSWORD (for guests):<br>
+                <input type="text" name="site_password" id="site_password_box" value="{{ site_password }}" required>
+            </label>
+            <label style="display:block; margin-bottom: 1.2em;">ADMIN_PASSWORD (for admin):<br>
+                <input type="text" name="admin_password" id="admin_password_box" value="{{ admin_password }}" required>
+            </label>
+            <div style="margin-bottom: 1.2em; color: #f6b900; background: #222; border-radius: 6px; padding: 0.7em 1em; font-size: 1em; font-weight: 500;">
+                <span style="margin-right: 0.5em;">⚠️</span> <b>SITE_PASSWORD</b> and <b>ADMIN_PASSWORD</b> must be different.
+            </div>
+            <label style="display:block; margin-bottom: 1.2em;">DRIVES (for storage bar display):<br>
+                <input type="text" name="drives" id="drives_box" value="{{ drives }}" required>
+            </label>
+            <div style="margin-top: 1em;">
+                <b>Examples for DRIVES:</b><br>
+                <span style="color:#eee">Linux/Docker: <code>/,/data,/mnt/c</code></span><br>
+                <span style="color:#eee">Windows: <code>E:\,F:\</code></span>
+            </div>
+            <div id="passwords-error" style="color:#b00; font-weight:bold; margin-top:1em;"></div>
             <label style="display:block; margin-bottom: 1.2em;">Server Name:<br>
                 <input type="text" name="server_name" id="server_name" required class="max-300">
             </label>
+            <label style="display:block; margin-bottom: 1.2em;">Accent Color:<br>
+                <input type="color" name="accent_color" id="accent_color" value="#d33fbc" style="width: 60px; height: 40px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+                <input type="text" name="accent_color_text" id="accent_color_text" value="#d33fbc" placeholder="#d33fbc" style="width: 120px; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+                <span style="color: #888; font-size: 0.9em; margin-left: 10px;">Choose your theme color</span>
+            </label>
+            
+            <div style="margin-bottom: 2em;">
+                <strong style="margin-bottom: 0.5em; display:block;">Custom Branding (Optional):</strong>
+                <div style="color: #888; font-size: 0.95em; margin-bottom: 1em;">
+                    Upload your own logo and wordmark to customize the appearance. These are optional and can be changed later.
+                </div>
+                
+                <label style="display:block; margin-bottom: 1.2em;">Select New Logo (.png or .webp, ~300x300):<br>
+                    <input type="file" name="logo_file" id="logo_file" accept=".png,.webp,.jpg,.jpeg" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+                    <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
+                        This will replace the logo and automatically create a favicon.
+                    </div>
+                </label>
+                
+                <label style="display:block; margin-bottom: 1.2em;">Select New Wordmark (.png or .webp, minimum dimensions ~1000x250):<br>
+                    <input type="file" name="wordmark_file" id="wordmark_file" accept=".png,.webp,.jpg,.jpeg" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+                    <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
+                        This will replace the wordmark image.
+                    </div>
+                </label>
+            </div>
             <label style="display:block; margin-bottom: 1.2em;">Plex Token:<br>
                 <input type="text" name="plex_token" id="plex_token" required class="max-300">
             </label>
@@ -35,39 +89,33 @@
 
             </div>
 
-            <p>
-                Enter Library IDs below. Needed to pull posters for the onboarding pages.
-            </p>
 
-            <label style="display:block; margin-bottom: 1.2em;">Movies Library ID:<br>
-                <input type="text" name="movies_id" id="movies_id" required class="max-300">
-            </label>
-            <label style="display:block; margin-bottom: 1.2em;">Shows Library ID:<br>
-                <input type="text" name="shows_id" id="shows_id" required class="max-300">
-            </label>
 
             <label style="display:block; margin-bottom: 1.2em;">Enable Audiobookshelf?<br>
-                <input type="radio" name="abs_enabled" value="yes" checked onchange="toggleABS()"> Yes
-                <input type="radio" name="abs_enabled" value="no" onchange="toggleABS()"> No
+                <input type="radio" name="abs_enabled" value="yes" id="abs_enabled_yes" onchange="toggleABS()"> Yes
+                <input type="radio" name="abs_enabled" value="no" id="abs_enabled_no" onchange="toggleABS()" checked> No
             </label>
-            <div id="abs-section" style="display: block; margin-left: 20px; margin-bottom: 1.5em;">
+            <div id="abs-section" style="display: none; margin-left: 20px; margin-bottom: 1.5em;">
                 <label>Audiobook Library ID:<br>
-                    <input type="text" name="audiobooks_id" id="audiobooks_id" class="max-300">
+                    <input type="text" name="audiobooks_id" id="audiobooks_id" class="max-300" placeholder="/audiobookshelf/library/[ID_STRING_HERE]">
                 </label><br><br>
                 <label>Audiobookshelf Server URL:<br>
-                    <input type="text" name="audiobookshelf_url" id="audiobookshelf_url" class="max-300">
+                    <input type="text" name="audiobookshelf_url" id="audiobookshelf_url" class="max-300" placeholder="Public URL for users">
+                </label><br><br>
+                <label>Audiobookshelf API Token:<br>
+                    <input type="text" name="audiobookshelf_token" id="audiobookshelf_token" class="max-300" placeholder="Settings > API Keys > Add API Key">
                 </label><br><br>
             </div>
             <label style="display:block; margin-bottom: 1.2em;">Enable Discord Notifications?<br>
-                <input type="radio" name="discord_enabled" value="yes" onchange="toggleDiscord()"> Yes
-                <input type="radio" name="discord_enabled" value="no" onchange="toggleDiscord()"> No
+                <input type="radio" name="discord_enabled" value="yes" id="discord_enabled_yes" onchange="toggleDiscord()"> Yes
+                <input type="radio" name="discord_enabled" value="no" id="discord_enabled_no" onchange="toggleDiscord()" checked> No
             </label>
             <div id="discord-section" style="display: none; margin-left: 20px; margin-bottom: 1.5em;">
                 <label>Discord Webhook URL:<br>
                     <input type="text" name="discord_webhook" id="discord_webhook" class="max-300">
                 </label><br><br>
                 <label>Discord Username (optional):<br>
-                    <input type="text" name="discord_username" id="discord_username" placeholder="Monitor" class="max-300">
+                    <input type="text" name="discord_username" id="discord_username" placeholder="Onboarderr" class="max-300">
                 </label><br><br>
                 <label>Discord Avatar URL (optional):<br>
                     <input type="text" name="discord_avatar" id="discord_avatar" class="max-300">
@@ -76,25 +124,53 @@
                     <input type="text" name="discord_color" id="discord_color" placeholder="#000000" class="max-300">
                 </label><br><br>
             </div>
-            <div id="setup-message" style="color: #f00; margin-bottom: 1em;">
-                {% if error_message %}{{ error_message }}{% endif %}
+            <div style="margin-bottom: 2em;">
+              <strong style="margin-bottom: 0.5em; display:block;">PUBLIC Service URLs for Admin Page:</strong>
+              <label style="display:block; margin-bottom: 1.2em;">Delete any you don't use.<br>
+              </label>
+              {% set service_list = [
+                ('PLEX', 'Plex'),
+                ('LIDARR', 'Lidarr'),
+                ('RADARR', 'Radarr'),
+                ('SONARR', 'Sonarr'),
+                ('TAUTULLI', 'Tautulli'),
+                ('QBITTORRENT', 'qBittorrent'),
+                ('IMMICH', 'Immich'),
+                ('PROWLARR', 'Prowlarr'),
+                ('BAZARR', 'Bazarr'),
+                ('PULSARR', 'Pulsarr'),
+                ('AUDIOBOOKSHELF', 'Audiobookshelf'),
+                ('OVERSEERR', 'Overseerr')
+              ] %}
+              {% for key, label in service_list %}
+                <div style="display: flex; align-items: center; margin-bottom: 1em;">
+                  <label style="flex: 0 0 120px; font-weight: bold;">{{ label }}:</label>
+                  <input type="text" name="{{ key }}" value="{{ service_urls[key] }}" style="flex: 1 1 auto; margin-left: 1em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+                </div>
+              {% endfor %}
             </div>
-            <button type="submit" id="submit-btn" style="margin-top: 1.5em;" disabled>Save and Finish Setup</button>
+            {% if error_message %}
+            <div id="setup-message" style="color: #f00; margin-bottom: 1em; padding: 0.7em 1em; background: #222; border-radius: 6px; border-left: 4px solid #f00;">
+                {{ error_message }}
+            </div>
+            {% else %}
+            <div id="setup-message" style="color: #f00; margin-bottom: 1em; padding: 0.7em 1em; background: #222; border-radius: 6px; border-left: 4px solid #f00; display: none;">
+            </div>
+            {% endif %}
+            <button type="submit" id="submit-btn" style="margin-top: 1.5em;">Save and Finish Setup</button>
         </form>
         <script>
             function toggleABS() {
-                var abs = document.querySelector('input[name="abs_enabled"]:checked').value;
+                var abs = '';
+                var absRadios = document.getElementsByName('abs_enabled');
+                for (var i = 0; i < absRadios.length; i++) {
+                  if (absRadios[i].checked) abs = absRadios[i].value;
+                }
                 var absSection = document.getElementById('abs-section');
-                var absInput = document.getElementById('audiobooks_id');
-                var audiobookshelfUrlInput = document.getElementById('audiobookshelf_url');
                 if (abs === 'yes') {
                     absSection.style.display = 'block';
-                    if (absInput) absInput.disabled = false;
-                    if (audiobookshelfUrlInput) audiobookshelfUrlInput.disabled = false;
                 } else {
                     absSection.style.display = 'none';
-                    if (absInput) absInput.disabled = true;
-                    if (audiobookshelfUrlInput) audiobookshelfUrlInput.disabled = true;
                 }
             }
             function toggleDiscord() {
@@ -196,14 +272,22 @@
             }
             function validateSetupForm() {
                 var serverName = document.getElementById('server_name').value.trim();
+                var accentColor = document.getElementById('accent_color_text').value.trim();
                 var plexToken = document.getElementById('plex_token').value.trim();
                 var plexUrl = document.getElementById('plex_url').value.trim();
-                var moviesId = document.getElementById('movies_id').value.trim();
-                var showsId = document.getElementById('shows_id').value.trim();
-                var absEnabled = document.querySelector('input[name="abs_enabled"]:checked').value;
+                var absEnabled = '';
+                var absRadios = document.getElementsByName('abs_enabled');
+                for (var i = 0; i < absRadios.length; i++) {
+                  if (absRadios[i].checked) absEnabled = absRadios[i].value;
+                }
                 var audiobooksId = document.getElementById('audiobooks_id').value.trim();
                 var audiobookshelfUrl = document.getElementById('audiobookshelf_url').value.trim();
-                var discordEnabled = document.querySelector('input[name="discord_enabled"]:checked').value;
+                var audiobookshelfToken = document.getElementById('audiobookshelf_token').value.trim();
+                var discordEnabled = '';
+                var discordRadios = document.getElementsByName('discord_enabled');
+                for (var i = 0; i < discordRadios.length; i++) {
+                  if (discordRadios[i].checked) discordEnabled = discordRadios[i].value;
+                }
                 var discordWebhook = document.getElementById('discord_webhook').value.trim();
                 var libraryCheckboxes = document.querySelectorAll('input[name="library_ids"]');
                 var anyLibraryChecked = false;
@@ -212,34 +296,68 @@
                 });
                 var submitBtn = document.getElementById('submit-btn');
                 var msgDiv = document.getElementById('setup-message');
-                var valid = serverName && plexToken && plexUrl && moviesId && showsId && anyLibraryChecked;
+                var valid = serverName && accentColor && plexToken && plexUrl && anyLibraryChecked;
+                var missing = [];
+                if (!serverName) missing.push('Server Name');
+                if (!accentColor) missing.push('Accent Color');
+                if (!plexToken) missing.push('Plex Token');
+                if (!plexUrl) missing.push('Plex URL');
+                if (!anyLibraryChecked) missing.push('At least one Library');
+                if (!absEnabled) missing.push('Enable Audiobookshelf?');
                 if (absEnabled === 'yes') {
-                    valid = valid && audiobooksId && audiobookshelfUrl;
+                  if (!audiobooksId) missing.push('Audiobook Library ID');
+                  if (!audiobookshelfUrl) missing.push('Audiobookshelf URL');
+                  if (!audiobookshelfToken) missing.push('Audiobookshelf API Token');
                 }
-                if (discordEnabled === 'yes') {
-                    valid = valid && discordWebhook;
-                }
-                if (valid) {
+                if (!discordEnabled) missing.push('Enable Discord Notifications?');
+                if (discordEnabled === 'yes' && !discordWebhook) missing.push('Discord Webhook URL');
+                if (missing.length > 0) {
+                    submitBtn.disabled = true;
+                    msgDiv.textContent = 'Some entries are missing: ' + missing.join(', ');
+                    msgDiv.style.display = 'block';
+                } else {
                     submitBtn.disabled = false;
                     msgDiv.textContent = '';
-                } else {
-                    submitBtn.disabled = true;
+                    msgDiv.style.display = 'none';
                 }
             }
+            // Sync color picker and text input
+            document.addEventListener('DOMContentLoaded', function() {
+                const colorPicker = document.getElementById('accent_color');
+                const colorText = document.getElementById('accent_color_text');
+                
+                colorPicker.addEventListener('input', function() {
+                    colorText.value = this.value;
+                });
+                
+                colorText.addEventListener('input', function() {
+                    if (this.value.match(/^#[0-9A-Fa-f]{6}$/)) {
+                        colorPicker.value = this.value;
+                    }
+                });
+            });
             document.getElementById('setup-form').addEventListener('input', validateSetupForm);
             document.getElementById('setup-form').addEventListener('change', validateSetupForm);
 
-            // Custom submit handler for delay and messaging
+            // Custom submit handler for client-side validation
             document.getElementById('setup-form').addEventListener('submit', function(e) {
                 var serverName = document.getElementById('server_name').value.trim();
+                var accentColor = document.getElementById('accent_color_text').value.trim();
                 var plexToken = document.getElementById('plex_token').value.trim();
                 var plexUrl = document.getElementById('plex_url').value.trim();
-                var moviesId = document.getElementById('movies_id').value.trim();
-                var showsId = document.getElementById('shows_id').value.trim();
-                var absEnabled = document.querySelector('input[name="abs_enabled"]:checked').value;
+                var absEnabled = '';
+                var absRadios = document.getElementsByName('abs_enabled');
+                for (var i = 0; i < absRadios.length; i++) {
+                  if (absRadios[i].checked) absEnabled = absRadios[i].value;
+                }
                 var audiobooksId = document.getElementById('audiobooks_id').value.trim();
                 var audiobookshelfUrl = document.getElementById('audiobookshelf_url').value.trim();
-                var discordEnabled = document.querySelector('input[name="discord_enabled"]:checked').value;
+                var audiobookshelfToken = document.getElementById('audiobookshelf_token').value.trim();
+                var discordEnabled = '';
+                var discordRadios = document.getElementsByName('discord_enabled');
+                for (var i = 0; i < discordRadios.length; i++) {
+                  if (discordRadios[i].checked) discordEnabled = discordRadios[i].value;
+                }
                 var discordWebhook = document.getElementById('discord_webhook').value.trim();
                 var libraryCheckboxes = document.querySelectorAll('input[name="library_ids"]');
                 var anyLibraryChecked = false;
@@ -249,24 +367,40 @@
                 var msgDiv = document.getElementById('setup-message');
                 var missing = [];
                 if (!serverName) missing.push('Server Name');
+                if (!accentColor) missing.push('Accent Color');
                 if (!plexToken) missing.push('Plex Token');
                 if (!plexUrl) missing.push('Plex URL');
-                if (!moviesId) missing.push('Movies Library ID');
-                if (!showsId) missing.push('Shows Library ID');
                 if (!anyLibraryChecked) missing.push('At least one Library');
-                if (absEnabled === 'yes' && !audiobooksId) missing.push('Audiobook Library ID');
-                if (absEnabled === 'yes' && !audiobookshelfUrl) missing.push('Audiobookshelf URL');
+                if (!absEnabled) missing.push('Enable Audiobookshelf?');
+                if (absEnabled === 'yes') {
+                  if (!audiobooksId) missing.push('Audiobook Library ID');
+                  if (!audiobookshelfUrl) missing.push('Audiobookshelf URL');
+                  if (!audiobookshelfToken) missing.push('Audiobookshelf API Token');
+                }
+                if (!discordEnabled) missing.push('Enable Discord Notifications?');
                 if (discordEnabled === 'yes' && !discordWebhook) missing.push('Discord Webhook URL');
                 if (missing.length > 0) {
                     e.preventDefault();
                     msgDiv.textContent = 'Some entries are missing: ' + missing.join(', ');
+                    msgDiv.style.display = 'block';
+                    // Scroll to the message
+                    msgDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     return false;
                 }
+                // Clear any previous error message
+                msgDiv.textContent = '';
+                msgDiv.style.display = 'none';
             });
             // Initialize visibility and validation on page load
             toggleABS();
             toggleDiscord(); // Initialize Discord visibility
             validateSetupForm();
+            
+            // Show error message if it exists on page load
+            var errorMessage = document.getElementById('setup-message');
+            if (errorMessage.textContent.trim()) {
+                errorMessage.style.display = 'block';
+            }
         </script>
     </div>
 </body>
