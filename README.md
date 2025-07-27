@@ -187,8 +187,7 @@ Create and activate a venv (conda or through system python), then:
 
 - First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png). Everything here can be changed afterwards from ```.env``` or Settings on ```/services```.
 - The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1.
-- It pulls artwork from your Plex libraries to show in the carousels. I have an audiobook library which mirrors my ABS server so it was easiest for me to just use Plex to pull those images instead of new logic for ABS.
-- After submission, restart the script to apply the new ```.env``` and go to Login
+- After submission, the app will restart to apply the new ```.env``` and direct you to /login
 - ```ADMIN_PASSWORD``` will take you to services page, but you can browse the others from the links at the top.
 - ```SITE_PASSWORD``` will not allow access to admin page
 
@@ -197,7 +196,7 @@ Create and activate a venv (conda or through system python), then:
 
 
 <!-- NOTES
-USE https://dashboardicons.com/icons FOr icons. 
+USE https://dashboardicons.com/icons For icons. 
 https://github.com/homarr-labs/dashboard-icons/tree/main/webp has all icons. 
 -->
 
@@ -206,10 +205,17 @@ After setup, go through the HTMLs and other files, and make any changes to the c
 Specifically:
 
 - ```onboarding_section7.html``` is personalized, you should change it to what you want it to say.
+<!-- NOTES
+this could be incorporated into the new upload img section 
+-->
 - Make a new logo, and wordmark. I made the ones it comes with quickly with these sites -
 	- Simple vector editor - https://vectorink.io/app/canvas
-   		- clearlogo is ```300x300```, favicon is ```32x32```
-	- Wordmark Generator (make output text as big as slider allows) - https://fontmeme.com/netflix-font/
+   		- clearlogo is ```300x300```, and you don't need to make a favicon because it's created from the logo you upload
+	- Wordmark Generator to replace "ONBOARDERR" across the top - https://fontmeme.com/netflix-font/
+   		- Make output text as big as slider allows
+<!-- NOTES
+the following item could be implemented in the UI somehow. like the conditional section 5 on /onboarding
+-->
 - If you don't have Tautulli + Discord set up, remove mentions of "ask me about my discord"
 - Delete placeholder ```plex_submissions.json``` and ```audiobookshelf_submissions.json```. the ones that come with it have example data to populate the requests sections on ```/services```
   
