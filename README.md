@@ -75,7 +75,9 @@ Discord - to handle certain admin & user notifications
 From the project directory, choose one of the following options:
 
 ## Docker Compose (Recommended for Most Users)
-A `compose.yml` file is included for use with Docker Compose. Before running `docker compose up -d`, see below
+A `compose.yml` file is included for use with Docker Compose.
+
+Before running `docker compose up -d`, see below
 
 ### Mounting Drives for Storage Bars
 To display storage bars for specific drives (e.g., E: and F: on Windows, or /mnt/e and /mnt/f on Linux), you must:
