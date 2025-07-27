@@ -5,6 +5,8 @@ Setup is much easier now! just docker compose and tweak all initial settings on 
 
 The readme (and screenshots) are being updated.
 
+[How to Update](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#updates)
+
 # onboarderr
 Self-hosted user onboarding site for Plex and Audiobookshelf server owners
 
