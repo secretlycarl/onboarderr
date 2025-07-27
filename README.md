@@ -202,7 +202,7 @@ USE https://dashboardicons.com/icons For icons.
 https://github.com/homarr-labs/dashboard-icons/tree/main/webp has all icons. 
 -->
 
-After setup, go through the HTMLs and other files, and make any changes to the content to adjust it for you.
+Most customization is done on setup and settings in the admin panel, but you may want to tweak some HTML contents or instructional images it comes with.
 
 Specifically:
 
