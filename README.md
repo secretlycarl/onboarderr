@@ -240,18 +240,19 @@ git pull	# gets updates
 git stash pop	# re-applies your changes on top
 ```
 
-After updating, restart the container to make sure all new changes apply.
+Setup and customization is pretty quick now (no more `.env` editing and much less html editing) so don't be afraid to start from scratch.
+
+Keep copies of custom assets in another folder!
 
 # Future goals
 
 I've never made a project this complex, or had a project this many people were interested in, so I'm not clear on how the future development for this will go. I have some ideas to make it better, but getting this all set up in a way that it's customizable and not just for my machine only was a beast itself.
 
-So if you want to make it better, please do! Fork, pull request, whatever.
+Tha being said, a release for v2 is coming soon. Already committed most (?) of the new code changes.
 
-Some improvements I might work on after publishing the initial version -
+Once that is finalized I want to overhaul the CSS and make the whole experience cleaner for v2.
 
-- Improve layout, make more modern/adaptive, especially on mobile. My CSS implementation of mobile device detection, and how it changes elements for mobile, is crude at the moment.
-- More languages, maybe language dropdown on setup to switch all body text contents
+If you want to make it better, please do! Fork, PR, make an issue
 
 # Thank You!
 
