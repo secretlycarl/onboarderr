@@ -78,7 +78,7 @@ Discord - to handle certain admin & user notifications
 	cd onboarderr
 
 
-# Dockerized Startup (Recommended)
+# Dockerized Startup
 
 From the project directory, choose one of the following options:
 
