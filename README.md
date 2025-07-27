@@ -155,7 +155,6 @@ docker run -d -p 10000:10000 --name onboarderr ^
   onboarderr
 ```
 
-- `-v` maps the project folder and drives into the container, so any CSS and HTML changes are reflected on refresh, and the storage bars work.
 - **If you change the drives in `.env`, make sure your Docker volumes match!**
 - The site will be available at `localhost:10000`
 
