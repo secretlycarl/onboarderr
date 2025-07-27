@@ -79,8 +79,8 @@ A `compose.yml` file is included for use with Docker Compose. Before running `do
 
 ### Mounting Drives for Storage Bars
 To display storage bars for specific drives (e.g., E: and F: on Windows, or /mnt/e and /mnt/f on Linux), you must:
-1. **Set the `DRIVES` During setup or via variable in your `.env` file** to the mount points inside the container (e.g., `/mnt/e,/mnt/f`).
-2. **Add volume mounts for each drive in your `compose.yml`** under the `volumes:` section:
+
+1. **Add volume mounts for each drive in your `compose.yml`** under the `volumes:` section:
 
 - **Linux Example:**
   ```
@@ -96,12 +96,9 @@ To display storage bars for specific drives (e.g., E: and F: on Windows, or /mnt
     - E:\:/mnt/e
     - F:\:/mnt/f
   ```
-  > **Note:** On Windows, you may need to allow Docker Desktop access to your drives (Docker Desktop > Settings > Resources > File Sharing).
+2. **Set the `DRIVES` During setup or via variable in your `.env` file** to the mount points inside the container (e.g., `/mnt/e,/mnt/f`).
 
-- **Set in `.env` (all platforms):**
-  ```
-  DRIVES=/mnt/e,/mnt/f
-  ```
+  > **Note:** On Windows, you may need to allow Docker Desktop access to your drives (Docker Desktop > Settings > Resources > File Sharing).
 
 ## Manual Docker Run
 
@@ -174,14 +171,12 @@ Create and activate a venv (conda or through system python), then:
 
     python app.py
 
-- It runs on port `10000` by default. You can change this at the bottom of `app.py`.
-- `debug=True` at the bottom of `app.py` is on for live testing of updates. Make `False` when the site is ready.
-- To restart it from here, CTRL+C in terminal window, then `python app.py` again
+- It runs on port `10000` by default. You can change this near the top of `app.py`.
 - Go to `http://127.0.0.1:10000`
 
 # Setup Form
 
-- First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png). Everything here can be changed afterwards from ```.env``` or the settings dropdown on ```/services```.
+- First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png). Everything here can be changed afterwards from ```.env``` or Settings on ```/services```.
 - The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1.
 - It pulls artwork from your Plex libraries to show in the carousels. I have an audiobook library which mirrors my ABS server so it was easiest for me to just use Plex to pull those images instead of new logic for ABS.
 - After submission, restart the script to apply the new ```.env``` and go to Login
@@ -202,8 +197,7 @@ After setup, go through the HTMLs and other files, and make any changes to the c
 Specifically:
 
 - ```onboarding_section7.html``` is personalized, you should change it to what you want it to say.
-- Pick a new ```--accent``` color in the CSS, this will change all instances of ```#d33fbc``` in the HTMLs
-- Make a new logo, favicon, and wordmark. I made the ones it comes with quickly with these sites -
+- Make a new logo, and wordmark. I made the ones it comes with quickly with these sites -
 	- Simple vector editor - https://vectorink.io/app/canvas
    		- clearlogo is ```300x300```, favicon is ```32x32```
 	- Wordmark Generator (make output text as big as slider allows) - https://fontmeme.com/netflix-font/
@@ -240,9 +234,6 @@ So if you want to make it better, please do! Fork, pull request, whatever.
 Some improvements I might work on after publishing the initial version -
 
 - Improve layout, make more modern/adaptive, especially on mobile. My CSS implementation of mobile device detection, and how it changes elements for mobile, is crude at the moment.
-- Better library image handling (currently pulls 25 random posters for each category on startup, i like this personally but maybe it could be changed to grab a new set on an interval)
-- Fix looping of carousels (now they just sorta reset to initial pos and keep going that way)
-- Rate limiting/better site security
 - More languages, maybe language dropdown on setup to switch all body text contents
 
 # Thank You!
