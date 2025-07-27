@@ -3,7 +3,7 @@ If you're reading this, the repo recently had a big update that might break curr
 
 Setup is much easier now! just docker compose and tweak all initial settings on the site itself.
 
-The readme (and screenshots) will be updated soon.
+The readme (and screenshots) are being updated.
 
 # onboarderr
 Self-hosted user onboarding site for Plex and Audiobookshelf server owners
