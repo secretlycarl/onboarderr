@@ -1,3 +1,8 @@
+# ATTENTION
+If you're reading this, the repo recently had a big update that might break current installs, and makes some sections of the readme inaccurate. You no longer need to edit the `.env` file before running app.py for the first time. 
+
+The readme will be updated soon.
+
 # onboarderr
 Self-hosted user onboarding site for Plex and Audiobookshelf server owners
 
