@@ -49,11 +49,11 @@ Big thanks to [@mon5termatt](https://github.com/mon5termatt) for many of the imp
 
 # Requirements
 
-Python (3.10+) or Docker
+Docker or Python (3.10+)
 
 Plex Media Server
 
-Method of making your local server publicly accessible (Tailscale w/ [Tailscale Funnel](https://tailscale.com/kb/1223/funnel) if you're new to self-hosting. Simple and free. I use [Cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/) now to handle a few URLs I want to make public)
+Method of making your local server publicly accessible (Tailscale w/ [Tailscale Funnel](https://tailscale.com/kb/1223/funnel) if you're new to self-hosting. Simple and free. I use [Cloudflared](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/) now to handle a few local service URLs I want to make public)
 
 # Optional Requirements
 
