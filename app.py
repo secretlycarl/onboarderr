@@ -45,7 +45,7 @@ def is_running_in_docker():
         return any(var in os.environ for var in ['DOCKER_CONTAINER', 'KUBERNETES_SERVICE_HOST'])
 
 # Application configuration
-APP_PORT = 10000
+APP_PORT = 12000
 
 def get_app_url():
     """Determine the correct URL to open in browser"""
@@ -625,6 +625,7 @@ def onboarding():
     pulsarr_enabled = bool(os.getenv("PULSARR"))
     overseerr_enabled = bool(os.getenv("OVERSEERR"))
     overseerr_url = os.getenv("OVERSEERR", "")
+    tautulli_enabled = bool(os.getenv("TAUTULLI"))
 
     return render_template(
         "onboarding.html",
@@ -634,6 +635,7 @@ def onboarding():
         pulsarr_enabled=pulsarr_enabled,
         overseerr_enabled=overseerr_enabled,
         overseerr_url=overseerr_url,
+        tautulli_enabled=tautulli_enabled,
         library_posters=library_posters,
         poster_imdb_ids=poster_imdb_ids
     )
@@ -679,10 +681,13 @@ def audiobookshelf():
             if fname.lower().endswith(('.webp', '.jpg', '.jpeg', '.png')):
                 abs_covers.append(f"/static/posters/audiobooks/{fname}")
 
+    tautulli_enabled = bool(os.getenv("TAUTULLI"))
+    
     return render_template(
         "audiobookshelf.html",
         submitted=submitted,
         abs_covers=abs_covers,
+        tautulli_enabled=tautulli_enabled,
     )
 
 # Add this helper at the top (after imports)
