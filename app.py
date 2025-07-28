@@ -733,6 +733,8 @@ def services():
         "audiobooks_id" in request.form or
         "abs_enabled" in request.form or
         "discord_webhook" in request.form or
+        "discord_notify_plex" in request.form or
+        "discord_notify_abs" in request.form or
         "library_ids" in request.form or
         "audiobookshelf_url" in request.form or
         "accent_color" in request.form or
@@ -841,11 +843,17 @@ def services():
 
         # Read new notification toggles
         discord_notify_plex = request.form.get("discord_notify_plex")
+        # If checkbox is unchecked, it won't be in form data, so treat as "0"
+        if discord_notify_plex is None:
+            discord_notify_plex = "0"
         current_discord_notify_plex = os.getenv("DISCORD_NOTIFY_PLEX", "1")
         if discord_notify_plex in ["1", "0"] and discord_notify_plex != current_discord_notify_plex:
             safe_set_key(env_path, "DISCORD_NOTIFY_PLEX", discord_notify_plex)
 
         discord_notify_abs = request.form.get("discord_notify_abs")
+        # If checkbox is unchecked, it won't be in form data, so treat as "0"
+        if discord_notify_abs is None:
+            discord_notify_abs = "0"
         current_discord_notify_abs = os.getenv("DISCORD_NOTIFY_ABS", "1")
         if discord_notify_abs in ["1", "0"] and discord_notify_abs != current_discord_notify_abs:
             safe_set_key(env_path, "DISCORD_NOTIFY_ABS", discord_notify_abs)
