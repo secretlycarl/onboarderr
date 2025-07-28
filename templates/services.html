@@ -390,7 +390,10 @@
         <label style="display:block; margin-bottom: 1.2em;">Plex Token:<br>
           <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
             <img src="{{ url_for('static', filename='plex.webp') }}" alt="Plex Token" style="width: 24px; height: 24px; margin-right: 0.7em;">
-            <input type="text" name="plex_token" id="plex_token" value="{{ PLEX_TOKEN or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+            <div style="display: flex; align-items: center; width: 100%; margin-top: 0.3em;">
+              <input type="password" name="plex_token" id="plex_token" value="{{ PLEX_TOKEN or '' }}" style="flex: 1; padding: 0.4em; border-radius: 4px 0 0 4px; border: 1px solid #444; background: #222; color: #fff; border-right: none;">
+              <button type="button" onclick="togglePasswordVisibility('plex_token')" style="padding: 0.4em; background: #333; color: #fff; border: 1px solid #444; border-left: none; border-radius: 0 4px 4px 0; cursor: pointer; font-size: 0.9em; width: 2.5em; height: 2.5em; display: flex; align-items: center; justify-content: center;">👁</button>
+            </div>
           </div>
         </label>
         <label style="display:block; margin-bottom: 1.2em;">Plex URL:<br>
@@ -450,7 +453,10 @@
           <label style="margin-bottom: 0.5em;">Audiobookshelf API Token:<br>
             <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
               <img src="{{ url_for('static', filename='abs.webp') }}" alt="Audiobookshelf API Token" style="width: 24px; height: 24px; margin-right: 0.7em;">
-              <input type="text" name="audiobookshelf_token" id="audiobookshelf_token_admin" value="{{ AUDIOBOOKSHELF_TOKEN or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+              <div style="display: flex; align-items: center; width: 100%; margin-top: 0.3em;">
+                <input type="password" name="audiobookshelf_token" id="audiobookshelf_token_admin" value="{{ AUDIOBOOKSHELF_TOKEN or '' }}" style="flex: 1; padding: 0.4em; border-radius: 4px 0 0 4px; border: 1px solid #444; background: #222; color: #fff; border-right: none;">
+                <button type="button" onclick="togglePasswordVisibility('audiobookshelf_token_admin')" style="padding: 0.4em; background: #333; color: #fff; border: 1px solid #444; border-left: none; border-radius: 0 4px 4px 0; cursor: pointer; font-size: 0.9em; width: 2.5em; height: 2.5em; display: flex; align-items: center; justify-content: center;">👁</button>
+              </div>
             </div>
           </label>
           <div style="color: #888; font-size: 0.95em; margin-top: 0.5em;">Leave all fields empty to disable Audiobookshelf integration. All fields are required.</div>
@@ -517,9 +523,23 @@
           <b>Note:</b> Changes will only take effect after you restart the server.
         </div>
       </form>
-      <script>
-        // Initialize password validation
-        function validateAdminPasswords() {
+              <script>
+          // Password visibility toggle function
+          function togglePasswordVisibility(inputId) {
+            const input = document.getElementById(inputId);
+            const button = input.nextElementSibling;
+            
+            if (input.type === 'password') {
+              input.type = 'text';
+              button.textContent = '🙈';
+            } else {
+              input.type = 'password';
+              button.textContent = '👁';
+            }
+          }
+          
+          // Initialize password validation
+          function validateAdminPasswords() {
             var site = document.getElementById('admin_site_password_box').value.trim();
             var admin = document.getElementById('admin_admin_password_box').value.trim();
             var errorDiv = document.getElementById('admin-passwords-error');
