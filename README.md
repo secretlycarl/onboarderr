@@ -114,6 +114,11 @@ To display storage bars for specific drives (e.g., E: and F: on Windows, or /mnt
 
   > **Note:** On Windows, you may need to allow Docker Desktop access to your drives (Docker Desktop > Settings > Resources > File Sharing).
 
+### Port Used
+It runs on port `10000` by default. You can change this near the top of `app.py`.
+
+If you change the port, you must also update `compose.yml` to use the same one.
+
 <!-- NOTES
 
 Not sure this is needed anymore, docker compose is quicker and this takes up too much readme space
@@ -170,10 +175,6 @@ docker run -d -p 10000:10000 --name onboarderr ^
 
 -->
 
-### Troubleshooting Docker Drive Mounts on Windows
-- If you get errors about mounting drives, open Docker Desktop > Settings > Resources > File Sharing and add the drives (e.g., `E:\`, `F:\`).
-- Restart Docker Desktop after making changes.
-
 # Restarting the App
 
 - **After setup or changing settings, the app will automatically restart itself to apply changes.**
@@ -195,10 +196,10 @@ Create and activate a venv (conda or through system python), then:
 
 # Setup Form
 
-- First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png). Everything here can be changed afterwards from ```.env``` or Settings on ```/services```.
-- The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1.
-- After submission, the app will restart to apply the new ```.env``` and direct you to /login
-- ```ADMIN_PASSWORD``` will take you to services page, but you can browse the others from the links at the top.
+- First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png). Everything here can be changed afterwards from ```.env``` or Settings on ```/services```
+- The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1
+- After submission, the app will restart to apply the new ```.env``` and direct you to `/login`
+- ```ADMIN_PASSWORD``` will take you to services page, but you can browse the others from the links at the top
 - ```SITE_PASSWORD``` will not allow access to admin page
 
 
