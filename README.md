@@ -82,7 +82,7 @@ Discord - to handle certain admin & user notifications
 	cd onboarderr
 
 
-# Docker Compose Startup (Recommended for Most Users)
+# Docker Compose Startup (Recommended)
 A `compose.yml` file is included for use with Docker Compose.
 
 Before running `docker compose up -d`, see below
