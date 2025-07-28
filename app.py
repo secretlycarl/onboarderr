@@ -29,11 +29,20 @@ from PIL import Image
 import io
 import webbrowser
 from plexapi.server import PlexServer
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
+import queue
 
 # Before load_dotenv()
 if not os.path.exists('.env') and os.path.exists('empty.env'):
     print('\n[WARN] .env file not found. Copying empty.env to .env for you. Please edit .env with your settings!\n')
     shutil.copyfile('empty.env', '.env')
+
+# Global poster download state
+poster_download_queue = queue.Queue()
+poster_download_lock = Lock()
+poster_download_running = False
+poster_download_progress = {}
 
 def is_running_in_docker():
     """Detect if the application is running inside a Docker container"""
@@ -604,21 +613,39 @@ def onboarding():
         poster_dir = os.path.join("static", "posters", section_id)
         posters = []
         imdb_ids = []
-        if os.path.exists(poster_dir):
-            all_files = [f for f in os.listdir(poster_dir) if f.lower().endswith(('.webp', '.jpg', '.jpeg', '.png'))]
-            import random
-            random.shuffle(all_files)
-            # Limit to 10 posters per library
-            limited_files = all_files[:10]
-            for fname in limited_files:
-                posters.append(f"/static/posters/{section_id}/{fname}")
-                json_path = os.path.join(poster_dir, fname.rsplit('.', 1)[0] + '.json')
-                imdb_id = None
-                if os.path.exists(json_path):
-                    with open(json_path, 'r', encoding='utf-8') as f:
-                        meta = json.load(f)
-                        imdb_id = meta.get('imdb')
-                imdb_ids.append(imdb_id)
+        
+        try:
+            if os.path.exists(poster_dir):
+                # Get all image files efficiently
+                all_files = [f for f in os.listdir(poster_dir) if f.lower().endswith(('.webp', '.jpg', '.jpeg', '.png'))]
+                
+                # Sort by modification time to get most recent first
+                all_files.sort(key=lambda f: os.path.getmtime(os.path.join(poster_dir, f)), reverse=True)
+                
+                # Limit to 10 posters per library
+                limited_files = all_files[:10]
+                
+                for fname in limited_files:
+                    posters.append(f"/static/posters/{section_id}/{fname}")
+                    
+                    # Load metadata efficiently
+                    json_path = os.path.join(poster_dir, fname.rsplit('.', 1)[0] + '.json')
+                    imdb_id = None
+                    try:
+                        if os.path.exists(json_path):
+                            with open(json_path, 'r', encoding='utf-8') as f:
+                                meta = json.load(f)
+                                imdb_id = meta.get('imdb')
+                    except (IOError, json.JSONDecodeError):
+                        # Skip corrupted metadata files
+                        pass
+                    
+                    imdb_ids.append(imdb_id)
+        except OSError as e:
+            if debug_mode:
+                print(f"Error loading posters for library {name}: {e}")
+            # Continue with empty posters list
+        
         library_posters[name] = posters
         poster_imdb_ids[name] = imdb_ids
 
@@ -871,6 +898,13 @@ def services():
         current_accent_color = os.getenv("ACCENT_COLOR", "")
         if accent_color and accent_color != current_accent_color:
             safe_set_key(env_path, "ACCENT_COLOR", accent_color)
+
+        # Trigger background poster refresh if library settings changed
+        library_ids = request.form.getlist("library_ids")
+        current_library_ids = os.getenv("LIBRARY_IDS", "")
+        if library_ids and ",".join(library_ids) != current_library_ids:
+            # Library selection changed, trigger poster refresh
+            refresh_posters_on_demand()
 
         return redirect(url_for("setup_complete"))
 
@@ -1207,6 +1241,24 @@ def ajax_create_abs_users():
             print(f"Error in ABS user creation: {e}")
         return jsonify({"success": False, "error": str(e)})
 
+@app.route("/ajax/poster-progress", methods=["GET"])
+def ajax_poster_progress():
+    """Get poster download progress for admin interface"""
+    if not session.get("admin_authenticated"):
+        return jsonify({"success": False, "error": "Unauthorized"})
+    
+    try:
+        progress = get_poster_download_progress()
+        return jsonify({
+            "success": True,
+            "progress": progress,
+            "worker_running": poster_download_running
+        })
+    except Exception as e:
+        if debug_mode:
+            print(f"Error getting poster progress: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
 @app.route("/refresh-library-titles", methods=["POST"])
 def refresh_library_titles():
     if not session.get("admin_authenticated"):
@@ -1385,7 +1437,7 @@ def download_abs_audiobook_posters():
             except Exception as e:
                 if debug_mode:
                     print(f"[WARN] Error parsing ABS response: {e}")
-                    print(f"[WARN] Raw response: {response.text}")
+                print(f"[WARN] Raw response: {response.text}")
         else:
             if debug_mode:
                 print(f"[WARN] Failed to connect to ABS API: {response.status_code}")
@@ -1396,92 +1448,224 @@ def download_abs_audiobook_posters():
             import traceback
             traceback.print_exc()
 
-def download_and_cache_posters_for_libraries(libraries, limit=None):
+def download_single_poster_with_metadata(item, lib_dir, index, headers):
+    """Download a single poster with metadata, with rate limiting and thread safety"""
+    # Use a unique filename based on ratingKey to prevent race conditions
+    rating_key = item.get('ratingKey', str(index))
+    safe_filename = f"poster_{rating_key}"
+    out_path = os.path.join(lib_dir, f"{safe_filename}.webp")
+    meta_path = os.path.join(lib_dir, f"{safe_filename}.json")
+    
+    # Skip if already cached and recent (less than 24 hours old)
+    if os.path.exists(out_path) and os.path.exists(meta_path):
+        file_age = time.time() - os.path.getmtime(out_path)
+        if file_age < 86400:  # 24 hours
+            return True
+    
+    try:
+        # Download poster
+        img_url = f"{PLEX_URL}{item['thumb']}?X-Plex-Token={PLEX_TOKEN}"
+        r = requests.get(img_url, headers=headers, timeout=10)
+        if r.status_code == 200:
+            with open(out_path, "wb") as f:
+                f.write(r.content)
+        else:
+            return False
+        
+        # Rate limiting - small delay between requests
+        time.sleep(0.1)
+        
+        # Fetch metadata
+        guids = {"imdb": None, "tmdb": None, "tvdb": None}
+        try:
+            meta_url = f"{PLEX_URL}/library/metadata/{item['ratingKey']}"
+            meta_resp = requests.get(meta_url, headers=headers, timeout=10)
+            if meta_resp.status_code == 200:
+                meta_root = ET.fromstring(meta_resp.content)
+                for guid in meta_root.findall(".//Guid"):
+                    gid = guid.attrib.get("id", "")
+                    if gid.startswith("imdb://"):
+                        guids["imdb"] = gid.replace("imdb://", "")
+                    elif gid.startswith("tmdb://"):
+                        guids["tmdb"] = gid.replace("tmdb://", "")
+                    elif gid.startswith("tvdb://"):
+                        guids["tvdb"] = gid.replace("tvdb://", "")
+        except Exception as e:
+            if debug_mode:
+                print(f"Error fetching GUIDs for {item['ratingKey']}: {e}")
+        
+        # Save metadata with thread-safe writing
+        meta = {
+            "title": item["title"],
+            "ratingKey": item["ratingKey"],
+            "year": item.get("year"),
+            "imdb": guids["imdb"],
+            "tmdb": guids["tmdb"],
+            "tvdb": guids["tvdb"],
+            "poster": f"{safe_filename}.webp"
+        }
+        
+        # Write to temporary file first, then rename to prevent corruption
+        temp_meta_path = meta_path + ".tmp"
+        with open(temp_meta_path, "w", encoding="utf-8") as f:
+            json.dump(meta, f, indent=2)
+        
+        # Atomic rename (this is atomic on most filesystems)
+        if os.path.exists(meta_path):
+            os.remove(meta_path)
+        os.rename(temp_meta_path, meta_path)
+        
+        return True
+    except Exception as e:
+        if debug_mode:
+            print(f"Error downloading poster for {item.get('title', 'Unknown')}: {e}")
+        return False
+
+def download_and_cache_posters_for_libraries(libraries, limit=None, background=False):
+    """Optimized poster downloading with background processing and rate limiting"""
+    if not libraries:
+        return
+    
     headers = {"X-Plex-Token": PLEX_TOKEN}
-    for lib in libraries:
+    
+    def process_library(lib):
         section_id = lib["key"]
         lib_dir = os.path.join("static", "posters", section_id)
         os.makedirs(lib_dir, exist_ok=True)
-        url = f"{PLEX_URL}/library/sections/{section_id}/all"
+        
         try:
+            # Fetch library items
+            url = f"{PLEX_URL}/library/sections/{section_id}/all"
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
             root = ET.fromstring(response.content)
-            posters = []
+            
+            # Collect items
             items = []
             for el in root.findall(".//Video"):
                 thumb = el.attrib.get("thumb")
                 rating_key = el.attrib.get("ratingKey")
                 title = el.attrib.get("title")
+                year = el.attrib.get("year")
                 if thumb and rating_key:
-                    items.append({"thumb": thumb, "ratingKey": rating_key, "title": title})
+                    items.append({"thumb": thumb, "ratingKey": rating_key, "title": title, "year": year})
+            
             for el in root.findall(".//Directory"):
                 thumb = el.attrib.get("thumb")
                 rating_key = el.attrib.get("ratingKey")
                 title = el.attrib.get("title")
                 if thumb and rating_key and not any(i["ratingKey"] == rating_key for i in items):
                     items.append({"thumb": thumb, "ratingKey": rating_key, "title": title})
+            
+            # Shuffle and limit
             random.shuffle(items)
             if limit is not None:
                 items = items[:limit]
-            for i, item in enumerate(items):
-                out_path = os.path.join(lib_dir, f"poster{i+1}.webp")
-                meta_path = os.path.join(lib_dir, f"poster{i+1}.json")
-                if os.path.exists(out_path) and os.path.exists(meta_path):
-                    continue  # Skip if already cached
-                img_url = f"{PLEX_URL}{item['thumb']}?X-Plex-Token={PLEX_TOKEN}"
-                try:
-                    r = requests.get(img_url, headers=headers)
-                    with open(out_path, "wb") as f:
-                        f.write(r.content)
-                except Exception as e:
-                    if debug_mode:
-                        print(f"Error saving {img_url}: {e}")
-                # Fetch GUIDs
-                guids = {"imdb": None, "tmdb": None, "tvdb": None}
-                try:
-                    meta_url = f"{PLEX_URL}/library/metadata/{item['ratingKey']}"
-                    meta_resp = requests.get(meta_url, headers=headers, timeout=10)
-                    meta_resp.raise_for_status()
-                    meta_root = ET.fromstring(meta_resp.content)
-                    for guid in meta_root.findall(".//Guid"):
-                        gid = guid.attrib.get("id", "")
-                        if gid.startswith("imdb://"):
-                            guids["imdb"] = gid.replace("imdb://", "")
-                        elif gid.startswith("tmdb://"):
-                            guids["tmdb"] = gid.replace("tmdb://", "")
-                        elif gid.startswith("tvdb://"):
-                            guids["tvdb"] = gid.replace("tvdb://", "")
-                except Exception as e:
-                    if debug_mode:
-                        print(f"Error fetching GUIDs for {item['ratingKey']}: {e}")
-                # Save metadata JSON
-                meta = {
-                    "title": item["title"],
-                    "ratingKey": item["ratingKey"],
-                    "imdb": guids["imdb"],
-                    "tmdb": guids["tmdb"],
-                    "tvdb": guids["tvdb"],
-                    "poster": f"poster{i+1}.webp"
-                }
-                with open(meta_path, "w", encoding="utf-8") as f:
-                    json.dump(meta, f, indent=2)
+            
+            # Process items with ThreadPoolExecutor for parallel downloads
+            successful_downloads = 0
+            with ThreadPoolExecutor(max_workers=3) as executor:
+                futures = []
+                for i, item in enumerate(items):
+                    future = executor.submit(download_single_poster_with_metadata, item, lib_dir, i, headers)
+                    futures.append(future)
+                
+                # Wait for completion with progress tracking
+                for i, future in enumerate(as_completed(futures)):
+                    if future.result():
+                        successful_downloads += 1
+                    if background and i % 5 == 0:  # Update progress every 5 items
+                        with poster_download_lock:
+                            poster_download_progress[section_id] = {
+                                'current': i + 1,
+                                'total': len(items),
+                                'successful': successful_downloads
+                            }
+            
+            if debug_mode:
+                print(f"[INFO] Downloaded {successful_downloads}/{len(items)} posters for library {lib['title']}")
+            
+            return successful_downloads
+            
         except Exception as e:
             if debug_mode:
                 print(f"Error fetching posters for section {section_id}: {e}")
+            return 0
+    
+    if background:
+        # Queue for background processing
+        poster_download_queue.put(('libraries', libraries, limit))
+        return True
+    else:
+        # Process immediately
+        total_downloaded = 0
+        for lib in libraries:
+            downloaded = process_library(lib)
+            total_downloaded += downloaded
+        return total_downloaded
+
+def background_poster_worker():
+    """Background worker for poster downloads"""
+    global poster_download_running
+    poster_download_running = True
+    
+    while poster_download_running:
+        try:
+            # Wait for work with timeout
+            work_item = poster_download_queue.get(timeout=1)
+            if work_item is None:  # Shutdown signal
+                break
+            
+            work_type, data, limit = work_item
+            
+            if work_type == 'libraries':
+                download_and_cache_posters_for_libraries(data, limit, background=False)
+            elif work_type == 'abs':
+                download_abs_audiobook_posters()
+            
+            poster_download_queue.task_done()
+            
+        except queue.Empty:
+            continue
+        except Exception as e:
+            if debug_mode:
+                print(f"Error in background poster worker: {e}")
+
+def start_background_poster_worker():
+    """Start the background poster download worker"""
+    global poster_download_running
+    if not poster_download_running:
+        worker_thread = threading.Thread(target=background_poster_worker, daemon=True)
+        worker_thread.start()
+        if debug_mode:
+            print("[INFO] Started background poster download worker")
+
+def get_poster_download_progress():
+    """Get current poster download progress"""
+    with poster_download_lock:
+        return poster_download_progress.copy()
+
+def is_poster_download_in_progress():
+    """Check if poster downloads are currently in progress"""
+    with poster_download_lock:
+        return len(poster_download_progress) > 0
 
 def group_titles_by_letter(titles):
     groups = defaultdict(list)
     for title in titles:
-        # Find the first ASCII letter in the title
-        match = re.search(r'[A-Za-z]', title)
-        if match:
-            letter = match.group(0).upper()
-            groups[letter].append(title)
-        elif any(c.isdigit() for c in title):
+        # Check if title starts with a digit
+        if title and title[0].isdigit():
             groups['0-9'].append(title)
         else:
-            groups['Other'].append(title)
+            # Find the first ASCII letter in the title
+            match = re.search(r'[A-Za-z]', title)
+            if match:
+                letter = match.group(0).upper()
+                groups[letter].append(title)
+            elif any(c.isdigit() for c in title):
+                groups['0-9'].append(title)
+            else:
+                groups['Other'].append(title)
     # Sort groups alphabetically, but put 'Other' at the end
     sorted_keys = sorted([k for k in groups if k != 'Other'], key=lambda x: (x != '0-9', x))
     if 'Other' in groups:
@@ -1572,18 +1756,31 @@ def medialists():
                 
                 response = requests.get(f"{abs_url}/api/libraries", headers=headers, timeout=10)
                 if response.status_code == 200:
-                    libraries = response.json()
+                    try:
+                        libraries_data = response.json()
+                    except ValueError as json_error:
+                        if debug_mode:
+                            print(f"[WARN] Invalid JSON response from ABS API: {json_error}")
+                            print(f"[WARN] Response content: {response.text[:200]}...")
+                        return books
+                    
+                    libraries = libraries_data.get("libraries", [])
                     for library in libraries:
-                        if library.get("type") == "audiobooks":
+                        if library.get("mediaType") == "book":
                             # Fetch audiobooks from this library
                             library_id = library.get("id")
                             books_response = requests.get(f"{abs_url}/api/libraries/{library_id}/items", headers=headers, timeout=10)
                             if books_response.status_code == 200:
-                                books_data = books_response.json()
+                                try:
+                                    books_data = books_response.json()
+                                except ValueError as json_error:
+                                    if debug_mode:
+                                        print(f"[WARN] Invalid JSON response for library {library_id}: {json_error}")
+                                    continue
                                 # Group by author
                                 for book in books_data.get("results", []):
-                                    author = book.get("author", "Unknown Author")
-                                    title = book.get("title", "Unknown Title")
+                                    author = book.get("media", {}).get("metadata", {}).get("author", "Unknown Author")
+                                    title = book.get("media", {}).get("metadata", {}).get("title", "Unknown Title")
                                     if author not in books:
                                         books[author] = []
                                     books[author].append(title)
@@ -1636,7 +1833,16 @@ def medialists():
             # Get all libraries
             resp = requests.get(f"{abs_url}/api/libraries", headers=headers, timeout=10)
             resp.raise_for_status()
-            data = resp.json()
+            
+            # Check if response is valid JSON
+            try:
+                data = resp.json()
+            except ValueError as json_error:
+                if debug_mode:
+                    print(f"[ABS] Invalid JSON response from API: {json_error}")
+                    print(f"[ABS] Response content: {resp.text[:200]}...")
+                return abs_books
+            
             libraries = data.get("libraries", [])
             for library in libraries:
                 if library.get("mediaType") == "book":
@@ -1644,7 +1850,14 @@ def medialists():
                     # Get all items in this library
                     items_resp = requests.get(f"{abs_url}/api/libraries/{lib_id}/items", headers=headers, timeout=10)
                     items_resp.raise_for_status()
-                    items_data = items_resp.json()
+                    
+                    try:
+                        items_data = items_resp.json()
+                    except ValueError as json_error:
+                        if debug_mode:
+                            print(f"[ABS] Invalid JSON response for library {lib_id}: {json_error}")
+                        continue
+                    
                     for item in items_data.get("results", []):
                         title = item.get("media", {}).get("metadata", {}).get("title")
                         author = item.get("media", {}).get("metadata", {}).get("author")
@@ -1674,37 +1887,14 @@ def medialists():
     filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
 
     library_media = {}
-    library_posters = {}
-    library_poster_groups = {}
+    # Only load titles for libraries (posters will be loaded on-demand via AJAX)
     for lib in filtered_libraries:
         section_id = lib["key"]
         name = lib["title"]
         titles = fetch_titles_for_library(section_id)
-        library_media[name] = group_titles_by_letter(titles)
-        # Load poster metadata for this library
-        poster_dir = os.path.join("static", "posters", section_id)
-        poster_items = []
-        if os.path.exists(poster_dir):
-            for fname in sorted(os.listdir(poster_dir)):
-                if fname.endswith(".json"):
-                    meta_path = os.path.join(poster_dir, fname)
-                    try:
-                        with open(meta_path, "r", encoding="utf-8") as f:
-                            meta = json.load(f)
-                        poster_file = meta.get("poster")
-                        poster_url = f"/static/posters/{section_id}/{poster_file}" if poster_file else None
-                        poster_items.append({
-                            "poster": poster_url,
-                            "title": meta.get("title"),
-                            "imdb": meta.get("imdb"),
-                            "tmdb": meta.get("tmdb"),
-                            "tvdb": meta.get("tvdb"),
-                        })
-                    except Exception as e:
-                        if debug_mode:
-                            print(f"Error loading poster metadata: {e}")
-        library_posters[name] = poster_items
-        library_poster_groups[name] = group_posters_by_letter(poster_items)
+        
+        grouped_titles = group_titles_by_letter(titles)
+        library_media[name] = grouped_titles
 
     abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
     audiobooks = {}
@@ -1723,10 +1913,12 @@ def medialists():
         library_media=library_media,
         audiobooks=audiobooks,
         abs_enabled=abs_enabled,
-        library_posters=library_posters,
-        library_poster_groups=library_poster_groups,
+        library_posters={},  # Empty - will be loaded on-demand
+        library_poster_groups={},  # Empty - will be loaded on-demand
         abs_books=abs_books,
         abs_book_groups=abs_book_groups,
+        filtered_libraries=filtered_libraries,  # Pass library info for AJAX
+        logo_filename=get_logo_filename(),
     )
 
 @app.route("/audiobook-covers")
@@ -1947,10 +2139,27 @@ def periodic_poster_refresh(libraries, interval_hours=6):
         while True:
             if debug_mode:
                 print("[INFO] Refreshing library posters...")
-            download_and_cache_posters_for_libraries(libraries)
+            # Use background processing for periodic refresh
+            download_and_cache_posters_for_libraries(libraries, background=True)
             time.sleep(interval_hours * 3600)
     t = threading.Thread(target=refresh, daemon=True)
     t.start()
+
+def refresh_posters_on_demand(libraries=None):
+    """Refresh posters in background when settings are applied"""
+    if libraries is None:
+        selected_ids = os.getenv("LIBRARY_IDS", "")
+        selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
+        all_libraries = get_plex_libraries()
+        libraries = [lib for lib in all_libraries if lib["key"] in selected_ids]
+    
+    if libraries:
+        # Queue for background processing
+        download_and_cache_posters_for_libraries(libraries, background=True)
+        if debug_mode:
+            print(f"[INFO] Queued poster refresh for {len(libraries)} libraries")
+        return True
+    return False
 
 def invite_plex_user(email, libraries_titles):
     """Invite/share Plex libraries with a user via the Plex API."""
@@ -2102,6 +2311,280 @@ def get_template_context():
         "DISCORD_NOTIFY_ABS": os.getenv("DISCORD_NOTIFY_ABS", "1")
     }
 
+@app.route("/ajax/load-library-posters", methods=["POST"])
+def ajax_load_library_posters():
+    """Load poster data for a specific library on-demand"""
+    if not session.get("authenticated"):
+        return jsonify({"success": False, "error": "Unauthorized"})
+    
+    try:
+        data = request.get_json()
+        library_index = data.get("library_index")
+        
+        if library_index is None:
+            return jsonify({"success": False, "error": "Library index required"})
+        
+        # Get the library info
+        libraries = get_plex_libraries()
+        selected_ids = os.getenv("LIBRARY_IDS", "")
+        selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
+        filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
+        
+        if library_index >= len(filtered_libraries):
+            return jsonify({"success": False, "error": "Invalid library index"})
+        
+        library = filtered_libraries[library_index]
+        section_id = library["key"]
+        name = library["title"]
+        
+        # First, get ALL titles from the library (same as fetch_titles_for_library)
+        all_titles = []
+        headers = {"X-Plex-Token": PLEX_TOKEN}
+        url = f"{PLEX_URL}/library/sections/{section_id}/all"
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            root = ET.fromstring(response.content)
+            for el in root.findall(".//Video"):
+                title = el.attrib.get("title")
+                if title:
+                    all_titles.append(title)
+            for el in root.findall(".//Directory"):
+                title = el.attrib.get("title")
+                if title and title not in all_titles:
+                    all_titles.append(title)
+        except Exception as e:
+            if debug_mode:
+                print(f"Error fetching titles for section {section_id}: {e}")
+        
+        # Create a dictionary to map titles to their poster data
+        title_to_poster = {}
+        
+        # Load poster metadata for this specific library
+        poster_dir = os.path.join("static", "posters", section_id)
+        if os.path.exists(poster_dir):
+            # Get all JSON files and sort by modification time (most recent first)
+            json_files = [f for f in os.listdir(poster_dir) if f.endswith(".json")]
+            json_files.sort(key=lambda f: os.path.getmtime(os.path.join(poster_dir, f)), reverse=True)
+            
+            for fname in json_files:
+                meta_path = os.path.join(poster_dir, fname)
+                try:
+                    with open(meta_path, "r", encoding="utf-8") as f:
+                        meta = json.load(f)
+                    title = meta.get("title")
+                    if title:
+                        poster_file = meta.get("poster")
+                        poster_url = f"/static/posters/{section_id}/{poster_file}" if poster_file else None
+                        title_to_poster[title] = {
+                            "poster": poster_url,
+                            "title": title,
+                            "imdb": meta.get("imdb"),
+                            "tmdb": meta.get("tmdb"),
+                            "tvdb": meta.get("tvdb"),
+                        }
+                except Exception as e:
+                    if debug_mode:
+                        print(f"Error loading poster metadata: {e}")
+                    # Skip corrupted files
+                    continue
+        
+        # Create unified items list - include ALL titles with poster data when available
+        unified_items = []
+        for title in all_titles:
+            if title in title_to_poster:
+                # Use poster data if available
+                unified_items.append(title_to_poster[title])
+            else:
+                # Just the title without poster
+                unified_items.append({
+                    "poster": None,
+                    "title": title,
+                    "imdb": None,
+                    "tmdb": None,
+                    "tvdb": None,
+                })
+        
+        # Group items by letter
+        poster_groups = group_posters_by_letter(unified_items)
+        
+        return jsonify({
+            "success": True,
+            "library_name": name,
+            "poster_groups": poster_groups
+        })
+        
+    except Exception as e:
+        if debug_mode:
+            print(f"Error loading library posters: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/ajax/load-posters-by-letter", methods=["POST"])
+def ajax_load_posters_by_letter():
+    """Load poster data for a specific library and letter on-demand"""
+    if not session.get("authenticated"):
+        return jsonify({"success": False, "error": "Unauthorized"})
+    
+    try:
+        data = request.get_json()
+        library_index = data.get("library_index")
+        letter = data.get("letter")
+        
+        if library_index is None or letter is None:
+            return jsonify({"success": False, "error": "Library index and letter required"})
+        
+        # Convert library_index to integer
+        try:
+            library_index = int(library_index)
+        except (ValueError, TypeError):
+            return jsonify({"success": False, "error": "Invalid library index format"})
+        
+        # Get the library info
+        libraries = get_plex_libraries()
+        selected_ids = os.getenv("LIBRARY_IDS", "")
+        selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
+        filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
+        
+        if library_index >= len(filtered_libraries):
+            return jsonify({"success": False, "error": "Invalid library index"})
+        
+        library = filtered_libraries[library_index]
+        section_id = library["key"]
+        name = library["title"]
+        
+        # Get titles and metadata for this specific letter
+        all_items = []
+        headers = {"X-Plex-Token": PLEX_TOKEN}
+        url = f"{PLEX_URL}/library/sections/{section_id}/all"
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            root = ET.fromstring(response.content)
+            for el in root.findall(".//Video"):
+                title = el.attrib.get("title")
+                rating_key = el.attrib.get("ratingKey")
+                year = el.attrib.get("year")
+                if title:
+                    all_items.append({
+                        "title": title,
+                        "ratingKey": rating_key,
+                        "year": year
+                    })
+            for el in root.findall(".//Directory"):
+                title = el.attrib.get("title")
+                rating_key = el.attrib.get("ratingKey")
+                year = el.attrib.get("year")
+                if title:
+                    # Check if this title already exists (avoid duplicates)
+                    existing = next((item for item in all_items if item["title"] == title), None)
+                    if not existing:
+                        all_items.append({
+                            "title": title,
+                            "ratingKey": rating_key,
+                            "year": year
+                        })
+        except Exception as e:
+            if debug_mode:
+                print(f"Error fetching titles for section {section_id}: {e}")
+        
+        # Filter items by letter
+        letter_items = []
+        for item in all_items:
+            title = item["title"]
+            if title:
+                first_char = title[0].upper()
+                if letter == "0-9" and first_char.isdigit():
+                    letter_items.append(item)
+                elif letter == "Other" and not first_char.isalpha() and not first_char.isdigit():
+                    letter_items.append(item)
+                elif first_char == letter:
+                    letter_items.append(item)
+        
+        # Create a dictionary to map items to their poster data
+        # Use a combination of title and year for better matching
+        item_to_poster = {}
+        
+        # Load poster metadata for this specific library
+        poster_dir = os.path.join("static", "posters", section_id)
+        if os.path.exists(poster_dir):
+            # Get all JSON files (both old format and new format)
+            json_files = [f for f in os.listdir(poster_dir) if f.endswith(".json")]
+            
+            for fname in json_files:
+                meta_path = os.path.join(poster_dir, fname)
+                try:
+                    with open(meta_path, "r", encoding="utf-8") as f:
+                        meta = json.load(f)
+                    meta_title = meta.get("title")
+                    meta_rating_key = meta.get("ratingKey")
+                    meta_year = meta.get("year")
+                    
+                    if meta_title:
+                        poster_file = meta.get("poster")
+                        poster_url = f"/static/posters/{section_id}/{poster_file}" if poster_file else None
+                        
+                        # Create a unique key for this item
+                        item_key = f"{meta_title}_{meta_year}" if meta_year else meta_title
+                        
+                        item_to_poster[item_key] = {
+                            "poster": poster_url,
+                            "title": meta_title,
+                            "ratingKey": meta_rating_key,
+                            "year": meta_year,
+                            "imdb": meta.get("imdb"),
+                            "tmdb": meta.get("tmdb"),
+                            "tvdb": meta.get("tvdb"),
+                        }
+                except Exception as e:
+                    if debug_mode:
+                        print(f"Error loading poster metadata: {e}")
+                    continue
+        
+        # Create unified items list for this letter
+        unified_items = []
+        for item in letter_items:
+            title = item["title"]
+            year = item["year"]
+            rating_key = item["ratingKey"]
+            
+            # Create the same key format used in item_to_poster
+            item_key = f"{title}_{year}" if year else title
+            
+            # Try to find a matching poster
+            poster_found = False
+            if item_key in item_to_poster:
+                # Use poster data if available
+                unified_items.append(item_to_poster[item_key])
+                poster_found = True
+            elif year and title in item_to_poster:
+                # Try matching just the title (without year) if the item has a year
+                unified_items.append(item_to_poster[title])
+                poster_found = True
+            
+            if not poster_found:
+                # Just the title without poster
+                unified_items.append({
+                    "poster": None,
+                    "title": title,
+                    "ratingKey": rating_key,
+                    "year": year,
+                    "imdb": None,
+                    "tmdb": None,
+                    "tvdb": None,
+                })
+        
+        return jsonify({
+            "success": True,
+            "library_name": name,
+            "letter": letter,
+            "items": unified_items
+        })
+        
+    except Exception as e:
+        if debug_mode:
+            print(f"Error loading posters by letter: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
 if __name__ == "__main__":
     # --- Dynamic configuration for section IDs ---
     global MOVIES_SECTION_ID, SHOWS_SECTION_ID, AUDIOBOOKS_SECTION_ID
@@ -2112,28 +2595,47 @@ if __name__ == "__main__":
     # Check if this is the first run (setup not complete)
     is_first_run = os.getenv("SETUP_COMPLETE", "0") != "1"
     
+    # Start background poster worker (only in main process, not reloader)
+    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        start_background_poster_worker()
+    
     try:
         if os.getenv("SETUP_COMPLETE") == "1":
             if not PLEX_TOKEN:
                 if debug_mode:
                     print("[WARN] Skipping poster download: PLEX_TOKEN is not set.")
             else:
-                # Download new-style library posters
+                # Queue poster downloads for background processing instead of blocking startup
                 selected_ids = os.getenv("LIBRARY_IDS", "")
                 selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
                 all_libraries = get_plex_libraries()
                 libraries = [lib for lib in all_libraries if lib["key"] in selected_ids]
-                download_and_cache_posters_for_libraries(libraries)
+                
+                if libraries:
+                    # Queue for background processing (only if not already in progress)
+                    if not is_poster_download_in_progress():
+                        download_and_cache_posters_for_libraries(libraries, background=True)
+                        if debug_mode:
+                            print(f"[INFO] Queued poster download for {len(libraries)} libraries")
+                    else:
+                        if debug_mode:
+                            print("[INFO] Poster download already in progress, skipping")
+                
+                # Start periodic refresh in background
                 periodic_poster_refresh(libraries, interval_hours=6)
+                
             # --- ADD THIS FOR ABS ---
             if os.getenv("ABS_ENABLED", "yes") == "yes":
-                download_abs_audiobook_posters()
+                # Queue ABS poster download for background processing
+                poster_download_queue.put(('abs', None, None))
+                if debug_mode:
+                    print("[INFO] Queued ABS poster download")
         else:
             if debug_mode:
                 print("[INFO] Skipping poster download: setup is not complete.")
     except Exception as e:
         if debug_mode:
-            print(f"Warning: Could not download posters: {e}")
+            print(f"Warning: Could not queue poster downloads: {e}")
     
     # After initial poster download
     debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
