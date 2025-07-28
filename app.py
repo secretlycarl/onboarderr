@@ -2875,7 +2875,27 @@ def trigger_poster_downloads_route():
         return jsonify({"success": False, "error": "Unauthorized"})
     
     try:
-        trigger_poster_downloads()
+        # Ensure worker is running
+        ensure_worker_running()
+        
+        # Get current library selection
+        selected_ids = os.getenv("LIBRARY_IDS", "")
+        selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
+        all_libraries = get_plex_libraries()
+        libraries = [lib for lib in all_libraries if lib["key"] in selected_ids]
+        
+        if libraries:
+            # Queue poster downloads for background processing
+            download_and_cache_posters_for_libraries(libraries, background=True)
+            if debug_mode:
+                print(f"[INFO] Manually triggered poster download for {len(libraries)} libraries")
+        
+        # Queue ABS poster download if enabled
+        if os.getenv("ABS_ENABLED", "yes") == "yes":
+            poster_download_queue.put(('abs', None, None))
+            if debug_mode:
+                print("[INFO] Manually triggered ABS poster download")
+        
         return jsonify({"success": True, "message": "Poster downloads triggered"})
     except Exception as e:
         if debug_mode:
@@ -2902,6 +2922,32 @@ def poster_status():
     except Exception as e:
         if debug_mode:
             print(f"Error getting poster status: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/ajax/update-libraries", methods=["POST"])
+def ajax_update_libraries():
+    if not session.get("admin_authenticated"):
+        return jsonify({"success": False, "error": "Unauthorized"})
+    
+    try:
+        data = request.get_json()
+        library_ids = data.get("library_ids", [])
+        
+        # Update the LIBRARY_IDS environment variable
+        env_path = os.path.join(os.getcwd(), ".env")
+        safe_set_key(env_path, "LIBRARY_IDS", ",".join(library_ids))
+        
+        # Reload environment variables
+        load_dotenv(override=True)
+        
+        if debug_mode:
+            print(f"[INFO] Updated library IDs to: {library_ids}")
+        
+        return jsonify({"success": True})
+        
+    except Exception as e:
+        if debug_mode:
+            print(f"Error updating libraries: {e}")
         return jsonify({"success": False, "error": str(e)})
 
 if __name__ == "__main__":

@@ -406,7 +406,7 @@
         
         <!-- Current Library Selection Display -->
         {% if LIBRARY_IDS %}
-        <div style="margin-bottom: 1.5em; padding: 1em; background: #2a2a2a; border-radius: 0.5em;">
+        <div class="current-library-selection" style="margin-bottom: 1.5em; padding: 1em; background: #2a2a2a; border-radius: 0.5em;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em;">
             <strong style="display:block;">Currently Selected Libraries:</strong>
             <button type="button" onclick="refreshLibraryTitles()" style="padding: 0.3em 0.8em; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;">Refresh Titles</button>
@@ -607,6 +607,18 @@
                 var descList = document.getElementById('library-descriptions-list-admin');
                 list.innerHTML = '';
                 descList.innerHTML = '';
+                
+                // Get currently selected library IDs
+                var currentLibraryIds = [];
+                {% if LIBRARY_IDS %}
+                    {% set selected_ids = LIBRARY_IDS.split(',') %}
+                    {% for lib_id in selected_ids %}
+                        {% if lib_id.strip() %}
+                            currentLibraryIds.push('{{ lib_id.strip() }}');
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+                
                 if (data.libraries && data.libraries.length > 0) {
                     section.style.display = 'block';
                     data.libraries.forEach(function(lib) {
@@ -615,6 +627,12 @@
                         checkbox.name = 'library_ids';
                         checkbox.value = lib.key;
                         checkbox.id = 'admin_lib_' + lib.key;
+                        
+                        // Check if this library is currently active
+                        if (currentLibraryIds.includes(lib.key)) {
+                            checkbox.checked = true;
+                        }
+                        
                         var label = document.createElement('label');
                         label.htmlFor = checkbox.id;
                         label.innerText = lib.title + ' (' + lib.key + ')';
@@ -622,9 +640,10 @@
                         list.appendChild(checkbox);
                         list.appendChild(label);
                         list.appendChild(document.createElement('br'));
+                        
                         var descDiv = document.createElement('div');
                         descDiv.id = 'admindescdiv_' + lib.key;
-                        descDiv.style.display = 'none';
+                        descDiv.style.display = checkbox.checked ? 'block' : 'none';
                         descDiv.style.marginLeft = '2em';
                         descDiv.style.marginBottom = '1em';
                         var descLabel = document.createElement('label');
@@ -638,8 +657,11 @@
                         descDiv.appendChild(document.createElement('br'));
                         descDiv.appendChild(descInput);
                         descList.appendChild(descDiv);
+                        
+                        // Add change event listener to update libraries immediately
                         checkbox.addEventListener('change', function() {
                             descDiv.style.display = checkbox.checked ? 'block' : 'none';
+                            updateLibrariesImmediately();
                         });
                     });
                     descSection.style.display = 'block';
@@ -654,6 +676,91 @@
             });
         }
         
+        function updateLibrariesImmediately() {
+            var selectedLibraries = [];
+            document.querySelectorAll('input[name="library_ids"]:checked').forEach(function(cb) {
+                selectedLibraries.push(cb.value);
+            });
+            
+            var csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            fetch('/ajax/update-libraries', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    library_ids: selectedLibraries
+                })
+            }).then(response => response.json()).then(data => {
+                if (data.success) {
+                    // Update the current library display
+                    updateCurrentLibrariesDisplay(selectedLibraries);
+                    // Trigger poster refresh
+                    triggerPosterRefresh();
+                } else {
+                    console.error('Failed to update libraries:', data.error);
+                }
+            }).catch(error => {
+                console.error('Error updating libraries:', error);
+            });
+        }
+        
+        function updateCurrentLibrariesDisplay(selectedLibraries) {
+            var currentDisplay = document.querySelector('.current-library-selection');
+            if (currentDisplay) {
+                var libraryNotes = {{ library_notes | tojson }};
+                var html = '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em;">';
+                html += '<strong style="display:block;">Currently Selected Libraries:</strong>';
+                html += '<button type="button" onclick="refreshLibraryTitles()" style="padding: 0.3em 0.8em; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;">Refresh Titles</button>';
+                html += '</div>';
+                
+                if (selectedLibraries.length === 0) {
+                    html += '<div style="color: #888; font-style: italic;">No libraries selected</div>';
+                } else {
+                    selectedLibraries.forEach(function(libId) {
+                        var title = 'Unknown';
+                        var description = '';
+                        if (libraryNotes[libId] && libraryNotes[libId].title) {
+                            title = libraryNotes[libId].title;
+                        }
+                        if (libraryNotes[libId] && libraryNotes[libId].description) {
+                            description = libraryNotes[libId].description;
+                        }
+                        
+                        html += '<div style="margin-bottom: 0.5em;">';
+                        html += '<strong>' + title + ' (' + libId + ')</strong>';
+                        if (description) {
+                            html += '<span style="color: #888; font-size: 0.9em;">— ' + description + '</span>';
+                        }
+                        html += '</div>';
+                    });
+                }
+                
+                currentDisplay.innerHTML = html;
+            }
+        }
+        
+        function triggerPosterRefresh() {
+            var csrfToken = document.querySelector('input[name="csrf_token"]').value;
+            fetch('/trigger-poster-downloads', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            }).then(response => response.json()).then(data => {
+                if (data.success) {
+                    console.log('Poster refresh triggered successfully');
+                } else {
+                    console.error('Failed to trigger poster refresh:', data.error);
+                }
+            }).catch(error => {
+                console.error('Error triggering poster refresh:', error);
+            });
+        }
+        
+        // Refresh library titles (kept for compatibility, but updateLibrariesImmediately is now primary)
         function refreshLibraryTitles() {
             const button = event.target;
             const originalText = button.textContent;
