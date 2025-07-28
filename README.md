@@ -224,7 +224,7 @@ When ready,
 Option 1:
 ```git pull``` will try to update the repo and notify you if there are any incompatible changes, like if your customizations will overlap with anything from the update
 
-Option 2 - 
+Option 2: 
 
 ```
 git stash	# temporarily saves your changes (html, css, etc)
