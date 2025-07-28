@@ -208,14 +208,6 @@ Specifically:
 
 - ```onboarding_section7.html``` is personalized, you should change it to what you want it to say.
 <!-- NOTES
-this could be incorporated into the new upload img section 
--->
-- Make a new logo, and wordmark. I made the ones it comes with quickly with these sites -
-	- Simple vector editor - https://vectorink.io/app/canvas
-   		- clearlogo is ```300x300```, and you don't need to make a favicon because it's created from the logo you upload
-	- Wordmark Generator to replace "ONBOARDERR" across the top - https://fontmeme.com/netflix-font/
-   		- Make output text as big as slider allows
-<!-- NOTES
 the following item could be implemented in the UI somehow. like the conditional section 5 on /onboarding
 -->
 - If you don't have Tautulli + Discord set up, remove mentions of "ask me about my discord"
