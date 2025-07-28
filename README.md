@@ -66,7 +66,7 @@ Method of making your local server publicly accessible (Tailscale w/ [Tailscale 
 
 [Overseerr](https://github.com/sct/overseerr) - User media requesting site
 
-Depending if you have pulsarr or overseerr, or neither, some body content (section 5 on `/onboarding` will change/disappear.
+Depending if you have pulsarr or overseerr, or neither, some body content (section 5 on `/onboarding`) will change/disappear.
 
 [Tautulli](https://github.com/Tautulli/Tautulli) - Per-user specific "episode/media item added" notifications on Discord
 - If a user wants notifications for each new episode of a show, I create a new private text channel that is only for them on my discord server, then use the info for that channel in Tautulli for a new notification agent. Condition for the Show Name and it directs those notifs to the channel I made.
