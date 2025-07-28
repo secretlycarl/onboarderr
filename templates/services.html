@@ -353,23 +353,40 @@
         <div style="margin-bottom: 2em;">
           <strong style="margin-bottom: 0.5em; display:block;">Custom Branding:</strong>
           <div style="color: #888; font-size: 0.95em; margin-bottom: 1em;">
-            Upload your own logo and wordmark to customize the appearance.
+              Upload your own logo and wordmark to customize the appearance. These can be changed later.
           </div>
           
-          <label style="display:block; margin-bottom: 1.2em;">Select New Logo (.png or .webp, ~300x300):<br>
-            <input type="file" name="logo_file" id="logo_file_admin" accept=".png,.webp,.jpg,.jpeg" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
-            <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
-              This will replace the logo and automatically create a favicon.
-            </div>
+          <label style="display:block; margin-bottom: 1.2em;">Select New Logo:<br>
+              <input type="file" name="logo_file" id="logo_file" accept=".png,.webp,.jpg,.jpeg" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+              <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
+                .png or .webp, ~350x350, 1:1
+              </div>
+              <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
+                  This will replace the logo and automatically create a favicon.
+              </div>
+              <div style="color: #aaa; font-size: 0.85em; margin-top: 0.5em; padding: 0.5em; background: #1a1a1a; border-radius: 4px; border-left: 3px solid var(--accent-color);">
+                  <strong>💡 Need a logo?</strong><br>
+                  • <a href="https://vectorink.io/app/canvas" target="_blank" style="color: var(--accent-color);">Simple Vector Editor</a> - Create a custom logo<br>
+                  • <a href="http://logobook.com/letter/a/" target="_blank" style="color: var(--accent-color);">Letter Logos</a> - Find a logo for any letter
+              </div>
           </label>
           
-          <label style="display:block; margin-bottom: 1.2em;">Select New Wordmark (.png or .webp, minimum dimensions ~1000x250):<br>
-            <input type="file" name="wordmark_file" id="wordmark_file_admin" accept=".png,.webp,.jpg,.jpeg" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
-            <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
-              This will replace the wordmark image.
-            </div>
+          <label style="display:block; margin-bottom: 1.2em;">Select New Wordmark:<br>
+              <input type="file" name="wordmark_file" id="wordmark_file" accept=".png,.webp,.jpg,.jpeg" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+              <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
+                .png or .webp, minimum dimensions ~1000x250, 4:1 or wider
+              </div>
+              <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
+                  This will replace the wordmark image.
+              </div>
+              <div style="color: #aaa; font-size: 0.85em; margin-top: 0.5em; padding: 0.5em; background: #1a1a1a; border-radius: 4px; border-left: 3px solid var(--accent-color);">
+                  <strong>💡 Need a wordmark?</strong><br>
+                  • <a href="https://fontmeme.com/netflix-font/" target="_blank" style="color: var(--accent-color);">Wordmark Generator</a> - Create text-based wordmarks<br>
+                  <span style="color: #888; font-size: 0.8em;">Try different fonts, make the output text as big as slider allows, and use the same hex as the accent.</span>
+              </div>
           </label>
-        </div>
+      </div>
+
         <label style="display:block; margin-bottom: 1.2em;">Plex Token:<br>
           <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
             <img src="{{ url_for('static', filename='plex.webp') }}" alt="Plex Token" style="width: 24px; height: 24px; margin-right: 0.7em;">
