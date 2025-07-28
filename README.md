@@ -173,8 +173,8 @@ docker run -d -p 10000:10000 --name onboarderr ^
 
 # Restarting the App
 
-- **After setup or changing settings, the app will automatically restart itself to apply changes.**
-- You do **not** need to manually restart the container after setup or settings changes.
+- **After setup or changing settings, the app will automatically restart itself to apply changes**
+- You do **not** need to manually restart the container after setup or settings changes
 - If you ever need to restart manually (e.g., after updating code), use:
   - `docker restart onboarderr` (for Docker)
   - `CTRL+C` then `python app.py` again (for manual/venv use)
@@ -187,7 +187,7 @@ Create and activate a venv (conda or through system python), then:
 
     python app.py
 
-- It runs on port `10000` by default. You can change this near the top of `app.py`.
+- It runs on port `10000` by default. You can change this near the top of `app.py`
 - Go to `http://127.0.0.1:10000`
 
 # Setup Form
@@ -209,9 +209,9 @@ https://github.com/homarr-labs/dashboard-icons/tree/main/webp has all icons.
 
 Most customization is done on setup and settings in the admin panel, but you may want to tweak some HTML contents or instructional images it comes with.
 
-- ```onboarding_section7.html``` is personalized, you should change it to what you want it to say.
+- ```onboarding_section7.html``` is personalized, you should change it to what you want it to say
 
-- Delete placeholder ```plex_submissions.json``` and ```audiobookshelf_submissions.json```. the ones that come with it have example data to populate the requests sections on ```/services```
+- Delete placeholder ```plex_submissions.json``` and ```audiobookshelf_submissions.json```. The ones that come with it have example data to populate the requests sections on ```/services```
   
 # Sharing
 
