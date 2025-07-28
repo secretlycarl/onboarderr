@@ -32,10 +32,16 @@ from plexapi.server import PlexServer
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 import queue
+import hashlib
+import base64
+import hmac
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 # Before load_dotenv()
 if not os.path.exists('.env') and os.path.exists('empty.env'):
-    print('\n[WARN] .env file not found. Copying empty.env to .env for you. Please edit .env with your settings!\n')
+    print('\n[WARN] .env file not found. Copying empty.env to .env for you.\n')
     shutil.copyfile('empty.env', '.env')
 
 # Global poster download state
@@ -731,14 +737,38 @@ def login():
         # Always reload from .env
         from dotenv import load_dotenv
         load_dotenv(override=True)
-        admin_password = os.getenv("ADMIN_PASSWORD")
-        site_password = os.getenv("SITE_PASSWORD")
+        
+        # Get hashed passwords and salts
+        admin_password_hash = os.getenv("ADMIN_PASSWORD_HASH")
+        admin_password_salt = os.getenv("ADMIN_PASSWORD_SALT")
+        site_password_hash = os.getenv("SITE_PASSWORD_HASH")
+        site_password_salt = os.getenv("SITE_PASSWORD_SALT")
+        
+        # For backward compatibility, check plain text passwords if hashes don't exist
+        admin_password_plain = os.getenv("ADMIN_PASSWORD")
+        site_password_plain = os.getenv("SITE_PASSWORD")
+        
+        # Check admin password
+        admin_authenticated = False
+        if admin_password_hash and admin_password_salt:
+            admin_authenticated = verify_password(entered_password, admin_password_salt, admin_password_hash)
+        elif admin_password_plain:
+            # Fallback to plain text for backward compatibility
+            admin_authenticated = (entered_password == admin_password_plain)
+        
+        # Check site password
+        site_authenticated = False
+        if site_password_hash and site_password_salt:
+            site_authenticated = verify_password(entered_password, site_password_salt, site_password_hash)
+        elif site_password_plain:
+            # Fallback to plain text for backward compatibility
+            site_authenticated = (entered_password == site_password_plain)
 
-        if entered_password == admin_password:
+        if admin_authenticated:
             session["authenticated"] = True
             session["admin_authenticated"] = True
             return redirect(url_for("services"))
-        elif entered_password == site_password:
+        elif site_authenticated:
             session["authenticated"] = True
             session["admin_authenticated"] = False
             return redirect(url_for("onboarding"))
@@ -790,11 +820,16 @@ def services():
                 return render_template("services.html", **context)
         
         # Update .env with any non-empty fields (only if they changed)
-        for field in ["server_name", "plex_token", "plex_url", "audiobooks_id"]:
+        for field in ["server_name", "plex_url", "audiobooks_id"]:
             value = request.form.get(field, "").strip()
             current_value = os.getenv(field.upper(), "")
             if value != current_value:
                 safe_set_key(env_path, field.upper(), value)
+        
+        # Handle Plex token with hashing
+        plex_token = request.form.get("plex_token", "").strip()
+        if plex_token:
+            save_api_key_with_hash(env_path, "PLEX_TOKEN", plex_token)
 
         # Handle Audiobookshelf fields
         audiobooks_id = request.form.get("audiobooks_id", "").strip()
@@ -809,7 +844,7 @@ def services():
             safe_set_key(env_path, "ABS_ENABLED", "no")
             safe_set_key(env_path, "AUDIOBOOKS_ID", "")
             safe_set_key(env_path, "AUDIOBOOKSHELF_URL", "")
-            safe_set_key(env_path, "AUDIOBOOKSHELF_TOKEN", "")
+            save_api_key_with_hash(env_path, "AUDIOBOOKSHELF_TOKEN", "")
         else:
             # If any Audiobookshelf field is filled, set ABS_ENABLED to 'yes'
             safe_set_key(env_path, "ABS_ENABLED", "yes")
@@ -818,7 +853,7 @@ def services():
             if audiobookshelf_url:
                 safe_set_key(env_path, "AUDIOBOOKSHELF_URL", audiobookshelf_url)
             if audiobookshelf_token:
-                safe_set_key(env_path, "AUDIOBOOKSHELF_TOKEN", audiobookshelf_token)
+                save_api_key_with_hash(env_path, "AUDIOBOOKSHELF_TOKEN", audiobookshelf_token)
 
         # ABS enabled/disabled
         if abs_enabled in ["yes", "no"] and abs_enabled != current_abs:
@@ -889,8 +924,18 @@ def services():
         site_password = request.form.get("site_password", "").strip()
         admin_password = request.form.get("admin_password", "").strip()
         if site_password:
+            # Hash the site password
+            site_salt, site_hash = hash_password(site_password)
+            safe_set_key(env_path, "SITE_PASSWORD_HASH", site_hash)
+            safe_set_key(env_path, "SITE_PASSWORD_SALT", site_salt)
+            # Keep plain text for backward compatibility
             safe_set_key(env_path, "SITE_PASSWORD", site_password)
         if admin_password:
+            # Hash the admin password
+            admin_salt, admin_hash = hash_password(admin_password)
+            safe_set_key(env_path, "ADMIN_PASSWORD_HASH", admin_hash)
+            safe_set_key(env_path, "ADMIN_PASSWORD_SALT", admin_salt)
+            # Keep plain text for backward compatibility
             safe_set_key(env_path, "ADMIN_PASSWORD", admin_password)
 
         # Handle accent color
@@ -1526,6 +1571,9 @@ def download_and_cache_posters_for_libraries(libraries, limit=None, background=F
     if not libraries:
         return
     
+    if debug_mode:
+        print(f"[DEBUG] download_and_cache_posters_for_libraries called with {len(libraries)} libraries, background={background}")
+    
     headers = {"X-Plex-Token": PLEX_TOKEN}
     
     def process_library(lib):
@@ -1562,6 +1610,9 @@ def download_and_cache_posters_for_libraries(libraries, limit=None, background=F
             if limit is not None:
                 items = items[:limit]
             
+            if debug_mode:
+                print(f"[DEBUG] Processing {len(items)} items for library {lib['title']}")
+            
             # Process items with ThreadPoolExecutor for parallel downloads
             successful_downloads = 0
             with ThreadPoolExecutor(max_workers=3) as executor:
@@ -1595,6 +1646,8 @@ def download_and_cache_posters_for_libraries(libraries, limit=None, background=F
     if background:
         # Queue for background processing
         poster_download_queue.put(('libraries', libraries, limit))
+        if debug_mode:
+            print(f"[DEBUG] Queued {len(libraries)} libraries for background processing")
         return True
     else:
         # Process immediately
@@ -1609,6 +1662,9 @@ def background_poster_worker():
     global poster_download_running
     poster_download_running = True
     
+    if debug_mode:
+        print("[INFO] Background poster worker started")
+    
     while poster_download_running:
         try:
             # Wait for work with timeout
@@ -1618,10 +1674,17 @@ def background_poster_worker():
             
             work_type, data, limit = work_item
             
+            if debug_mode:
+                print(f"[INFO] Processing work item: {work_type}")
+            
             if work_type == 'libraries':
                 download_and_cache_posters_for_libraries(data, limit, background=False)
+                if debug_mode:
+                    print(f"[INFO] Completed library poster download for {len(data)} libraries")
             elif work_type == 'abs':
                 download_abs_audiobook_posters()
+                if debug_mode:
+                    print("[INFO] Completed ABS poster download")
             
             poster_download_queue.task_done()
             
@@ -1630,6 +1693,9 @@ def background_poster_worker():
         except Exception as e:
             if debug_mode:
                 print(f"Error in background poster worker: {e}")
+    
+    if debug_mode:
+        print("[INFO] Background poster worker stopped")
 
 def start_background_poster_worker():
     """Start the background poster download worker"""
@@ -1639,6 +1705,8 @@ def start_background_poster_worker():
         worker_thread.start()
         if debug_mode:
             print("[INFO] Started background poster download worker")
+        # Small delay to ensure worker is ready
+        time.sleep(0.5)
 
 def get_poster_download_progress():
     """Get current poster download progress"""
@@ -1974,14 +2042,38 @@ def index():
         # Always reload from .env
         from dotenv import load_dotenv
         load_dotenv(override=True)
-        admin_password = os.getenv("ADMIN_PASSWORD")
-        site_password = os.getenv("SITE_PASSWORD")
+        
+        # Get hashed passwords and salts
+        admin_password_hash = os.getenv("ADMIN_PASSWORD_HASH")
+        admin_password_salt = os.getenv("ADMIN_PASSWORD_SALT")
+        site_password_hash = os.getenv("SITE_PASSWORD_HASH")
+        site_password_salt = os.getenv("SITE_PASSWORD_SALT")
+        
+        # For backward compatibility, check plain text passwords if hashes don't exist
+        admin_password_plain = os.getenv("ADMIN_PASSWORD")
+        site_password_plain = os.getenv("SITE_PASSWORD")
+        
+        # Check admin password
+        admin_authenticated = False
+        if admin_password_hash and admin_password_salt:
+            admin_authenticated = verify_password(entered_password, admin_password_salt, admin_password_hash)
+        elif admin_password_plain:
+            # Fallback to plain text for backward compatibility
+            admin_authenticated = (entered_password == admin_password_plain)
+        
+        # Check site password
+        site_authenticated = False
+        if site_password_hash and site_password_salt:
+            site_authenticated = verify_password(entered_password, site_password_salt, site_password_hash)
+        elif site_password_plain:
+            # Fallback to plain text for backward compatibility
+            site_authenticated = (entered_password == site_password_plain)
 
-        if entered_password == admin_password:
+        if admin_authenticated:
             session["authenticated"] = True
             session["admin_authenticated"] = True
             return redirect(url_for("services"))
-        elif entered_password == site_password:
+        elif site_authenticated:
             session["authenticated"] = True
             session["admin_authenticated"] = False
             return redirect(url_for("onboarding"))
@@ -2054,6 +2146,18 @@ def setup():
                 ]
                 service_urls = {key: os.getenv(key, "") for key in service_keys}
                 return render_template("setup.html", error_message=error_message, prompt_passwords=True, site_password=site_password, admin_password=admin_password, drives=drives, service_urls=service_urls)
+            
+            # Hash passwords before saving
+            site_salt, site_hash = hash_password(site_password)
+            admin_salt, admin_hash = hash_password(admin_password)
+            
+            # Save hashed passwords and salts
+            safe_set_key(env_path, "SITE_PASSWORD_HASH", site_hash)
+            safe_set_key(env_path, "SITE_PASSWORD_SALT", site_salt)
+            safe_set_key(env_path, "ADMIN_PASSWORD_HASH", admin_hash)
+            safe_set_key(env_path, "ADMIN_PASSWORD_SALT", admin_salt)
+            
+            # Keep plain text passwords for backward compatibility during transition
             safe_set_key(env_path, "SITE_PASSWORD", site_password)
             safe_set_key(env_path, "ADMIN_PASSWORD", admin_password)
             safe_set_key(env_path, "DRIVES", drives)
@@ -2071,7 +2175,12 @@ def setup():
 
         safe_set_key(env_path, "SERVER_NAME", form.get("server_name", ""))
         safe_set_key(env_path, "ACCENT_COLOR", form.get("accent_color_text", "#d33fbc"))
-        safe_set_key(env_path, "PLEX_TOKEN", form.get("plex_token", ""))
+        
+        # Handle API keys with hashing
+        plex_token = form.get("plex_token", "").strip()
+        if plex_token:
+            save_api_key_with_hash(env_path, "PLEX_TOKEN", plex_token)
+        
         safe_set_key(env_path, "PLEX_URL", form.get("plex_url", ""))
         safe_set_key(env_path, "ABS_ENABLED", abs_enabled)
         if abs_enabled == "yes":
@@ -2079,7 +2188,7 @@ def setup():
             safe_set_key(env_path, "AUDIOBOOKSHELF_URL", audiobookshelf_url)
             audiobookshelf_token = form.get("audiobookshelf_token", "").strip()
             if audiobookshelf_token:
-                safe_set_key(env_path, "AUDIOBOOKSHELF_TOKEN", audiobookshelf_token)
+                save_api_key_with_hash(env_path, "AUDIOBOOKSHELF_TOKEN", audiobookshelf_token)
         # Save Discord settings
         safe_set_key(env_path, "DISCORD_WEBHOOK", discord_webhook)
         if discord_webhook:
@@ -2130,8 +2239,79 @@ def setup():
         return redirect(url_for("setup_complete"))
     return render_template("setup.html", error_message=error_message)
 
+def ensure_worker_running():
+    """Ensure the background poster worker is running"""
+    global poster_download_running
+    if not poster_download_running:
+        if debug_mode:
+            print("[INFO] Restarting background poster worker")
+        start_background_poster_worker()
+
+def trigger_poster_downloads():
+    """Manually trigger poster downloads - used as backup after setup"""
+    try:
+        # Ensure worker is running
+        ensure_worker_running()
+        
+        if os.getenv("SETUP_COMPLETE") == "1" and PLEX_TOKEN:
+            # Get selected libraries
+            selected_ids = os.getenv("LIBRARY_IDS", "")
+            selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
+            all_libraries = get_plex_libraries()
+            libraries = [lib for lib in all_libraries if lib["key"] in selected_ids]
+            
+            if libraries:
+                # Queue poster downloads
+                download_and_cache_posters_for_libraries(libraries, background=True)
+                if debug_mode:
+                    print(f"[INFO] Manually triggered poster download for {len(libraries)} libraries")
+            
+            # Queue ABS poster download if enabled
+            if os.getenv("ABS_ENABLED", "yes") == "yes":
+                poster_download_queue.put(('abs', None, None))
+                if debug_mode:
+                    print("[INFO] Manually triggered ABS poster download")
+    except Exception as e:
+        if debug_mode:
+            print(f"Warning: Could not trigger poster downloads: {e}")
+
 @app.route("/setup_complete")
 def setup_complete():
+    # Trigger poster downloads immediately after setup completion
+    try:
+        if os.getenv("SETUP_COMPLETE") == "1" and PLEX_TOKEN:
+            # Ensure worker is running
+            ensure_worker_running()
+            
+            # Get selected libraries
+            selected_ids = os.getenv("LIBRARY_IDS", "")
+            selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
+            all_libraries = get_plex_libraries()
+            libraries = [lib for lib in all_libraries if lib["key"] in selected_ids]
+            
+            if libraries:
+                # Queue poster downloads with a small delay to ensure worker is ready
+                def queue_posters_delayed():
+                    time.sleep(1)  # Small delay to ensure worker is ready
+                    download_and_cache_posters_for_libraries(libraries, background=True)
+                    if debug_mode:
+                        print(f"[INFO] Queued poster download for {len(libraries)} libraries after setup")
+                
+                threading.Thread(target=queue_posters_delayed, daemon=True).start()
+            
+            # Queue ABS poster download if enabled
+            if os.getenv("ABS_ENABLED", "yes") == "yes":
+                def queue_abs_posters_delayed():
+                    time.sleep(1)  # Small delay to ensure worker is ready
+                    poster_download_queue.put(('abs', None, None))
+                    if debug_mode:
+                        print("[INFO] Queued ABS poster download after setup")
+                
+                threading.Thread(target=queue_abs_posters_delayed, daemon=True).start()
+    except Exception as e:
+        if debug_mode:
+            print(f"Warning: Could not queue poster downloads after setup: {e}")
+    
     return render_template("setup_complete.html")
 
 def periodic_poster_refresh(libraries, interval_hours=6):
@@ -2585,6 +2765,145 @@ def ajax_load_posters_by_letter():
             print(f"Error loading posters by letter: {e}")
         return jsonify({"success": False, "error": str(e)})
 
+# Hashing and encryption utilities
+def generate_salt():
+    """Generate a random salt for password hashing"""
+    return secrets.token_bytes(32)
+
+def hash_password(password, salt=None):
+    """Hash a password using PBKDF2 with SHA256"""
+    if salt is None:
+        salt = generate_salt()
+    
+    # Use PBKDF2 with 100,000 iterations for security
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+    )
+    key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
+    return base64.urlsafe_b64encode(salt).decode(), key.decode()
+
+def verify_password(password, salt, hashed_password):
+    """Verify a password against its hash"""
+    try:
+        salt_bytes = base64.urlsafe_b64decode(salt.encode())
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt_bytes,
+            iterations=100000,
+        )
+        key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
+        return hmac.compare_digest(key.decode(), hashed_password)
+    except Exception:
+        return False
+
+def hash_api_key(api_key):
+    """Hash an API key using SHA256"""
+    if not api_key:
+        return ""
+    return hashlib.sha256(api_key.encode()).hexdigest()
+
+def verify_api_key(api_key, hashed_api_key):
+    """Verify an API key against its hash"""
+    if not api_key and not hashed_api_key:
+        return True  # Both empty is valid
+    if not api_key or not hashed_api_key:
+        return False
+    return hmac.compare_digest(hash_api_key(api_key), hashed_api_key)
+
+def encrypt_sensitive_data(data, key=None):
+    """Encrypt sensitive data using Fernet"""
+    if not data:
+        return None, None
+    
+    if key is None:
+        key = Fernet.generate_key()
+    
+    f = Fernet(key)
+    encrypted_data = f.encrypt(data.encode())
+    return base64.urlsafe_b64encode(key).decode(), encrypted_data.decode()
+
+def decrypt_sensitive_data(encrypted_data, key):
+    """Decrypt sensitive data using Fernet"""
+    if not encrypted_data or not key:
+        return None
+    
+    try:
+        key_bytes = base64.urlsafe_b64decode(key.encode())
+        f = Fernet(key_bytes)
+        decrypted_data = f.decrypt(encrypted_data.encode())
+        return decrypted_data.decode()
+    except Exception:
+        return None
+
+def get_api_key_with_verification(api_key_name, provided_key=None):
+    """Get API key with verification - checks hashed version if available, falls back to plain text"""
+    if provided_key:
+        # If a key is provided, verify it against the hash
+        hashed_key = os.getenv(f"{api_key_name}_HASH")
+        if hashed_key:
+            return verify_api_key(provided_key, hashed_key)
+        else:
+            # No hash available, compare with plain text
+            stored_key = os.getenv(api_key_name)
+            return stored_key == provided_key if stored_key else False
+    
+    # Return the actual key for use (plain text for backward compatibility)
+    return os.getenv(api_key_name)
+
+def save_api_key_with_hash(env_path, api_key_name, api_key_value):
+    """Save API key with hash for verification"""
+    if api_key_value:
+        # Hash the API key
+        hashed_key = hash_api_key(api_key_value)
+        safe_set_key(env_path, f"{api_key_name}_HASH", hashed_key)
+        # Keep plain text for backward compatibility
+        safe_set_key(env_path, api_key_name, api_key_value)
+    else:
+        # Clear both hash and plain text
+        safe_set_key(env_path, f"{api_key_name}_HASH", "")
+        safe_set_key(env_path, api_key_name, "")
+
+@app.route("/trigger-poster-downloads", methods=["POST"])
+@csrf.exempt
+def trigger_poster_downloads_route():
+    """Manually trigger poster downloads for debugging"""
+    if not session.get("admin_authenticated"):
+        return jsonify({"success": False, "error": "Unauthorized"})
+    
+    try:
+        trigger_poster_downloads()
+        return jsonify({"success": True, "message": "Poster downloads triggered"})
+    except Exception as e:
+        if debug_mode:
+            print(f"Error triggering poster downloads: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/poster-status", methods=["GET"])
+def poster_status():
+    """Get poster download status for debugging"""
+    if not session.get("admin_authenticated"):
+        return jsonify({"success": False, "error": "Unauthorized"})
+    
+    try:
+        queue_size = poster_download_queue.qsize()
+        progress = get_poster_download_progress()
+        
+        return jsonify({
+            "success": True,
+            "worker_running": poster_download_running,
+            "queue_size": queue_size,
+            "progress": progress,
+            "debug_mode": debug_mode
+        })
+    except Exception as e:
+        if debug_mode:
+            print(f"Error getting poster status: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
 if __name__ == "__main__":
     # --- Dynamic configuration for section IDs ---
     global MOVIES_SECTION_ID, SHOWS_SECTION_ID, AUDIOBOOKS_SECTION_ID
@@ -2605,6 +2924,9 @@ if __name__ == "__main__":
                 if debug_mode:
                     print("[WARN] Skipping poster download: PLEX_TOKEN is not set.")
             else:
+                # Ensure worker is running before queuing downloads
+                ensure_worker_running()
+                
                 # Queue poster downloads for background processing instead of blocking startup
                 selected_ids = os.getenv("LIBRARY_IDS", "")
                 selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
