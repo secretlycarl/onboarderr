@@ -43,6 +43,7 @@
             <label style="display:block; margin-bottom: 1.2em;">Server Name:<br>
                 <input type="text" name="server_name" id="server_name" required class="max-300">
             </label>
+
             <label style="display:block; margin-bottom: 1.2em;">Accent Color:<br>
                 <input type="color" name="accent_color" id="accent_color" value="#d33fbc" style="width: 60px; height: 40px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
                 <input type="text" name="accent_color_text" id="accent_color_text" value="#d33fbc" placeholder="#d33fbc" style="width: 120px; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
@@ -55,20 +56,31 @@
                     Upload your own logo and wordmark to customize the appearance. These are optional and can be changed later.
                 </div>
                 
-                <label style="display:block; margin-bottom: 1.2em;">Select New Logo (.png or .webp, ~300x300):<br>
+                <label style="display:block; margin-bottom: 1.2em;">Select New Logo (.png or .webp, ~350x350, 1:1):<br>
                     <input type="file" name="logo_file" id="logo_file" accept=".png,.webp,.jpg,.jpeg" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
                     <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
                         This will replace the logo and automatically create a favicon.
                     </div>
+                    <div style="color: #aaa; font-size: 0.85em; margin-top: 0.5em; padding: 0.5em; background: #1a1a1a; border-radius: 4px; border-left: 3px solid var(--accent-color);">
+                        <strong>💡 Need a logo?</strong><br>
+                        • <a href="https://vectorink.io/app/canvas" target="_blank" style="color: var(--accent-color);">Simple Vector Editor</a> - Create a custom logo<br>
+                        • <a href="http://logobook.com/letter/a/" target="_blank" style="color: var(--accent-color);">Letter Logos</a> - Find a logo for any letter
+                    </div>
                 </label>
                 
-                <label style="display:block; margin-bottom: 1.2em;">Select New Wordmark (.png or .webp, minimum dimensions ~1000x250):<br>
+                <label style="display:block; margin-bottom: 1.2em;">Select New Wordmark (.png or .webp, minimum dimensions ~1000x250, 4:1 or wider):<br>
                     <input type="file" name="wordmark_file" id="wordmark_file" accept=".png,.webp,.jpg,.jpeg" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
                     <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
                         This will replace the wordmark image.
                     </div>
+                    <div style="color: #aaa; font-size: 0.85em; margin-top: 0.5em; padding: 0.5em; background: #1a1a1a; border-radius: 4px; border-left: 3px solid var(--accent-color);">
+                        <strong>💡 Need a wordmark?</strong><br>
+                        • <a href="https://fontmeme.com/netflix-font/" target="_blank" style="color: var(--accent-color);">Wordmark Generator</a> - Create text-based wordmarks<br>
+                        <span style="color: #888; font-size: 0.8em;">Try different fonts, make the output text as big as slider allows, and use the same hex as the accent.</span>
+                    </div>
                 </label>
             </div>
+
             <label style="display:block; margin-bottom: 1.2em;">Plex Token:<br>
                 <input type="text" name="plex_token" id="plex_token" required class="max-300">
             </label>
@@ -126,20 +138,22 @@
             </div>
             <div style="margin-bottom: 2em;">
               <strong style="margin-bottom: 0.5em; display:block;">PUBLIC Service URLs for Admin Page:</strong>
-              <label style="display:block; margin-bottom: 1.2em;">Delete any you don't use.<br>
+              <div style="margin-bottom: 1.2em; color: #f6b900; background: #222; border-radius: 6px; padding: 0.7em 1em; font-size: 1em; font-weight: 500;">
+                <span style="margin-right: 0.5em;">⚠️</span> Remove any URLs for unused services! 
+              </div>
               </label>
               {% set service_list = [
                 ('PLEX', 'Plex'),
-                ('LIDARR', 'Lidarr'),
-                ('RADARR', 'Radarr'),
-                ('SONARR', 'Sonarr'),
+                ('AUDIOBOOKSHELF', 'Audiobookshelf'),
                 ('TAUTULLI', 'Tautulli'),
                 ('QBITTORRENT', 'qBittorrent'),
                 ('IMMICH', 'Immich'),
+                ('LIDARR', 'Lidarr'),
+                ('RADARR', 'Radarr'),
+                ('SONARR', 'Sonarr'),
                 ('PROWLARR', 'Prowlarr'),
                 ('BAZARR', 'Bazarr'),
                 ('PULSARR', 'Pulsarr'),
-                ('AUDIOBOOKSHELF', 'Audiobookshelf'),
                 ('OVERSEERR', 'Overseerr')
               ] %}
               {% for key, label in service_list %}
