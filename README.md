@@ -16,11 +16,7 @@ Self-hosted user onboarding site for Plex and Audiobookshelf server owners
 
 ![Customization Options](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/customexample.png)
 
-Onboarderr is a customizable onboarding site for a host's Plex and (optional) Audiobookshelf servers. It includes user instructions, server highlights, and a basic admin dashboard.
-
-It's not exactly plug and play, as there are some things to customize before sharing it with users. Might be a little janky.
-
-Please read to the end!
+Onboarderr is a customizable onboarding site for a host's Plex and (optional) Audiobookshelf servers. It includes user instructions, server highlights, and an admin dashboard.
 
 #
 
@@ -39,15 +35,17 @@ Big thanks to [@mon5termatt](https://github.com/mon5termatt) for many of the imp
 
 # Features
 
+- Customizable branding
 - Setup instructions for Plex and Audiobookshelf users
 - Carousel previews and media lists pulled from your server
 - Optional Discord notifications when users request access
-- Admin dashboard with basic tools and info
+- Admin dashboard with tools and info
 	- Links to other services
    	- User request log
    	- Invite Plex users
    	- Add Audiobookshelf users
    	- Storage bars
+   	- Change settings
 
 **[Screenshots](https://github.com/secretlycarl/onboarderr/tree/main/screenshots)**
 
@@ -112,6 +110,10 @@ To display storage bars for specific drives (e.g., E: and F: on Windows, or /mnt
 
   > **Note:** On Windows, you may need to allow Docker Desktop access to your drives (Docker Desktop > Settings > Resources > File Sharing).
 
+<!-- NOTES
+
+Not sure this is needed anymore, docker compose is quicker and this takes up too much readme space
+
 ## Manual Docker Run
 
 ### Linux/macOS:
@@ -162,6 +164,8 @@ docker run -d -p 10000:10000 --name onboarderr ^
 - **If you change the drives in `.env`, make sure your Docker volumes match!**
 - The site will be available at `localhost:10000`
 
+-->
+
 ### Troubleshooting Docker Drive Mounts on Windows
 - If you get errors about mounting drives, open Docker Desktop > Settings > Resources > File Sharing and add the drives (e.g., `E:\`, `F:\`).
 - Restart Docker Desktop after making changes.
@@ -204,13 +208,8 @@ https://github.com/homarr-labs/dashboard-icons/tree/main/webp has all icons.
 
 Most customization is done on setup and settings in the admin panel, but you may want to tweak some HTML contents or instructional images it comes with.
 
-Specifically:
-
 - ```onboarding_section7.html``` is personalized, you should change it to what you want it to say.
-<!-- NOTES
-the following item could be implemented in the UI somehow. like the conditional section 5 on /onboarding
--->
-- If you don't have Tautulli + Discord set up, remove mentions of "ask me about my discord"
+
 - Delete placeholder ```plex_submissions.json``` and ```audiobookshelf_submissions.json```. the ones that come with it have example data to populate the requests sections on ```/services```
   
 # Sharing
