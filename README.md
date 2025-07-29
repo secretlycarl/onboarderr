@@ -243,7 +243,7 @@ Keep copies of custom assets in another folder!
 
 I've never made a project this complex, or had a project this many people were interested in, so I'm not clear on how the future development for this will go. I have some ideas to make it better, but getting this all set up in a way that it's customizable and not just for my machine only was a beast itself.
 
-Tha being said, a release for v2 is coming soon. Already committed most (?) of the new code changes.
+That being said, a release for v2 is coming soon. Already committed most of the new code changes.
 
 Once that is finalized I want to overhaul the CSS and make the whole experience cleaner for v2.
 
