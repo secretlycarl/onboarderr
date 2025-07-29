@@ -1,7 +1,7 @@
 # ATTENTION
 If you're reading this, the repo recently had a big update that might break current installs, and makes some sections of the readme inaccurate. 
 
-Setup is much easier now! just docker compose (tweak mounts first on `ccompose.yml`) and set all initial settings on the site itself.
+Setup is much easier now! just docker compose (tweak mounts first on `compose.yml`) and set all initial settings on the site itself.
 
 The readme is mostly accurate, but new screenshots will be added soon.
 
