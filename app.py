@@ -628,8 +628,11 @@ def onboarding():
                 # Sort by modification time to get most recent first
                 all_files.sort(key=lambda f: os.path.getmtime(os.path.join(poster_dir, f)), reverse=True)
                 
-                # Limit to 10 posters per library
-                limited_files = all_files[:10]
+                # Limit to 10 random posters per library for initial load
+                if len(all_files) > 10:
+                    limited_files = random.sample(all_files, 10)
+                else:
+                    limited_files = all_files
                 
                 for fname in limited_files:
                     posters.append(f"/static/posters/{section_id}/{fname}")
@@ -2949,6 +2952,99 @@ def ajax_update_libraries():
         if debug_mode:
             print(f"Error updating libraries: {e}")
         return jsonify({"success": False, "error": str(e)})
+
+@app.route("/ajax/get-random-posters", methods=["POST"])
+@csrf.exempt
+def get_random_posters():
+    """Get random posters for a specific library"""
+    if not session.get("authenticated"):
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    data = request.get_json()
+    if not data:
+        print("No JSON data received")
+        print(f"Request data: {request.data}")
+        print(f"Request headers: {dict(request.headers)}")
+        return jsonify({"error": "No JSON data"}), 400
+    
+    library_name = data.get('library')
+    count = data.get('count', 5)
+    
+    print(f"Requested posters for library: '{library_name}', count: {count}")
+    print(f"Full request data: {data}")
+    
+    if not library_name:
+        print("Library name is empty")
+        return jsonify({"error": "Library name required"}), 400
+    
+    # Find the library by name
+    libraries = get_plex_libraries()
+    library = None
+    for lib in libraries:
+        if lib["title"] == library_name:
+            library = lib
+            break
+    
+    if not library:
+        print(f"Library '{library_name}' not found. Available libraries: {[lib['title'] for lib in libraries]}")
+        return jsonify({"error": f"Library '{library_name}' not found"}), 404
+    
+    section_id = library["key"]
+    poster_dir = os.path.join("static", "posters", section_id)
+    
+    print(f"Looking for posters in: {poster_dir}")
+    
+    try:
+        if os.path.exists(poster_dir):
+            # Get all image files
+            all_files = [f for f in os.listdir(poster_dir) if f.lower().endswith(('.webp', '.jpg', '.jpeg', '.png'))]
+            
+            print(f"Found {len(all_files)} poster files in {poster_dir}")
+            
+            if not all_files:
+                print(f"No poster files found in {poster_dir}")
+                return jsonify({"posters": [], "imdb_ids": []})
+            
+            # Get random posters
+            import random
+            if len(all_files) > count:
+                selected_files = random.sample(all_files, count)
+            else:
+                selected_files = all_files
+            
+            posters = []
+            imdb_ids = []
+            
+            for fname in selected_files:
+                poster_url = f"/static/posters/{section_id}/{fname}"
+                posters.append(poster_url)
+                
+                # Load metadata
+                json_path = os.path.join(poster_dir, fname.rsplit('.', 1)[0] + '.json')
+                imdb_id = None
+                try:
+                    if os.path.exists(json_path):
+                        with open(json_path, 'r', encoding='utf-8') as f:
+                            meta = json.load(f)
+                            imdb_id = meta.get('imdb')
+                except (IOError, json.JSONDecodeError) as e:
+                    print(f"Error loading metadata for {fname}: {e}")
+                    pass
+                
+                imdb_ids.append(imdb_id)
+            
+            print(f"Returning {len(posters)} posters for {library_name}")
+            return jsonify({
+                "posters": posters,
+                "imdb_ids": imdb_ids
+            })
+        else:
+            print(f"Poster directory does not exist: {poster_dir}")
+            return jsonify({"posters": [], "imdb_ids": []})
+            
+    except Exception as e:
+        print(f"Error getting random posters for {library_name}: {e}")
+        return jsonify({"error": "Failed to get posters"}), 500
 
 if __name__ == "__main__":
     # --- Dynamic configuration for section IDs ---

@@ -15,37 +15,48 @@
 </head>
 <body>
   {% include "_bottom_nav.html" %}
-  <div style="max-width: 1600px; width: 95vw; margin: 0 auto;">
-    <div class="library-poster-carousels" style="display: flex; flex-wrap: wrap; gap: 2em; align-items: flex-start; justify-content: center;">
-      {% for lib_name, posters in library_posters.items() %}
-        <div style="min-width: 320px; max-width: 400px; flex: 1 1 320px;">
-          <h3 style="text-align:center;">{{ lib_name }}</h3>
-          <div class="poster-carousel-container">
-            <div class="poster-carousel animate" id="poster-carousel">
-              {% for poster in posters %}
-                {% set imdb_id = poster_imdb_ids[lib_name][loop.index0] if poster_imdb_ids and poster_imdb_ids[lib_name] and poster_imdb_ids[lib_name]|length > loop.index0 else None %}
-                {% if imdb_id %}
-                  <a href="https://www.imdb.com/title/{{ imdb_id }}" target="_blank">
-                    <img src="{{ poster }}" class="carousel-img" alt="{{ lib_name }} poster" loading="lazy">
-                  </a>
-                {% else %}
-                  <img src="{{ poster }}" class="carousel-img" alt="{{ lib_name }} poster" loading="lazy">
-                {% endif %}
-              {% endfor %}
-            </div>
-          </div>
-        </div>
-      {% endfor %}
-    </div>
-    <p class="muted" style="margin-top: 1em; text-align: center; color: #aaa;">
-      Random selection of posters from each library. Go <a href="/medialists" class="accent">here</a> for the full list.
-    </p>
-  </div>
   <div class="container">
     <h1>Welcome to Plex!</h1>
 
     <p class="max-850">
-      Plex Media Server (or just <a href="https://support.plex.tv/articles/200288286-what-is-plex/" target="_blank">Plex</a>) lets me share my collection of movies and shows with you, just like Netflix, but you don’t have to pay. You can watch on your TV, computer, phone, or tablet!
+      Plex Media Server (or just <a href="https://support.plex.tv/articles/200288286-what-is-plex/" target="_blank">Plex</a>) lets me share my collection of movies and shows with you, just like Netflix, but you don't have to pay. You can watch on your TV, computer, phone, or tablet!
+    </p>
+
+    {% set library_list = library_posters.keys()|list %}
+    {% set mid_point = (library_list|length / 2)|round(0, 'ceil')|int %}
+    {% set row1_libraries = library_list[:mid_point] %}
+    {% set row2_libraries = library_list[mid_point:] %}
+
+    <!-- Row 1 -->
+    <div class="carousel-row">
+      <div class="poster-carousel-container">
+        <div class="poster-carousel animate" id="row0-carousel"></div>
+      </div>
+      
+      <div class="row-selector">
+        {% for lib_name in row1_libraries %}
+          <button class="row-tab {% if loop.first %}active{% endif %}" data-row="0" data-library="{{ lib_name }}">{{ lib_name }}</button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Row 2 (only if we have libraries for it) -->
+    {% if row2_libraries %}
+      <div class="carousel-row">
+        <div class="poster-carousel-container">
+          <div class="poster-carousel animate" id="row1-carousel"></div>
+        </div>
+        
+        <div class="row-selector">
+          {% for lib_name in row2_libraries %}
+            <button class="row-tab {% if loop.first %}active{% endif %}" data-row="1" data-library="{{ lib_name }}">{{ lib_name }}</button>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <p class="muted" style="margin-top: 1em; text-align: center; color: #aaa;">
+      Random selection of posters from each library. Go <a href="/medialists" class="accent">here</a> for the full list.
     </p>
 
     <img src="{{ url_for('static', filename='homepage.webp') }}" alt="Homepage Example" class="toggle-grow" />
@@ -160,7 +171,6 @@
           Next is to increase streaming quality. Check out <a href="https://mediaclients.wiki/Plex" target="_blank">this</a> handy guide for getting the best quality stream.
     </p>
 
-
         <p>
           If you don't want to read all that, here's the general flow (must be done on every device):
         </p>
@@ -171,6 +181,18 @@
           <li>Change streaming quality to Maximum</li>
           <li>Enable Direct Play/Direct Stream</li>
         </ul>
+
+        <p>
+          Note: If you're a nerd and want the best possible Plex experience on your TV, I reccomend one of these: 
+        </p>
+        <ul class="text-left max-800" style="margin: 1em 0;">
+          <li>Nvidia Shield Pro (2019) – plays nearly everything flawlessly, best overall.</li>
+          <li>Apple TV 4K (3rd Gen) – nearly as good, faster UI, only lacks full TRUEHD passthrough.</li>
+          <li>FireTV Cube (3rd Gen) – smooth UI, but has DTS playback issues.</li>
+        </ul>
+        <p>
+        Not required unless you notice problems on your current TV device or want the best playback quality.
+        </p>
       </div>
     </details>
   </div>
@@ -372,6 +394,291 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", function () {
+      // Row-based tab switching functionality
+      const rowTabs = document.querySelectorAll('.row-tab');
+      
+      // Library data from template
+      const libraryPosters = JSON.parse('{{ library_posters|tojson|safe }}');
+      const posterImdbIds = JSON.parse('{{ poster_imdb_ids|tojson|safe if poster_imdb_ids else "{}" }}');
+      
+      // Track current library for each row
+      const currentLibraries = {
+        0: null,
+        1: null
+      };
+      
+      // Load initial carousels
+      const firstRowTab = document.querySelector('.row-tab[data-row="0"]');
+      const secondRowTab = document.querySelector('.row-tab[data-row="1"]');
+      
+      console.log('Available library data:', libraryPosters);
+      console.log('First row tab:', firstRowTab);
+      console.log('Second row tab:', secondRowTab);
+      
+      if (firstRowTab) {
+        const libraryName = firstRowTab.getAttribute('data-library');
+        console.log('Loading first carousel with library:', libraryName);
+        currentLibraries[0] = libraryName;
+        loadCarousel('row0-carousel', libraryName);
+      }
+      if (secondRowTab) {
+        const libraryName = secondRowTab.getAttribute('data-library');
+        console.log('Loading second carousel with library:', libraryName);
+        currentLibraries[1] = libraryName;
+        loadCarousel('row1-carousel', libraryName);
+      }
+      
+      function loadCarousel(carouselId, library) {
+        const carousel = document.getElementById(carouselId);
+        if (!carousel) {
+          console.log(`Carousel ${carouselId} not found`);
+          return;
+        }
+        
+        console.log(`Loading carousel ${carouselId} with library ${library}`);
+        
+        // Stop any existing animation
+        if (carousel.rafId) {
+          cancelAnimationFrame(carousel.rafId);
+          carousel.rafId = null;
+        }
+        
+        // Clear existing content
+        carousel.innerHTML = '';
+        carousel.style.transform = 'translateX(0px)';
+        
+        // Show loading state
+        carousel.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 200px; color: #888;">Loading posters...</div>';
+        
+        // Function to fetch random posters from server
+        async function fetchRandomPosters(count = 10) {
+          try {
+            console.log(`Fetching ${count} random posters for library: "${library}"`);
+            
+            const requestData = {
+              library: library,
+              count: count
+            };
+            
+            console.log('Sending request data:', requestData);
+            
+            const response = await fetch('/ajax/get-random-posters', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+              },
+              body: JSON.stringify(requestData)
+            });
+            
+            console.log(`Response status: ${response.status}`);
+            console.log(`Response headers:`, Object.fromEntries(response.headers.entries()));
+            
+            if (response.ok) {
+              const data = await response.json();
+              console.log(`Received ${data.posters.length} posters from server`);
+              return data;
+            } else {
+              const errorText = await response.text();
+              console.error('Failed to fetch random posters:', response.status, errorText);
+              
+              // Try to parse as JSON for better error info
+              try {
+                const errorData = JSON.parse(errorText);
+                console.error('Error details:', errorData);
+              } catch (e) {
+                console.error('Raw error response:', errorText);
+              }
+              
+              return { posters: [], imdb_ids: [] };
+            }
+          } catch (error) {
+            console.error('Error fetching random posters:', error);
+            return { posters: [], imdb_ids: [] };
+          }
+        }
+        
+        // Function to add posters to carousel
+        function addPostersToCarousel(posters, imdbIds) {
+          // Clear loading state
+          carousel.innerHTML = '';
+          
+          if (posters.length === 0) {
+            carousel.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 200px; color: #888;">No posters available for this library</div>';
+            return;
+          }
+          
+          posters.forEach((poster, index) => {
+            const imdbId = imdbIds[index];
+            const imgElement = imdbId ? 
+              `<a href="https://www.imdb.com/title/${imdbId}" target="_blank"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>` :
+              `<img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy">`;
+            
+            carousel.insertAdjacentHTML('beforeend', imgElement);
+          });
+          
+          console.log(`Added ${posters.length} new posters for ${library}`);
+        }
+        
+        // Function to append posters to the end of carousel (out of view)
+        function appendPostersToCarousel(posters, imdbIds) {
+          if (posters.length === 0) {
+            return;
+          }
+          
+          posters.forEach((poster, index) => {
+            const imdbId = imdbIds[index];
+            const imgElement = imdbId ? 
+              `<a href="https://www.imdb.com/title/${imdbId}" target="_blank"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>` :
+              `<img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy">`;
+            
+            carousel.insertAdjacentHTML('beforeend', imgElement);
+          });
+          
+          // Update carousel width after adding new posters
+          updateWidth();
+          console.log(`Appended ${posters.length} new posters to carousel for ${library}`);
+        }
+        
+        // Function to update carousel width
+        function updateWidth() {
+          if (carousel.children.length === 0) {
+            return;
+          }
+          
+          let totalWidth = 0;
+          const gap = parseInt(getComputedStyle(carousel).gap || 0);
+          
+          Array.from(carousel.children).forEach((img, index) => {
+            const imgWidth = img.offsetWidth;
+            if (imgWidth === 0) {
+              totalWidth += img.naturalWidth + gap;
+            } else {
+              totalWidth += imgWidth + gap;
+            }
+          });
+          
+          carousel.style.width = totalWidth + 'px';
+        }
+        
+        // Function to ensure minimum posters in carousel
+        function ensureMinimumPosters() {
+          const currentPosters = carousel.children.length;
+          if (currentPosters < 5) {
+            console.log(`Only ${currentPosters} posters left, adding more...`);
+            // Try to load more posters
+            fetchRandomPosters(5).then(data => {
+              if (data.posters.length > 0) {
+                appendPostersToCarousel(data.posters, data.imdb_ids);
+              } else {
+                // If AJAX fails, try fallback data
+                if (libraryPosters[library] && libraryPosters[library].length > 0) {
+                  const posters = libraryPosters[library];
+                  const imdbIds = posterImdbIds[library] || [];
+                  const nextBatch = posters.slice(0, 5);
+                  const nextImdbIds = imdbIds.slice(0, 5);
+                  if (nextBatch.length > 0) {
+                    appendPostersToCarousel(nextBatch, nextImdbIds);
+                  }
+                }
+              }
+            }).catch(error => {
+              console.error('Error ensuring minimum posters:', error);
+            });
+          }
+        }
+        
+        // Load initial posters
+        fetchRandomPosters(15).then(data => {
+          if (data.posters.length > 0) {
+            addPostersToCarousel(data.posters, data.imdb_ids);
+            
+            // Start animation immediately
+            setupInfiniteCarousel(carousel, async () => {
+              // Load more random posters when needed
+              const newData = await fetchRandomPosters(5);
+              if (newData.posters.length > 0) {
+                appendPostersToCarousel(newData.posters, newData.imdb_ids);
+              }
+            });
+          } else {
+            // Fallback to original library_posters data if AJAX fails
+            console.log('AJAX failed, using fallback data for', library);
+            if (libraryPosters[library] && libraryPosters[library].length > 0) {
+              const posters = libraryPosters[library];
+              const imdbIds = posterImdbIds[library] || [];
+              
+              // Use first 15 posters from the original data
+              const initialPosters = posters.slice(0, 15);
+              const initialImdbIds = imdbIds.slice(0, 15);
+              
+              addPostersToCarousel(initialPosters, initialImdbIds);
+              
+              // Start animation with fallback loading
+              setupInfiniteCarousel(carousel, () => {
+                // Load more from original data
+                const currentCount = carousel.children.length;
+                const nextBatch = posters.slice(currentCount, currentCount + 5);
+                const nextImdbIds = imdbIds.slice(currentCount, currentCount + 5);
+                if (nextBatch.length > 0) {
+                  appendPostersToCarousel(nextBatch, nextImdbIds);
+                }
+              });
+            } else {
+              // No posters available at all
+              addPostersToCarousel([], []);
+            }
+          }
+        }).catch(error => {
+          console.error('Error in initial poster loading:', error);
+          // Fallback to original library_posters data
+          if (libraryPosters[library] && libraryPosters[library].length > 0) {
+            const posters = libraryPosters[library];
+            const imdbIds = posterImdbIds[library] || [];
+            
+            const initialPosters = posters.slice(0, 15);
+            const initialImdbIds = imdbIds.slice(0, 15);
+            
+            addPostersToCarousel(initialPosters, initialImdbIds);
+            
+            setupInfiniteCarousel(carousel, () => {
+              const currentCount = carousel.children.length;
+              const nextBatch = posters.slice(currentCount, currentCount + 5);
+              const nextImdbIds = imdbIds.slice(currentCount, currentCount + 5);
+              if (nextBatch.length > 0) {
+                appendPostersToCarousel(nextBatch, nextImdbIds);
+              }
+            });
+          } else {
+            addPostersToCarousel([], []);
+          }
+        });
+      }
+      
+      rowTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+          const targetRow = this.getAttribute('data-row');
+          const targetLibrary = this.getAttribute('data-library');
+          
+          // Only reload if library actually changed
+          if (currentLibraries[targetRow] !== targetLibrary) {
+            console.log(`Switching row ${targetRow} from ${currentLibraries[targetRow]} to ${targetLibrary}`);
+            
+            // Update active tab for this row
+            const rowTabsForThisRow = document.querySelectorAll(`.row-tab[data-row="${targetRow}"]`);
+            rowTabsForThisRow.forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Update current library tracking
+            currentLibraries[targetRow] = targetLibrary;
+            
+            // Load new carousel data
+            const carouselId = `row${targetRow}-carousel`;
+            loadCarousel(carouselId, targetLibrary);
+          }
+        });
+      });
+
       // Only enable enlarge on screens wider than 1081px (adjust as needed)
       if (window.innerWidth >= 1081) {
         document.querySelectorAll(".toggle-grow").forEach(function (img) {
@@ -391,57 +698,141 @@
         });
       }
 
-      // --- Seamless Infinite Carousel Logic (transform-based) ---
-      function setupInfiniteCarousel(carousel) {
+      // --- Improved Infinite Carousel Logic ---
+      function setupInfiniteCarousel(carousel, onLoadMore = null) {
         const container = carousel.parentElement;
-        let scrollSpeed = 0.5; // px per frame
-        let rafId;
+        let scrollSpeed = 0.6; // px per frame - 25% slower (was 0.8)
         let isPaused = false;
         let offset = 0;
+        let lastLoadCheck = 0;
+        let isLoading = false; // Prevent multiple simultaneous loads
 
-        // Duplicate initial images to allow seamless looping
-        function duplicateImages() {
-          const imgs = Array.from(carousel.children);
-          imgs.forEach(img => {
-            const clone = img.cloneNode(true);
-            carousel.appendChild(clone);
-          });
+        // Clear any existing animation and event listeners
+        if (carousel.rafId) {
+          cancelAnimationFrame(carousel.rafId);
+          carousel.rafId = null;
         }
-        duplicateImages();
+        
+        // Remove existing event listeners to prevent duplicates
+        if (carousel._mouseEnterHandler) {
+          container.removeEventListener('mouseenter', carousel._mouseEnterHandler);
+        }
+        if (carousel._mouseLeaveHandler) {
+          container.removeEventListener('mouseleave', carousel._mouseLeaveHandler);
+        }
+
+        // Reset transform
+        carousel.style.transform = 'translateX(0px)';
 
         // Set carousel width
         function updateWidth() {
+          if (carousel.children.length === 0) {
+            console.log('No children in carousel for width calculation');
+            return;
+          }
+          
           let totalWidth = 0;
-          Array.from(carousel.children).forEach(img => {
-            totalWidth += img.offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
+          const gap = parseInt(getComputedStyle(carousel).gap || 0);
+          
+          Array.from(carousel.children).forEach((img, index) => {
+            const imgWidth = img.offsetWidth;
+            if (imgWidth === 0) {
+              console.log(`Image ${index} has zero width, using naturalWidth`);
+              totalWidth += img.naturalWidth + gap;
+            } else {
+              totalWidth += imgWidth + gap;
+            }
           });
+          
           carousel.style.width = totalWidth + 'px';
+          console.log(`Carousel width set to: ${totalWidth}px`);
         }
+        
+        // Update width immediately and after a short delay
         updateWidth();
+        setTimeout(updateWidth, 100);
 
         // Animation loop using transform
         function animate() {
-          if (!isPaused) {
-            offset -= scrollSpeed;
-            carousel.style.transform = `translateX(${offset}px)`;
-            const firstImg = carousel.children[0];
-            const firstImgWidth = firstImg.offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
-            if (Math.abs(offset) >= firstImgWidth) {
-              carousel.appendChild(firstImg);
-              offset += firstImgWidth;
+          try {
+            // Don't animate if there are no images or if we have a loading/error message
+            if (carousel.children.length === 0 || carousel.querySelector('div')) {
+              carousel.rafId = requestAnimationFrame(animate);
+              return;
+            }
+            
+            if (!isPaused) {
+              offset -= scrollSpeed;
               carousel.style.transform = `translateX(${offset}px)`;
+              
+              // Remove images that have scrolled completely off screen
+              const firstImg = carousel.children[0];
+              if (firstImg && (firstImg.tagName === 'IMG' || firstImg.tagName === 'A')) {
+                const firstImgWidth = firstImg.offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
+                if (Math.abs(offset) >= firstImgWidth) {
+                  firstImg.remove();
+                  offset += firstImgWidth;
+                  carousel.style.transform = `translateX(${offset}px)`;
+                  
+                  // Update width after removing image
+                  updateWidth();
+                }
+              }
+              
+              // Check if we need to load more posters (every 3 seconds)
+              const now = Date.now();
+              if (onLoadMore && now - lastLoadCheck > 3000 && !isLoading) {
+                lastLoadCheck = now;
+                const remainingImages = carousel.children.length;
+                if (remainingImages <= 15) { // Load earlier to prevent gaps
+                  console.log(`Only ${remainingImages} images left, loading more...`);
+                  isLoading = true;
+                  try {
+                    onLoadMore().then(() => {
+                      isLoading = false;
+                    }).catch(error => {
+                      console.error('Error loading more posters:', error);
+                      isLoading = false;
+                      // Use safety mechanism to ensure minimum posters
+                      ensureMinimumPosters();
+                    });
+                  } catch (error) {
+                    console.error('Error in onLoadMore:', error);
+                    isLoading = false;
+                    ensureMinimumPosters();
+                  }
+                }
+              }
+            }
+            carousel.rafId = requestAnimationFrame(animate);
+          } catch (error) {
+            console.error('Animation error:', error);
+            // Stop animation on error
+            if (carousel.rafId) {
+              cancelAnimationFrame(carousel.rafId);
+              carousel.rafId = null;
             }
           }
-          rafId = requestAnimationFrame(animate);
         }
+        
+        // Start animation immediately
+        console.log(`Starting animation for carousel ${carousel.id}`);
         animate();
 
-        // Pause on hover
-        container.addEventListener('mouseenter', () => { isPaused = true; });
-        container.addEventListener('mouseleave', () => { isPaused = false; });
+        // Pause on hover - store handlers to prevent duplicates
+        carousel._mouseEnterHandler = () => { isPaused = true; };
+        carousel._mouseLeaveHandler = () => { isPaused = false; };
+        container.addEventListener('mouseenter', carousel._mouseEnterHandler);
+        container.addEventListener('mouseleave', carousel._mouseLeaveHandler);
+        
+        // Periodic safety check to ensure carousel doesn't become empty
+        setInterval(() => {
+          if (carousel.children.length < 5) {
+            console.log('Carousel running low on posters, adding more...');
+            ensureMinimumPosters();
+          }
+        }, 5000); // Check every 5 seconds
       }
-
-      document.querySelectorAll('.poster-carousel').forEach(setupInfiniteCarousel);
     });
   </script>
 
