@@ -169,8 +169,13 @@ def get_plex_libraries():
     for directory in root.findall(".//Directory"):
         title = directory.attrib.get("title")
         key = directory.attrib.get("key")
+        media_type = directory.attrib.get("type")  # Get the media type (movie, show, artist, etc.)
         if title and key:
-            libraries.append({"title": title, "key": key})
+            libraries.append({
+                "title": title, 
+                "key": key, 
+                "media_type": media_type
+            })
     return libraries
 
 # --- File read/write: always use utf-8 encoding and os.path.join ---
@@ -208,7 +213,7 @@ def load_library_notes():
                     if debug_mode:
                         print(f"[DEBUG] Fetched {len(id_to_title)} libraries from Plex")
                     
-                    # Update missing titles
+                    # Update missing titles and media types
                     updated = False
                     for lib_id in missing_titles:
                         title = id_to_title.get(lib_id)
@@ -216,6 +221,25 @@ def load_library_notes():
                             if lib_id not in notes:
                                 notes[lib_id] = {}
                             notes[lib_id]['title'] = title
+                            
+                            # Also get the media type for this library
+                            try:
+                                # Get detailed info for this specific library
+                                lib_url = f"{plex_url}/library/sections/{lib_id}"
+                                lib_response = requests.get(lib_url, headers=headers, timeout=5)
+                                if lib_response.status_code == 200:
+                                    lib_root = ET.fromstring(lib_response.text)
+                                    directory = lib_root.find(".//Directory")
+                                    if directory is not None:
+                                        media_type = directory.attrib.get("type")
+                                        if media_type:
+                                            notes[lib_id]['media_type'] = media_type
+                                            if debug_mode:
+                                                print(f"[DEBUG] Updated media type for library {lib_id}: {media_type}")
+                            except Exception as e:
+                                if debug_mode:
+                                    print(f"[DEBUG] Failed to get media type for library {lib_id}: {e}")
+                            
                             updated = True
                             if debug_mode:
                                 print(f"[DEBUG] Updated title for library {lib_id}: {title}")
@@ -239,6 +263,66 @@ def load_library_notes():
 
 def save_library_notes(notes):
     save_json_file("library_notes.json", notes)
+
+def recreate_library_notes():
+    """Update library notes on startup by fetching current library information from Plex, preserving existing descriptions"""
+    try:
+        plex_token = os.getenv("PLEX_TOKEN")
+        plex_url = os.getenv("PLEX_URL")
+        
+        if not plex_token or not plex_url:
+            if debug_mode:
+                print("[DEBUG] Plex token or URL not configured, skipping library notes update")
+            return
+        
+        if debug_mode:
+            print("[INFO] Updating library notes from Plex API...")
+        
+        # Load existing library notes to preserve descriptions
+        existing_notes = load_library_notes()
+        
+        headers = {"X-Plex-Token": plex_token}
+        url = f"{plex_url}/library/sections"
+        response = requests.get(url, headers=headers, timeout=5)
+        response.raise_for_status()
+        root = ET.fromstring(response.text)
+        
+        updated_count = 0
+        for directory in root.findall(".//Directory"):
+            title = directory.attrib.get("title")
+            key = directory.attrib.get("key")
+            media_type = directory.attrib.get("type")
+            
+            if title and key:
+                # Check if this library exists in our notes
+                if key in existing_notes:
+                    # Update existing entry, preserving description
+                    existing_entry = existing_notes[key]
+                    existing_entry["title"] = title
+                    existing_entry["media_type"] = media_type
+                    # Keep existing description if it exists
+                    if debug_mode:
+                        print(f"[DEBUG] Updated existing library: {title} (ID: {key}, Type: {media_type})")
+                else:
+                    # Create new entry
+                    existing_notes[key] = {
+                        "title": title,
+                        "media_type": media_type
+                    }
+                    if debug_mode:
+                        print(f"[DEBUG] Added new library: {title} (ID: {key}, Type: {media_type})")
+                
+                updated_count += 1
+        
+        # Save the updated library notes
+        save_library_notes(existing_notes)
+        
+        if debug_mode:
+            print(f"[INFO] Successfully updated library notes for {updated_count} libraries")
+            
+    except Exception as e:
+        if debug_mode:
+            print(f"[WARN] Failed to update library notes: {e}")
 
 def safe_set_key(env_path, key, value):
     set_key(env_path, key, value, quote_mode="never")
@@ -580,6 +664,7 @@ def onboarding():
     if request.method == "POST":
         email = request.form.get("email")
         selected_keys = request.form.getlist("libraries")
+        explicit_content = request.form.get("explicit_content") == "yes"
 
         if email and selected_keys:
             all_libraries = get_plex_libraries()
@@ -589,6 +674,7 @@ def onboarding():
                 "email": email,
                 "libraries_keys": selected_keys,
                 "libraries_titles": selected_titles,
+                "explicit_content": explicit_content,
                 "submitted_at": datetime.utcnow().isoformat() + "Z"
             }
             submissions = load_json_file("plex_submissions.json", [])
@@ -662,7 +748,58 @@ def onboarding():
     overseerr_enabled = bool(os.getenv("OVERSEERR"))
     overseerr_url = os.getenv("OVERSEERR", "")
     tautulli_enabled = bool(os.getenv("TAUTULLI"))
+    
+    # Get default library setting
+    default_library = os.getenv("DEFAULT_LIBRARY", "all")
+    
+    # Get all libraries to map numbers to names
+    all_libraries = get_plex_libraries()
+    library_map = {lib["key"]: lib["title"] for lib in all_libraries}
+    
+    # Check if any library has media_type of "artist" (music)
+    # Only check currently available libraries that are actually shown in the UI
+    has_music_library = any(lib.get("media_type") == "artist" for lib in libraries)
+    
+    if debug_mode:
+        print(f"[DEBUG] Music library check: {has_music_library}")
+        print(f"[DEBUG] Total libraries from Plex API: {len(all_libraries)}")
+        print(f"[DEBUG] Libraries shown in UI: {len(libraries)}")
+        print(f"[DEBUG] All libraries from Plex API:")
+        for lib in all_libraries:
+            print(f"[DEBUG]   - {lib['title']} (ID: {lib['key']}, type: {lib.get('media_type', 'unknown')})")
+        print(f"[DEBUG] Libraries shown in UI:")
+        for lib in libraries:
+            print(f"[DEBUG]   - {lib['title']} (ID: {lib['key']}, type: {lib.get('media_type', 'unknown')})")
+            if lib.get("media_type") == "artist":
+                print(f"[DEBUG] Found music library in UI: {lib['title']} (ID: {lib['key']})")
+        # Also check library_notes.json for comparison
+        library_notes = load_library_notes()
+        music_in_notes = [lib_id for lib_id, note in library_notes.items() 
+                         if note.get('media_type') == 'artist']
+        if music_in_notes:
+            print(f"[DEBUG] Music libraries in library_notes.json: {music_in_notes}")
+            for lib_id in music_in_notes:
+                if lib_id not in [lib['key'] for lib in all_libraries]:
+                    print(f"[DEBUG] Music library {lib_id} exists in notes but not in current Plex API")
+    
+    # Determine which library should be default
+    default_library_name = "random-all"  # Default to random-all
+    if default_library != "all":
+        try:
+            # Parse comma-separated library numbers
+            library_numbers = [num.strip() for num in default_library.split(",")]
+            # Use the first valid library number
+            for lib_num in library_numbers:
+                if lib_num in library_map:
+                    default_library_name = library_map[lib_num]
+                    break
+        except Exception as e:
+            if debug_mode:
+                print(f"Error parsing DEFAULT_LIBRARY: {e}")
 
+    # Get public services data for icons (end user services only)
+    services = build_public_services_data()
+    
     return render_template(
         "onboarding.html",
         libraries=libraries,
@@ -673,7 +810,10 @@ def onboarding():
         overseerr_url=overseerr_url,
         tautulli_enabled=tautulli_enabled,
         library_posters=library_posters,
-        poster_imdb_ids=poster_imdb_ids
+        poster_imdb_ids=poster_imdb_ids,
+        default_library=default_library_name,
+        has_music_library=has_music_library,
+        services=services
     )
 
 @app.route("/audiobookshelf", methods=["GET", "POST"])
@@ -1099,8 +1239,13 @@ def fetch_libraries():
         for directory in root.findall(".//Directory"):
             title = directory.attrib.get("title")
             key = directory.attrib.get("key")
+            media_type = directory.attrib.get("type")  # Get the media type
             if title and key:
-                libraries.append({"title": title, "key": key})
+                libraries.append({
+                    "title": title, 
+                    "key": key, 
+                    "media_type": media_type
+                })
         return jsonify({"libraries": libraries})
     except Exception as e:
         return jsonify({"error": str(e)})
@@ -2027,6 +2172,8 @@ def restart_container_delayed():
         # Re-execute the current script with the same arguments
         os.execv(sys.executable, [sys.executable] + sys.argv)
     else:
+        import os
+        import signal
         os.kill(os.getpid(), signal.SIGTERM)
 
 @app.route("/trigger_restart", methods=["POST"])
@@ -2384,6 +2531,15 @@ def get_service_definitions():
         ("Overseerr", "OVERSEERR", "overseerr.webp"),
     ]
 
+def get_public_service_definitions():
+    """Service definitions for end users (non-admin services)"""
+    return [
+        ("Plex", "PLEX", "plex.webp"),
+        ("Audiobookshelf", "AUDIOBOOKSHELF", "abs.webp"),
+        ("Tautulli", "TAUTULLI", "tautulli.webp"),
+        ("Overseerr", "OVERSEERR", "overseerr.webp"),
+    ]
+
 def load_json_file(filename, default=None):
     """Utility function to load JSON files with consistent error handling"""
     if default is None:
@@ -2431,6 +2587,18 @@ def build_services_data():
     
     return services, all_services
 
+def build_public_services_data():
+    """Build public services data for end users (non-admin services)"""
+    service_defs = get_public_service_definitions()
+    services = []
+    
+    for name, env, logo in service_defs:
+        url = os.getenv(env, "")
+        if url:
+            services.append({"name": name, "url": url, "logo": logo})
+    
+    return services
+
 def get_storage_info():
     """Get storage information for templates"""
     drives_env = os.getenv("DRIVES")
@@ -2457,6 +2625,39 @@ def get_storage_info():
                 print(f"Error reading {drive}: {e}")
     
     return storage_info
+
+def get_lastfm_url(artist_name):
+    """Generate Last.fm URL for an artist"""
+    if not artist_name:
+        return None
+    
+    # Clean the artist name for URL
+    import urllib.parse
+    # Replace spaces with + for Last.fm URL format
+    clean_name = artist_name.replace(' ', '+')
+    # URL encode for special characters
+    encoded_name = urllib.parse.quote(clean_name)
+    
+    return f"https://www.last.fm/music/{encoded_name}"
+
+def is_music_artist(poster_data):
+    """Check if a poster represents a music artist"""
+    if not poster_data:
+        return False
+    
+    # Check if this is from a music library (artist type)
+    # We'll need to check the library context or metadata
+    # For now, we'll check if it has a title but no year (typical for artists)
+    title = poster_data.get("title")
+    year = poster_data.get("year")
+    
+    # If it has a title but no year, it's likely an artist
+    # Also check if the title doesn't look like a movie/show title
+    if title and year is None:
+        # Additional checks could be added here
+        return True
+    
+    return False
 
 def get_template_context():
     """Get common template context data to avoid repetition"""
@@ -2559,12 +2760,18 @@ def ajax_load_library_posters():
                     if title:
                         poster_file = meta.get("poster")
                         poster_url = f"/static/posters/{section_id}/{poster_file}" if poster_file else None
+                        # Check if this is a music artist and add Last.fm URL
+                        is_artist = is_music_artist(meta)
+                        lastfm_url = get_lastfm_url(title) if is_artist else None
+                        
                         title_to_poster[title] = {
                             "poster": poster_url,
                             "title": title,
                             "imdb": meta.get("imdb"),
                             "tmdb": meta.get("tmdb"),
                             "tvdb": meta.get("tvdb"),
+                            "lastfm_url": lastfm_url,
+                            "is_artist": is_artist,
                         }
                 except Exception as e:
                     if debug_mode:
@@ -2580,12 +2787,18 @@ def ajax_load_library_posters():
                 unified_items.append(title_to_poster[title])
             else:
                 # Just the title without poster
+                # Check if this might be a music artist (no year typically indicates artist)
+                is_artist = is_music_artist({"title": title, "year": None})
+                lastfm_url = get_lastfm_url(title) if is_artist else None
+                
                 unified_items.append({
                     "poster": None,
                     "title": title,
                     "imdb": None,
                     "tmdb": None,
                     "tvdb": None,
+                    "lastfm_url": lastfm_url,
+                    "is_artist": is_artist,
                 })
         
         # Group items by letter
@@ -2709,6 +2922,10 @@ def ajax_load_posters_by_letter():
                         # Create a unique key for this item
                         item_key = f"{meta_title}_{meta_year}" if meta_year else meta_title
                         
+                        # Check if this is a music artist and add Last.fm URL
+                        is_artist = is_music_artist(meta)
+                        lastfm_url = get_lastfm_url(meta_title) if is_artist else None
+                        
                         item_to_poster[item_key] = {
                             "poster": poster_url,
                             "title": meta_title,
@@ -2717,6 +2934,8 @@ def ajax_load_posters_by_letter():
                             "imdb": meta.get("imdb"),
                             "tmdb": meta.get("tmdb"),
                             "tvdb": meta.get("tvdb"),
+                            "lastfm_url": lastfm_url,
+                            "is_artist": is_artist,
                         }
                 except Exception as e:
                     if debug_mode:
@@ -2746,6 +2965,10 @@ def ajax_load_posters_by_letter():
             
             if not poster_found:
                 # Just the title without poster
+                # Check if this might be a music artist (no year typically indicates artist)
+                is_artist = is_music_artist({"title": title, "year": year})
+                lastfm_url = get_lastfm_url(title) if is_artist else None
+                
                 unified_items.append({
                     "poster": None,
                     "title": title,
@@ -2754,6 +2977,8 @@ def ajax_load_posters_by_letter():
                     "imdb": None,
                     "tmdb": None,
                     "tvdb": None,
+                    "lastfm_url": lastfm_url,
+                    "is_artist": is_artist,
                 })
         
         return jsonify({
@@ -2943,6 +3168,51 @@ def ajax_update_libraries():
         # Reload environment variables
         load_dotenv(override=True)
         
+        # Update library notes with media type information
+        try:
+            library_notes = load_library_notes()
+            plex_token = os.getenv("PLEX_TOKEN")
+            plex_url = os.getenv("PLEX_URL")
+            
+            if plex_token and plex_url:
+                headers = {"X-Plex-Token": plex_token}
+                
+                # Get all libraries to get their media types
+                url = f"{plex_url}/library/sections"
+                response = requests.get(url, headers=headers, timeout=5)
+                response.raise_for_status()
+                root = ET.fromstring(response.text)
+                
+                # Create a mapping of library IDs to their media types
+                id_to_media_type = {}
+                for directory in root.findall(".//Directory"):
+                    key = directory.attrib.get("key")
+                    media_type = directory.attrib.get("type")
+                    if key and media_type:
+                        id_to_media_type[key] = media_type
+                
+                # Update library notes with media types
+                updated = False
+                for lib_id in library_ids:
+                    if lib_id not in library_notes:
+                        library_notes[lib_id] = {}
+                    
+                    media_type = id_to_media_type.get(lib_id)
+                    if media_type and library_notes[lib_id].get('media_type') != media_type:
+                        library_notes[lib_id]['media_type'] = media_type
+                        updated = True
+                        if debug_mode:
+                            print(f"[DEBUG] Updated media type for library {lib_id}: {media_type}")
+                
+                if updated:
+                    save_library_notes(library_notes)
+                    if debug_mode:
+                        print(f"[INFO] Updated media types for {len(library_ids)} libraries")
+                        
+        except Exception as e:
+            if debug_mode:
+                print(f"[WARN] Failed to update library media types: {e}")
+        
         if debug_mode:
             print(f"[INFO] Updated library IDs to: {library_ids}")
         
@@ -3014,6 +3284,7 @@ def get_random_posters():
             
             posters = []
             imdb_ids = []
+            lastfm_urls = []
             
             for fname in selected_files:
                 poster_url = f"/static/posters/{section_id}/{fname}"
@@ -3022,28 +3293,129 @@ def get_random_posters():
                 # Load metadata
                 json_path = os.path.join(poster_dir, fname.rsplit('.', 1)[0] + '.json')
                 imdb_id = None
+                lastfm_url = None
                 try:
                     if os.path.exists(json_path):
                         with open(json_path, 'r', encoding='utf-8') as f:
                             meta = json.load(f)
                             imdb_id = meta.get('imdb')
+                            # Check if this is a music artist
+                            is_artist = is_music_artist(meta)
+                            if is_artist:
+                                title = meta.get('title')
+                                lastfm_url = get_lastfm_url(title) if title else None
                 except (IOError, json.JSONDecodeError) as e:
                     print(f"Error loading metadata for {fname}: {e}")
                     pass
                 
                 imdb_ids.append(imdb_id)
+                lastfm_urls.append(lastfm_url)
             
             print(f"Returning {len(posters)} posters for {library_name}")
             return jsonify({
                 "posters": posters,
-                "imdb_ids": imdb_ids
+                "imdb_ids": imdb_ids,
+                "lastfm_urls": lastfm_urls
             })
         else:
             print(f"Poster directory does not exist: {poster_dir}")
-            return jsonify({"posters": [], "imdb_ids": []})
+            return jsonify({"posters": [], "imdb_ids": [], "lastfm_urls": []})
             
     except Exception as e:
         print(f"Error getting random posters for {library_name}: {e}")
+        return jsonify({"error": "Failed to get posters"}), 500
+
+@app.route("/ajax/get-random-posters-all", methods=["POST"])
+@csrf.exempt
+def get_random_posters_all():
+    """Get random posters from all libraries combined (excluding music by default)"""
+    if not session.get("authenticated"):
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No JSON data"}), 400
+    
+    count = data.get('count', 5)
+    include_music = data.get('include_music', False)  # Default to False
+    
+    print(f"Requested posters from all libraries, count: {count}, include_music: {include_music}")
+    
+    try:
+        # Get all libraries
+        libraries = get_plex_libraries()
+        all_posters = []
+        all_imdb_ids = []
+        all_lastfm_urls = []
+        
+        # Collect posters from all libraries (excluding music unless explicitly requested)
+        for lib in libraries:
+            section_id = lib["key"]
+            media_type = lib.get("media_type", "")
+            
+            # Skip music libraries unless explicitly requested
+            if media_type == "artist" and not include_music:
+                if debug_mode:
+                    print(f"Skipping music library: {lib['title']}")
+                continue
+                
+            poster_dir = os.path.join("static", "posters", section_id)
+            
+            if os.path.exists(poster_dir):
+                # Get all image files
+                all_files = [f for f in os.listdir(poster_dir) if f.lower().endswith(('.webp', '.jpg', '.jpeg', '.png'))]
+                
+                for fname in all_files:
+                    poster_url = f"/static/posters/{section_id}/{fname}"
+                    all_posters.append(poster_url)
+                    
+                    # Load metadata
+                    json_path = os.path.join(poster_dir, fname.rsplit('.', 1)[0] + '.json')
+                    imdb_id = None
+                    lastfm_url = None
+                    try:
+                        if os.path.exists(json_path):
+                            with open(json_path, 'r', encoding='utf-8') as f:
+                                meta = json.load(f)
+                                imdb_id = meta.get('imdb')
+                                # Check if this is a music artist
+                                is_artist = is_music_artist(meta)
+                                if is_artist:
+                                    title = meta.get('title')
+                                    lastfm_url = get_lastfm_url(title) if title else None
+                    except (IOError, json.JSONDecodeError) as e:
+                        print(f"Error loading metadata for {fname}: {e}")
+                        pass
+                    
+                    all_imdb_ids.append(imdb_id)
+                    all_lastfm_urls.append(lastfm_url)
+        
+        if not all_posters:
+            print("No posters found in any library")
+            return jsonify({"posters": [], "imdb_ids": [], "lastfm_urls": []})
+        
+        # Get random posters from all libraries combined
+        import random
+        if len(all_posters) > count:
+            # Get random indices
+            indices = random.sample(range(len(all_posters)), count)
+            selected_posters = [all_posters[i] for i in indices]
+            selected_imdb_ids = [all_imdb_ids[i] for i in indices]
+            selected_lastfm_urls = [all_lastfm_urls[i] for i in indices]
+        else:
+            selected_posters = all_posters
+            selected_imdb_ids = all_imdb_ids
+            selected_lastfm_urls = all_lastfm_urls
+        
+        print(f"Returning {len(selected_posters)} posters from all libraries")
+        return jsonify({
+            "posters": selected_posters,
+            "imdb_ids": selected_imdb_ids,
+            "lastfm_urls": selected_lastfm_urls
+        })
+            
+    except Exception as e:
+        print(f"Error getting random posters from all libraries: {e}")
         return jsonify({"error": "Failed to get posters"}), 500
 
 if __name__ == "__main__":
@@ -3055,6 +3427,10 @@ if __name__ == "__main__":
     
     # Check if this is the first run (setup not complete)
     is_first_run = os.getenv("SETUP_COMPLETE", "0") != "1"
+    
+    # Recreate library notes on startup (only in main process, not reloader)
+    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        recreate_library_notes()
     
     # Start background poster worker (only in main process, not reloader)
     if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':

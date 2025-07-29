@@ -41,6 +41,7 @@
           <tr>
             <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Email</th>
             <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Libraries</th>
+            <!-- <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Explicit Content</th> -->
             <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Action</th>
           </tr>
         </thead>
@@ -49,6 +50,13 @@
             <tr data-plex-index="{{ loop.index0 }}">
               <td style="padding:0.5em;">{{ submission.email }}</td>
               <td style="padding:0.5em;">{{ submission.libraries_titles | join(', ') }}</td>
+              <!-- <td style="padding:0.5em;">
+                {% if submission.explicit_content %}
+                  <span style="color: #4CAF50; font-weight: bold;">✓ Yes</span>
+                {% else %}
+                  <span style="color: #888;">No</span>
+                {% endif %}
+              </td> -->
               <td style="padding:0.5em;">
                 <button type="button" onclick="deletePlexRequest({{ loop.index0 }})" style="padding:0.3em 0.8em; font-size:0.9em; margin-top:1em;">Delete</button>
               </td>
@@ -83,7 +91,11 @@
                 <strong>{{ submission.email }}</strong>
               </label>
               <div style="margin-left: 1.5em; margin-top: 0.3em; color: #aaa; font-size: 0.9em;">
-                Libraries: {{ submission.libraries_titles | join(', ') }} | Submitted: {{ submission.submitted_at[:10] }}
+                Libraries: {{ submission.libraries_titles | join(', ') }} | 
+                <!-- {% if submission.explicit_content %}
+                  <span style="color: #4CAF50;">✓ Explicit content requested</span> | 
+                {% endif %} -->
+                Submitted: {{ submission.submitted_at[:10] }}
               </div>
             </div>
           {% endfor %}
@@ -138,6 +150,9 @@
 
     {% if ABS_ENABLED == 'yes' %}
     <h2 style="margin-top:3em;">Audiobookshelf Requests</h2>
+    <div style="color: #888; font-size: 0.9em; margin-bottom: 1em;">
+      Note: Passwords are censored for security. They are still available for user creation.
+    </div>
       {% if audiobookshelf_submissions %}
         <div class="scrollable-table-container">
         <table style="width:100%; border-collapse: collapse; margin-top: 1em;">
@@ -154,7 +169,7 @@
               <tr data-abs-index="{{ loop.index0 }}">
                 <td style="padding:0.5em;">{{ submission.email }}</td>
                 <td style="padding:0.5em;">{{ submission.username }}</td>
-                <td style="padding:0.5em;">{{ submission.password }}</td>
+                <td style="padding:0.5em;">••••••••</td>
                 <td style="padding:0.5em;">
                   <button type="button" onclick="deleteAbsRequest({{ loop.index0 }})" style="padding:0.3em 0.8em; font-size:0.9em; margin-top:1em;">Delete</button>
                 </td>
@@ -187,7 +202,7 @@
                     <strong>{{ submission.username }}</strong> ({{ submission.email }})
                   </label>
                   <div style="margin-left: 1.5em; margin-top: 0.3em; color: #aaa; font-size: 0.9em;">
-                    Password: {{ submission.password }} | Submitted: {{ submission.submitted_at[:10] }}
+                    Password: •••••••• | Submitted: {{ submission.submitted_at[:10] }}
                   </div>
                 </div>
               {% endfor %}
