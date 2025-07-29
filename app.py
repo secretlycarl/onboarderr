@@ -757,13 +757,30 @@ def onboarding():
     library_map = {lib["key"]: lib["title"] for lib in all_libraries}
     
     # Check if any library has media_type of "artist" (music)
-    has_music_library = any(lib.get("media_type") == "artist" for lib in all_libraries)
+    # Only check currently available libraries that are actually shown in the UI
+    has_music_library = any(lib.get("media_type") == "artist" for lib in libraries)
     
     if debug_mode:
         print(f"[DEBUG] Music library check: {has_music_library}")
+        print(f"[DEBUG] Total libraries from Plex API: {len(all_libraries)}")
+        print(f"[DEBUG] Libraries shown in UI: {len(libraries)}")
+        print(f"[DEBUG] All libraries from Plex API:")
         for lib in all_libraries:
+            print(f"[DEBUG]   - {lib['title']} (ID: {lib['key']}, type: {lib.get('media_type', 'unknown')})")
+        print(f"[DEBUG] Libraries shown in UI:")
+        for lib in libraries:
+            print(f"[DEBUG]   - {lib['title']} (ID: {lib['key']}, type: {lib.get('media_type', 'unknown')})")
             if lib.get("media_type") == "artist":
-                print(f"[DEBUG] Found music library: {lib['title']} (ID: {lib['key']})")
+                print(f"[DEBUG] Found music library in UI: {lib['title']} (ID: {lib['key']})")
+        # Also check library_notes.json for comparison
+        library_notes = load_library_notes()
+        music_in_notes = [lib_id for lib_id, note in library_notes.items() 
+                         if note.get('media_type') == 'artist']
+        if music_in_notes:
+            print(f"[DEBUG] Music libraries in library_notes.json: {music_in_notes}")
+            for lib_id in music_in_notes:
+                if lib_id not in [lib['key'] for lib in all_libraries]:
+                    print(f"[DEBUG] Music library {lib_id} exists in notes but not in current Plex API")
     
     # Determine which library should be default
     default_library_name = "random-all"  # Default to random-all
