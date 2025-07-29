@@ -153,7 +153,7 @@
                   if (item.imdb) {
                     links.push(`<a href="https://www.imdb.com/title/${item.imdb}" target="_blank">IMDB</a>`);
                   }
-                  if (item.lastfm_url && item.is_artist) {
+                  if (item.lastfm_url && item.is_artist === true && !item.imdb) {
                     links.push(`<a href="${item.lastfm_url}" target="_blank">Last.fm</a>`);
                   }
                   
