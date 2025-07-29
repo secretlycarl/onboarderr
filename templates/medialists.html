@@ -147,11 +147,22 @@
                     html += `<img src="${item.poster}" alt="${item.title} poster" style="width: 32px; vertical-align: middle; border-radius: 4px; margin-right: 0.5em;" />`;
                   }
                   html += `<span style="font-weight: bold;">${item.title}</span>`;
+                  
+                  // Add external links
+                  const links = [];
                   if (item.imdb) {
-                    html += `<span style="font-size: 0.9em;">
-                      <a href="https://www.imdb.com/title/${item.imdb}" target="_blank">IMDB</a>
-                    </span>`;
+                    links.push(`<a href="https://www.imdb.com/title/${item.imdb}" target="_blank">IMDB</a>`);
                   }
+                  if (item.lastfm_url && item.is_artist) {
+                    links.push(`<a href="${item.lastfm_url}" target="_blank">Last.fm</a>`);
+                  }
+                  
+                  if (links.length > 0) {
+                    html += `<span style="font-size: 0.9em; margin-left: 0.5em;">`;
+                    html += links.join(' | ');
+                    html += '</span>';
+                  }
+                  
                   html += '</li>';
                 }
                 
