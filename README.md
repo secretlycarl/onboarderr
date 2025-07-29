@@ -1,9 +1,9 @@
 # ATTENTION
-If you're reading this, the repo recently had a big update that might break current installs, and makes some sections of the readme inaccurate. You no longer need to edit the `.env` file before running app.py for the first time. 
+If you're reading this, the repo recently had a big update that might break current installs, and makes some sections of the readme inaccurate. 
 
-Setup is much easier now! just docker compose and tweak all initial settings on the site itself.
+Setup is much easier now! just docker compose (tweak mounts first on `ccompose.yml`) and set all initial settings on the site itself.
 
-The readme (and screenshots) are being updated.
+The readme is mostly accurate, but new screenshots will be added soon.
 
 [How to Update](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#updates)
 
