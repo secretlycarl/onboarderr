@@ -23,37 +23,20 @@
     </p>
 
     {% set library_list = library_posters.keys()|list %}
-    {% set mid_point = (library_list|length / 2)|round(0, 'ceil')|int %}
-    {% set row1_libraries = library_list[:mid_point] %}
-    {% set row2_libraries = library_list[mid_point:] %}
 
-    <!-- Row 1 -->
+    <!-- Single Carousel with Library Selector -->
     <div class="carousel-row">
       <div class="poster-carousel-container">
-        <div class="poster-carousel animate" id="row0-carousel"></div>
+        <div class="poster-carousel animate" id="main-carousel"></div>
       </div>
       
-      <div class="row-selector">
-        {% for lib_name in row1_libraries %}
-          <button class="row-tab {% if loop.first %}active{% endif %}" data-row="0" data-library="{{ lib_name }}">{{ lib_name }}</button>
+      <div class="library-selector">
+        <button class="library-tab {% if default_library == 'random-all' %}active{% endif %}" data-library="random-all">🎲 Random All</button>
+        {% for lib_name in library_list %}
+          <button class="library-tab {% if default_library == lib_name %}active{% endif %}" data-library="{{ lib_name }}">{{ lib_name }}</button>
         {% endfor %}
       </div>
     </div>
-
-    <!-- Row 2 (only if we have libraries for it) -->
-    {% if row2_libraries %}
-      <div class="carousel-row">
-        <div class="poster-carousel-container">
-          <div class="poster-carousel animate" id="row1-carousel"></div>
-        </div>
-        
-        <div class="row-selector">
-          {% for lib_name in row2_libraries %}
-            <button class="row-tab {% if loop.first %}active{% endif %}" data-row="1" data-library="{{ lib_name }}">{{ lib_name }}</button>
-          {% endfor %}
-        </div>
-      </div>
-    {% endif %}
 
     <p class="muted" style="margin-top: 1em; text-align: center; color: #aaa;">
       Random selection of posters from each library. Go <a href="/medialists" class="accent">here</a> for the full list.
@@ -106,6 +89,17 @@
               If you picked any audio category, check out Plex's audio app for phones and tablets, Plexamp. You can find a link in "Logging In" below.
             </p>
           </div>
+          
+          <div style="margin: 1em 0;">
+            <label class="onboard-checkbox-label">
+              <input type="checkbox" name="explicit_content" value="yes" {% if submitted %}disabled{% endif %} />
+              <span>I would like access to explicit content (R-rated movies, mature shows, etc.)</span>
+            </label>
+            <div style="margin-left: 1.5em; color: #888; font-size: 0.9em;">
+              This includes movies and shows with mature themes, violence, or adult content.
+            </div>
+          </div>
+          
           <button type="submit" {% if submitted %}disabled{% endif %}>Submit</button>
         </form>
         <div id="onboarding-success" style="display:none;">
@@ -401,31 +395,21 @@
       const libraryPosters = JSON.parse('{{ library_posters|tojson|safe }}');
       const posterImdbIds = JSON.parse('{{ poster_imdb_ids|tojson|safe if poster_imdb_ids else "{}" }}');
       
-      // Track current library for each row
-      const currentLibraries = {
-        0: null,
-        1: null
-      };
+      // Track current library
+      let currentLibrary = null;
       
-      // Load initial carousels
-      const firstRowTab = document.querySelector('.row-tab[data-row="0"]');
-      const secondRowTab = document.querySelector('.row-tab[data-row="1"]');
+      // Load initial carousel with default library
+      const defaultLibrary = '{{ default_library }}';
+      const defaultTab = document.querySelector(`.library-tab[data-library="${defaultLibrary}"]`);
       
       console.log('Available library data:', libraryPosters);
-      console.log('First row tab:', firstRowTab);
-      console.log('Second row tab:', secondRowTab);
+      console.log('Default library:', defaultLibrary);
+      console.log('Default tab:', defaultTab);
       
-      if (firstRowTab) {
-        const libraryName = firstRowTab.getAttribute('data-library');
-        console.log('Loading first carousel with library:', libraryName);
-        currentLibraries[0] = libraryName;
-        loadCarousel('row0-carousel', libraryName);
-      }
-      if (secondRowTab) {
-        const libraryName = secondRowTab.getAttribute('data-library');
-        console.log('Loading second carousel with library:', libraryName);
-        currentLibraries[1] = libraryName;
-        loadCarousel('row1-carousel', libraryName);
+      if (defaultTab) {
+        console.log(`Loading carousel with ${defaultLibrary}`);
+        currentLibrary = defaultLibrary;
+        loadCarousel('main-carousel', defaultLibrary);
       }
       
       function loadCarousel(carouselId, library) {
@@ -455,14 +439,21 @@
           try {
             console.log(`Fetching ${count} random posters for library: "${library}"`);
             
-            const requestData = {
-              library: library,
+            let endpoint = '/ajax/get-random-posters';
+            let requestData = {
               count: count
             };
             
+            if (library === 'random-all') {
+              endpoint = '/ajax/get-random-posters-all';
+              console.log('Using random-all endpoint');
+            } else {
+              requestData.library = library;
+            }
+            
             console.log('Sending request data:', requestData);
             
-            const response = await fetch('/ajax/get-random-posters', {
+            const response = await fetch(endpoint, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -572,7 +563,28 @@
                 appendPostersToCarousel(data.posters, data.imdb_ids);
               } else {
                 // If AJAX fails, try fallback data
-                if (libraryPosters[library] && libraryPosters[library].length > 0) {
+                if (library === 'random-all') {
+                  // For random-all, combine all available posters
+                  const allPosters = [];
+                  const allImdbIds = [];
+                  Object.keys(libraryPosters).forEach(libName => {
+                    if (libraryPosters[libName] && libraryPosters[libName].length > 0) {
+                      allPosters.push(...libraryPosters[libName]);
+                      const imdbIds = posterImdbIds[libName] || [];
+                      allImdbIds.push(...imdbIds);
+                    }
+                  });
+                  if (allPosters.length > 0) {
+                    // Get random selection from all posters
+                    const indices = [];
+                    for (let i = 0; i < Math.min(5, allPosters.length); i++) {
+                      indices.push(Math.floor(Math.random() * allPosters.length));
+                    }
+                    const nextBatch = indices.map(i => allPosters[i]);
+                    const nextImdbIds = indices.map(i => allImdbIds[i] || null);
+                    appendPostersToCarousel(nextBatch, nextImdbIds);
+                  }
+                } else if (libraryPosters[library] && libraryPosters[library].length > 0) {
                   const posters = libraryPosters[library];
                   const imdbIds = posterImdbIds[library] || [];
                   const nextBatch = posters.slice(0, 5);
@@ -604,7 +616,45 @@
           } else {
             // Fallback to original library_posters data if AJAX fails
             console.log('AJAX failed, using fallback data for', library);
-            if (libraryPosters[library] && libraryPosters[library].length > 0) {
+            if (library === 'random-all') {
+              // For random-all, combine all available posters
+              const allPosters = [];
+              const allImdbIds = [];
+              Object.keys(libraryPosters).forEach(libName => {
+                if (libraryPosters[libName] && libraryPosters[libName].length > 0) {
+                  allPosters.push(...libraryPosters[libName]);
+                  const imdbIds = posterImdbIds[libName] || [];
+                  allImdbIds.push(...imdbIds);
+                }
+              });
+              if (allPosters.length > 0) {
+                // Get random selection from all posters
+                const indices = [];
+                for (let i = 0; i < Math.min(15, allPosters.length); i++) {
+                  indices.push(Math.floor(Math.random() * allPosters.length));
+                }
+                const initialPosters = indices.map(i => allPosters[i]);
+                const initialImdbIds = indices.map(i => allImdbIds[i] || null);
+                
+                addPostersToCarousel(initialPosters, initialImdbIds);
+                
+                // Start animation with fallback loading
+                setupInfiniteCarousel(carousel, () => {
+                  // Load more random posters
+                  const nextIndices = [];
+                  for (let i = 0; i < Math.min(5, allPosters.length); i++) {
+                    nextIndices.push(Math.floor(Math.random() * allPosters.length));
+                  }
+                  const nextBatch = nextIndices.map(i => allPosters[i]);
+                  const nextImdbIds = nextIndices.map(i => allImdbIds[i] || null);
+                  if (nextBatch.length > 0) {
+                    appendPostersToCarousel(nextBatch, nextImdbIds);
+                  }
+                });
+              } else {
+                addPostersToCarousel([], []);
+              }
+            } else if (libraryPosters[library] && libraryPosters[library].length > 0) {
               const posters = libraryPosters[library];
               const imdbIds = posterImdbIds[library] || [];
               
@@ -632,7 +682,44 @@
         }).catch(error => {
           console.error('Error in initial poster loading:', error);
           // Fallback to original library_posters data
-          if (libraryPosters[library] && libraryPosters[library].length > 0) {
+          if (library === 'random-all') {
+            // For random-all, combine all available posters
+            const allPosters = [];
+            const allImdbIds = [];
+            Object.keys(libraryPosters).forEach(libName => {
+              if (libraryPosters[libName] && libraryPosters[libName].length > 0) {
+                allPosters.push(...libraryPosters[libName]);
+                const imdbIds = posterImdbIds[libName] || [];
+                allImdbIds.push(...imdbIds);
+              }
+            });
+            if (allPosters.length > 0) {
+              // Get random selection from all posters
+              const indices = [];
+              for (let i = 0; i < Math.min(15, allPosters.length); i++) {
+                indices.push(Math.floor(Math.random() * allPosters.length));
+              }
+              const initialPosters = indices.map(i => allPosters[i]);
+              const initialImdbIds = indices.map(i => allImdbIds[i] || null);
+              
+              addPostersToCarousel(initialPosters, initialImdbIds);
+              
+              setupInfiniteCarousel(carousel, () => {
+                // Load more random posters
+                const nextIndices = [];
+                for (let i = 0; i < Math.min(5, allPosters.length); i++) {
+                  nextIndices.push(Math.floor(Math.random() * allPosters.length));
+                }
+                const nextBatch = nextIndices.map(i => allPosters[i]);
+                const nextImdbIds = nextIndices.map(i => allImdbIds[i] || null);
+                if (nextBatch.length > 0) {
+                  appendPostersToCarousel(nextBatch, nextImdbIds);
+                }
+              });
+            } else {
+              addPostersToCarousel([], []);
+            }
+          } else if (libraryPosters[library] && libraryPosters[library].length > 0) {
             const posters = libraryPosters[library];
             const imdbIds = posterImdbIds[library] || [];
             
@@ -655,26 +742,26 @@
         });
       }
       
-      rowTabs.forEach(tab => {
+      // Library tab switching functionality
+      const libraryTabs = document.querySelectorAll('.library-tab');
+      
+      libraryTabs.forEach(tab => {
         tab.addEventListener('click', function() {
-          const targetRow = this.getAttribute('data-row');
           const targetLibrary = this.getAttribute('data-library');
           
           // Only reload if library actually changed
-          if (currentLibraries[targetRow] !== targetLibrary) {
-            console.log(`Switching row ${targetRow} from ${currentLibraries[targetRow]} to ${targetLibrary}`);
+          if (currentLibrary !== targetLibrary) {
+            console.log(`Switching from ${currentLibrary} to ${targetLibrary}`);
             
-            // Update active tab for this row
-            const rowTabsForThisRow = document.querySelectorAll(`.row-tab[data-row="${targetRow}"]`);
-            rowTabsForThisRow.forEach(t => t.classList.remove('active'));
+            // Update active tab
+            libraryTabs.forEach(t => t.classList.remove('active'));
             this.classList.add('active');
             
             // Update current library tracking
-            currentLibraries[targetRow] = targetLibrary;
+            currentLibrary = targetLibrary;
             
             // Load new carousel data
-            const carouselId = `row${targetRow}-carousel`;
-            loadCarousel(carouselId, targetLibrary);
+            loadCarousel('main-carousel', targetLibrary);
           }
         });
       });
@@ -701,7 +788,7 @@
       // --- Improved Infinite Carousel Logic ---
       function setupInfiniteCarousel(carousel, onLoadMore = null) {
         const container = carousel.parentElement;
-        let scrollSpeed = 0.6; // px per frame - 25% slower (was 0.8)
+        let scrollSpeed = 0.5; // px per frame - increased for better visibility
         let isPaused = false;
         let offset = 0;
         let lastLoadCheck = 0;
@@ -820,8 +907,14 @@
         animate();
 
         // Pause on hover - store handlers to prevent duplicates
-        carousel._mouseEnterHandler = () => { isPaused = true; };
-        carousel._mouseLeaveHandler = () => { isPaused = false; };
+        carousel._mouseEnterHandler = () => { 
+          isPaused = true; 
+          console.log('Carousel paused on hover');
+        };
+        carousel._mouseLeaveHandler = () => { 
+          isPaused = false; 
+          console.log('Carousel resumed on mouse leave');
+        };
         container.addEventListener('mouseenter', carousel._mouseEnterHandler);
         container.addEventListener('mouseleave', carousel._mouseLeaveHandler);
         

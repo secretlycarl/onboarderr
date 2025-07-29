@@ -549,6 +549,26 @@ details > summary.collapsible-heading {
   color: white;
 }
 
+.library-tab {
+  padding: 0.5em 1em;
+  border: 2px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9em;
+  white-space: nowrap;
+  width: auto;
+  min-width: fit-content;
+}
+
+.library-tab:hover,
+.library-tab.active {
+  background: var(--accent);
+  color: white;
+}
+
 .row-selector {
   display: flex;
   justify-content: center;
@@ -582,6 +602,15 @@ details > summary.collapsible-heading {
   }
   
   .row-selector button {
+    padding: 0.4em 0.8em;
+    font-size: 0.8em;
+  }
+  
+  .library-selector {
+    gap: 0.5em;
+  }
+  
+  .library-tab {
     padding: 0.4em 0.8em;
     font-size: 0.8em;
   }

@@ -580,6 +580,7 @@ def onboarding():
     if request.method == "POST":
         email = request.form.get("email")
         selected_keys = request.form.getlist("libraries")
+        explicit_content = request.form.get("explicit_content") == "yes"
 
         if email and selected_keys:
             all_libraries = get_plex_libraries()
@@ -589,6 +590,7 @@ def onboarding():
                 "email": email,
                 "libraries_keys": selected_keys,
                 "libraries_titles": selected_titles,
+                "explicit_content": explicit_content,
                 "submitted_at": datetime.utcnow().isoformat() + "Z"
             }
             submissions = load_json_file("plex_submissions.json", [])
@@ -662,6 +664,28 @@ def onboarding():
     overseerr_enabled = bool(os.getenv("OVERSEERR"))
     overseerr_url = os.getenv("OVERSEERR", "")
     tautulli_enabled = bool(os.getenv("TAUTULLI"))
+    
+    # Get default library setting
+    default_library = os.getenv("DEFAULT_LIBRARY", "all")
+    
+    # Get all libraries to map numbers to names
+    all_libraries = get_plex_libraries()
+    library_map = {lib["key"]: lib["title"] for lib in all_libraries}
+    
+    # Determine which library should be default
+    default_library_name = "random-all"  # Default to random-all
+    if default_library != "all":
+        try:
+            # Parse comma-separated library numbers
+            library_numbers = [num.strip() for num in default_library.split(",")]
+            # Use the first valid library number
+            for lib_num in library_numbers:
+                if lib_num in library_map:
+                    default_library_name = library_map[lib_num]
+                    break
+        except Exception as e:
+            if debug_mode:
+                print(f"Error parsing DEFAULT_LIBRARY: {e}")
 
     return render_template(
         "onboarding.html",
@@ -673,7 +697,8 @@ def onboarding():
         overseerr_url=overseerr_url,
         tautulli_enabled=tautulli_enabled,
         library_posters=library_posters,
-        poster_imdb_ids=poster_imdb_ids
+        poster_imdb_ids=poster_imdb_ids,
+        default_library=default_library_name
     )
 
 @app.route("/audiobookshelf", methods=["GET", "POST"])
@@ -3044,6 +3069,79 @@ def get_random_posters():
             
     except Exception as e:
         print(f"Error getting random posters for {library_name}: {e}")
+        return jsonify({"error": "Failed to get posters"}), 500
+
+@app.route("/ajax/get-random-posters-all", methods=["POST"])
+@csrf.exempt
+def get_random_posters_all():
+    """Get random posters from all libraries combined"""
+    if not session.get("authenticated"):
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No JSON data"}), 400
+    
+    count = data.get('count', 5)
+    
+    print(f"Requested posters from all libraries, count: {count}")
+    
+    try:
+        # Get all libraries
+        libraries = get_plex_libraries()
+        all_posters = []
+        all_imdb_ids = []
+        
+        # Collect posters from all libraries
+        for lib in libraries:
+            section_id = lib["key"]
+            poster_dir = os.path.join("static", "posters", section_id)
+            
+            if os.path.exists(poster_dir):
+                # Get all image files
+                all_files = [f for f in os.listdir(poster_dir) if f.lower().endswith(('.webp', '.jpg', '.jpeg', '.png'))]
+                
+                for fname in all_files:
+                    poster_url = f"/static/posters/{section_id}/{fname}"
+                    all_posters.append(poster_url)
+                    
+                    # Load metadata
+                    json_path = os.path.join(poster_dir, fname.rsplit('.', 1)[0] + '.json')
+                    imdb_id = None
+                    try:
+                        if os.path.exists(json_path):
+                            with open(json_path, 'r', encoding='utf-8') as f:
+                                meta = json.load(f)
+                                imdb_id = meta.get('imdb')
+                    except (IOError, json.JSONDecodeError) as e:
+                        print(f"Error loading metadata for {fname}: {e}")
+                        pass
+                    
+                    all_imdb_ids.append(imdb_id)
+        
+        if not all_posters:
+            print("No posters found in any library")
+            return jsonify({"posters": [], "imdb_ids": []})
+        
+        # Get random posters from all libraries combined
+        import random
+        if len(all_posters) > count:
+            # Get random indices
+            indices = random.sample(range(len(all_posters)), count)
+            selected_posters = [all_posters[i] for i in indices]
+            selected_imdb_ids = [all_imdb_ids[i] for i in indices]
+        else:
+            selected_posters = all_posters
+            selected_imdb_ids = all_imdb_ids
+        
+        print(f"Returning {len(selected_posters)} posters from all libraries")
+        return jsonify({
+            "posters": selected_posters,
+            "imdb_ids": selected_imdb_ids
+        })
+            
+    except Exception as e:
+        print(f"Error getting random posters from all libraries: {e}")
         return jsonify({"error": "Failed to get posters"}), 500
 
 if __name__ == "__main__":
