@@ -38,6 +38,7 @@ import hmac
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import yaml
 
 # Before load_dotenv()
 if not os.path.exists('.env') and os.path.exists('empty.env'):
@@ -59,8 +60,13 @@ def is_running_in_docker():
         # Check for Docker environment variables
         return any(var in os.environ for var in ['DOCKER_CONTAINER', 'KUBERNETES_SERVICE_HOST'])
 
+def load_locale(lang="en"):
+    path = os.path.join("locales", f"{lang}.yaml")
+    with open(path, encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
 # Application configuration
-APP_PORT = 10000
+APP_PORT = 10010
 
 def get_app_url():
     """Determine the correct URL to open in browser"""
@@ -656,7 +662,13 @@ def create_abs_user(username, password, user_type="user", permissions=None):
 def onboarding():
     if not session.get("authenticated"):
         return redirect(url_for("login"))
+    
+    lang = request.args.get("lang") or session.get("lang", "en")
+    session["lang"] = lang
 
+    # 2. Carica il file YAML della lingua scelta
+    t = load_locale(lang)
+    
     submitted = False
     library_notes = load_library_notes()
     selected_ids = os.getenv("LIBRARY_IDS", "").split(",") if os.getenv("LIBRARY_IDS") else []
@@ -813,7 +825,9 @@ def onboarding():
         poster_imdb_ids=poster_imdb_ids,
         default_library=default_library_name,
         has_music_library=has_music_library,
-        services=services
+        services=services,
+        t=t,
+    	lang=lang
     )
 
 @app.route("/audiobookshelf", methods=["GET", "POST"])
