@@ -2,106 +2,205 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Setup Complete</title>
     <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}">
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/modern-style.css">
     <style>
+        :root {
+            --accent-color: {{ ACCENT_COLOR or "#d33fbc" }};
+        }
+        
+        .complete-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem 1rem;
+            background: linear-gradient(135deg, var(--bg) 0%, #1a1a2e 100%);
+        }
+        
+        .complete-card {
+            max-width: 500px;
+            width: 100%;
+            background: var(--container-bg);
+            border-radius: 1rem;
+            padding: 2.5rem 2rem;
+            text-align: center;
+            box-shadow: var(--shadow-xl);
+            border: 1px solid var(--border);
+        }
+        
+        .complete-logo {
+            max-width: 200px;
+            height: auto;
+            margin: 0 auto 1.5rem;
+            display: block;
+        }
+        
+        .complete-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .complete-message {
+            font-size: 1.1rem;
+            color: var(--success);
+            margin: 1.5rem 0;
+            line-height: 1.6;
+        }
+        
+        .complete-message strong {
+            color: var(--text);
+        }
+        
+        .countdown-container {
+            margin: 2rem 0;
+        }
+        
         .countdown-bar-container {
             width: 100%;
-            background: #eee;
-            border-radius: 8px;
-            margin: 2em 0 1em 0;
-            height: 24px;
-            box-shadow: 0 1px 4px #0001;
+            background: var(--input-bg);
+            border-radius: 0.75rem;
+            margin: 1rem 0;
+            height: 1.5rem;
+            box-shadow: var(--shadow);
             overflow: hidden;
             position: relative;
+            border: 1px solid var(--input-border);
         }
+        
         .countdown-bar {
             height: 100%;
             width: 0%;
-            background: linear-gradient(90deg, #0042ac, #00c6ff);
-            border-radius: 8px 0 0 8px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+            border-radius: 0.75rem 0 0 0.75rem;
             transition: width 0.2s linear;
         }
+        
         .countdown-label {
             position: absolute;
             left: 50%;
             top: 0;
             transform: translateX(-50%);
-            color: #222;
-            font-weight: bold;
-            font-size: 1.1em;
-            line-height: 24px;
+            color: var(--text);
+            font-weight: 600;
+            font-size: 0.9rem;
+            line-height: 1.5rem;
             z-index: 2;
+        }
+        
+        .login-btn {
+            display: none;
+            margin-top: 1.5rem;
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            color: white;
+            border-radius: 0.5rem;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow);
+        }
+        
+        .login-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        @media (max-width: 640px) {
+            .complete-card {
+                padding: 2rem 1.5rem;
+                margin: 1rem;
+            }
+            
+            .complete-title {
+                font-size: 1.5rem;
+            }
+            
+            .complete-message {
+                font-size: 1rem;
+            }
         }
     </style>
 </head>
-<body style="display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
-    <div class="container" style="min-width: 400px; margin: 40px 0; padding: 32px 24px; text-align: center;">
-        <img src="{{ url_for('static', filename=logo_filename) }}" alt="Logo" style="display: block; margin: 0 auto; max-width: 200px" >
-        <h1>Changes Saved!</h1>
-        <p style="font-size: 1.2em; color: #080; margin-top: 2em;">
-            Your configuration has been saved.<br>
-            <b>The server will restart automatically to apply changes.<br><br>
-            If you don't see the login page, please check the logs for errors.</b>
-        </p>
+<body>
+    <div class="complete-container">
+        <div class="complete-card">
+            <img src="{{ url_for('static', filename=logo_filename) }}" alt="Logo" class="complete-logo">
+            <h1 class="complete-title">Changes Saved!</h1>
+            <p class="complete-message">
+                <strong>The server will restart automatically to apply changes.<br><br>
+                If you don't see the login page, please check the logs for errors.</strong>
+            </p>
 
-        <div class="countdown-bar-container">
-            <div class="countdown-bar" id="countdownBar"></div>
-            <span class="countdown-label" id="countdownLabel">Reloading in 20 seconds...</span>
+            <div class="countdown-container">
+                <div class="countdown-bar-container">
+                    <div class="countdown-bar" id="countdownBar"></div>
+                    <span class="countdown-label" id="countdownLabel">Reloading in 20 seconds...</span>
+                </div>
+            </div>
+
+            <a href="/" id="loginBtn" class="login-btn">Go to Login</a>
         </div>
-
-        <a href="/" id="loginBtn" style="display: none; margin-top: 1em; padding: 0.7em 1em; background: #0042ac; color: #ffffff; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 1.1em;">Go to Login</a>
     </div>
+    
     <script>
-window.addEventListener('DOMContentLoaded', function() {
-    setTimeout(function() {
-        fetch('/trigger_restart', {method: 'POST'});
-    }, 1000);
+        window.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                fetch('/trigger_restart', {method: 'POST'});
+            }, 1000);
 
-    var totalSeconds = 15;
-    var elapsed = 0;
-    var bar = document.getElementById('countdownBar');
-    var label = document.getElementById('countdownLabel');
-    var waiting = false;
+            var totalSeconds = 15;
+            var elapsed = 0;
+            var bar = document.getElementById('countdownBar');
+            var label = document.getElementById('countdownLabel');
+            var waiting = false;
 
-    function checkLoginAndRedirect() {
-        document.getElementById('loginBtn').style.display = 'inline-block';
-        label.textContent = 'Checking if login page is online...';
-        fetch('/', {method: 'GET', cache: 'no-store'})
-            .then(function(response) {
-                if (response.ok) {
-                    label.textContent = 'Login page is online! Redirecting...';
-                    setTimeout(function() { window.location.href = '/'; }, 500);
+            function checkLoginAndRedirect() {
+                document.getElementById('loginBtn').style.display = 'inline-block';
+                label.textContent = 'Checking if login page is online...';
+                fetch('/', {method: 'GET', cache: 'no-store'})
+                    .then(function(response) {
+                        if (response.ok) {
+                            label.textContent = 'Login page is online! Redirecting...';
+                            setTimeout(function() { window.location.href = '/'; }, 500);
+                        } else {
+                            label.textContent = 'Waiting for server to come online...';
+                            setTimeout(checkLoginAndRedirect, 1000);
+                        }
+                    })
+                    .catch(function() {
+                        label.textContent = 'Waiting for server to come online...';
+                        setTimeout(checkLoginAndRedirect, 1000);
+                    });
+            }
+
+            function updateBar() {
+                if (waiting) return;
+                elapsed += 0.2;
+                var percent = Math.min(100, (elapsed / totalSeconds) * 100);
+                bar.style.width = percent + '%';
+                var remaining = Math.ceil(totalSeconds - elapsed);
+                label.textContent = 'Reloading in ' + remaining + ' second' + (remaining !== 1 ? 's' : '') + '...';
+                if (elapsed < totalSeconds) {
+                    setTimeout(updateBar, 200);
                 } else {
-                    label.textContent = 'Waiting for server to come online...';
-                    setTimeout(checkLoginAndRedirect, 1000);
+                    waiting = true;
+                    document.getElementById('loginBtn').style.display = 'inline-block';
+                    label.textContent = 'Checking if login page is online...';
+                    checkLoginAndRedirect();
                 }
-            })
-            .catch(function() {
-                label.textContent = 'Waiting for server to come online...';
-                setTimeout(checkLoginAndRedirect, 1000);
-            });
-    }
-
-    function updateBar() {
-        if (waiting) return;
-        elapsed += 0.2;
-        var percent = Math.min(100, (elapsed / totalSeconds) * 100);
-        bar.style.width = percent + '%';
-        var remaining = Math.ceil(totalSeconds - elapsed);
-        label.textContent = 'Reloading in ' + remaining + ' second' + (remaining !== 1 ? 's' : '') + '...';
-        if (elapsed < totalSeconds) {
-            setTimeout(updateBar, 200);
-        } else {
-            waiting = true;
-            document.getElementById('loginBtn').style.display = 'inline-block';
-            label.textContent = 'Checking if login page is online...';
-            checkLoginAndRedirect();
-        }
-    }
-    updateBar();
-});
-</script>
+            }
+            updateBar();
+        });
+    </script>
 </body>
 </html> 

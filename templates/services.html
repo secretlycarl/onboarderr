@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ SERVER_NAME }}</title>
-      <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}">
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}">
+  <link rel="stylesheet" href="/static/modern-style.css">
   <script>
     // Set accent color from environment variable
     document.addEventListener('DOMContentLoaded', function() {
@@ -15,527 +16,576 @@
 </head>
 <body>
   {% include "_bottom_nav.html" %}
-  <div class="container">
-    <h1>Dashboard</h1>
-    {% if custom_services_url %}
-      <div class="custom-services-url" style="margin-bottom:2em;">
-        <a href="{{ custom_services_url }}" target="_blank" style="font-size:1.2em; color:var(--accent);">Open Custom Services Page</a>
-        <!-- Optionally, embed the page below -->
-        <iframe src="{{ custom_services_url }}" style="width:100%;height:600px;border:1px solid #444;margin-top:1em;"></iframe>
-      </div>
-    {% elif show_services %}
-      <div class="services">
-        {% for service in services %}
-          <a href="{{ service.url }}" class="service-box" target="_blank">
-            <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" style="width: 32px; height: 32px; border-radius: 8px;">
-            <span>{{ service.name }}</span>
-          </a>
-        {% endfor %}
-      </div>
-    {% endif %}
 
-    <h2 style="margin-top:3em;">Plex Requests</h2>
-    {% if submissions %}
-      <table style="width:100%; border-collapse: collapse; margin-top: 1em;">
-        <thead>
-          <tr>
-            <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Email</th>
-            <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Libraries</th>
-            <!-- <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Explicit Content</th> -->
-            <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for submission in submissions %}
-            <tr data-plex-index="{{ loop.index0 }}">
-              <td style="padding:0.5em;">{{ submission.email }}</td>
-              <td style="padding:0.5em;">{{ submission.libraries_titles | join(', ') }}</td>
-              <!-- <td style="padding:0.5em;">
-                {% if submission.explicit_content %}
-                  <span style="color: #4CAF50; font-weight: bold;">✓ Yes</span>
-                {% else %}
-                  <span style="color: #888;">No</span>
-                {% endif %}
-              </td> -->
-              <td style="padding:0.5em;">
-                <button type="button" onclick="deletePlexRequest({{ loop.index0 }})" style="padding:0.3em 0.8em; font-size:0.9em; margin-top:1em;">Delete</button>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <p style="margin-top:1em;">No Plex requests found.</p>
-    {% endif %}
-
-    <!-- Plex User Invitation Section -->
-    {% if submissions %}
-    <div style="margin-top: 2em; padding: 1.5em; background: #2a2a2a; border-radius: 0.5em;">
-      <h3 style="margin-top: 0; margin-bottom: 1em; color: var(--accent);">Invite Plex Users</h3>
-      <div style="color: #888; font-size: 0.95em; margin-bottom: 1.5em;">
-        Select submissions to invite users to your Plex server. Users will be invited with access to the selected libraries.
-      </div>
-      <form id="plex-user-invite-form">
-        <div style="margin-bottom: 1.5em;">
-          <label style="display: block; margin-bottom: 0.5em; font-weight: bold;">Select submissions to invite:</label>
-          <div style="margin-bottom: 1em;">
-            <label style="display: flex; align-items: center; font-weight: 500; color: var(--accent);">
-              <input type="checkbox" id="select_all_plex_users" style="margin-right: 0.5em;">
-              Select All
-            </label>
+      <div class="setup-form">
+        <h1 class="setup-title">Dashboard</h1>
+        {% if custom_services_url %}
+          <div class="form-section">
+            <div class="info-box">
+              <span>🔗</span>
+              <span><a href="{{ custom_services_url }}" target="_blank" class="accent" style="font-size: 1.2em;">Open Custom Services Page</a></span>
+            </div>
+            <!-- Optionally, embed the page below -->
+            <iframe src="{{ custom_services_url }}" style="width:100%;height:600px;border:1px solid var(--border);margin-top:1em;border-radius: 0.5rem;"></iframe>
           </div>
-          {% for submission in submissions %}
-            <div style="margin-bottom: 0.8em; padding: 0.8em; background: #333; border-radius: 0.3em;">
-              <input type="checkbox" name="invite_users" value="{{ loop.index0 }}" id="invite_user_{{ loop.index0 }}" class="plex-user-checkbox" style="margin-right: 0.5em;">
-              <label for="invite_user_{{ loop.index0 }}" style="font-weight: 500;">
-                <strong>{{ submission.email }}</strong>
-              </label>
-              <div style="margin-left: 1.5em; margin-top: 0.3em; color: #aaa; font-size: 0.9em;">
-                Libraries: {{ submission.libraries_titles | join(', ') }} | 
-                <!-- {% if submission.explicit_content %}
-                  <span style="color: #4CAF50;">✓ Explicit content requested</span> | 
-                {% endif %} -->
-                Submitted: {{ submission.submitted_at[:10] }}
-              </div>
-            </div>
-          {% endfor %}
-        </div>
-        <button type="button" onclick="invitePlexUsers()" style="padding: 0.6em 1.2em; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; font-weight: bold;">
-          Invite Selected Users to Plex
-        </button>
-      </form>
-      <script>
-        // Select All functionality for Plex user invitation
-        document.addEventListener('DOMContentLoaded', function() {
-          const selectAllCheckbox = document.getElementById('select_all_plex_users');
-          const userCheckboxes = document.querySelectorAll('.plex-user-checkbox');
-          if (selectAllCheckbox && userCheckboxes.length > 0) {
-            selectAllCheckbox.addEventListener('change', function() {
-              userCheckboxes.forEach(checkbox => {
-                checkbox.checked = this.checked;
-              });
-            });
-            userCheckboxes.forEach(checkbox => {
-              checkbox.addEventListener('change', function() {
-                const allChecked = Array.from(userCheckboxes).every(cb => cb.checked);
-                const someChecked = Array.from(userCheckboxes).some(cb => cb.checked);
-                selectAllCheckbox.checked = allChecked;
-                selectAllCheckbox.indeterminate = someChecked && !allChecked;
-              });
-            });
-          }
-        });
-      </script>
-      {% if plex_invite_results %}
-      <div style="margin-top: 2em;">
-        <h4 style="margin-bottom: 1em; color: var(--accent);">Invitation Results:</h4>
-        {% for result in plex_invite_results %}
-          <div style="margin-bottom: 1em; padding: 0.8em; background: {% if result.success %}#1a3a1a{% else %}#3a1a1a{% endif %}; border-radius: 0.3em; border-left: 4px solid {% if result.success %}#4CAF50{% else %}#f44336{% endif %};">
-            <div style="font-weight: bold; margin-bottom: 0.3em;">
-              {{ result.email }}
-            </div>
-            <div style="color: {% if result.success %}#4CAF50{% else %}#f44336{% endif %}; font-weight: 500;">
-              {% if result.success %}
-                ✅ {{ result.message or 'Successfully invited user' }}
-              {% else %}
-                ❌ Failed to invite user: {{ result.error }}
-              {% endif %}
+        {% elif show_services %}
+          <div class="form-section">
+            <h2 class="form-section-title">
+              <span class="form-section-icon">🔗</span>
+              Services
+            </h2>
+            <div class="services-grid">
+              {% for service in services %}
+                <a href="{{ service.url }}" class="service-card" target="_blank">
+                  <div class="service-icon-container">
+                    <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" class="service-icon">
+                  </div>
+                  <span class="service-name">{{ service.name }}</span>
+                </a>
+              {% endfor %}
             </div>
           </div>
-        {% endfor %}
-      </div>
-      {% endif %}
-    </div>
-    {% endif %}
+        {% endif %}
 
-    {% if ABS_ENABLED == 'yes' %}
-    <h2 style="margin-top:3em;">Audiobookshelf Requests</h2>
-    <div style="color: #888; font-size: 0.9em; margin-bottom: 1em;">
-      Note: Passwords are censored for security. They are still available for user creation.
-    </div>
-      {% if audiobookshelf_submissions %}
-        <div class="scrollable-table-container">
-        <table style="width:100%; border-collapse: collapse; margin-top: 1em;">
-          <thead>
-            <tr>
-              <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Email</th>
-              <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Username</th>
-              <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Password</th>
-              <th style="text-align:left; padding:0.5em; border-bottom:1px solid #444;">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for submission in audiobookshelf_submissions %}
-              <tr data-abs-index="{{ loop.index0 }}">
-                <td style="padding:0.5em;">{{ submission.email }}</td>
-                <td style="padding:0.5em;">{{ submission.username }}</td>
-                <td style="padding:0.5em;">••••••••</td>
-                <td style="padding:0.5em;">
-                  <button type="button" onclick="deleteAbsRequest({{ loop.index0 }})" style="padding:0.3em 0.8em; font-size:0.9em; margin-top:1em;">Delete</button>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        </div>
-        
-        <!-- ABS User Creation Section -->
-        <div style="margin-top: 2em; padding: 1.5em; background: #2a2a2a; border-radius: 0.5em;">
-          <h3 style="margin-top: 0; margin-bottom: 1em; color: var(--accent);">Create Audiobookshelf Users</h3>
-          <div style="color: #888; font-size: 0.95em; margin-bottom: 1.5em;">
-            Select submissions to create users in Audiobookshelf. Users will be created with the specified username and password.
-          </div>
-          
-          <form id="abs-user-creation-form">
-            <div style="margin-bottom: 1.5em;">
-              <label style="display: block; margin-bottom: 0.5em; font-weight: bold;">Select submissions to create users:</label>
-              <div style="margin-bottom: 1em;">
-                <label style="display: flex; align-items: center; font-weight: 500; color: var(--accent);">
-                  <input type="checkbox" id="select_all_users" style="margin-right: 0.5em;">
-                  Select All
-                </label>
-              </div>
-              {% for submission in audiobookshelf_submissions %}
-                <div style="margin-bottom: 0.8em; padding: 0.8em; background: #333; border-radius: 0.3em;">
-                  <input type="checkbox" name="create_users" value="{{ loop.index0 }}" id="create_user_{{ loop.index0 }}" class="user-checkbox" style="margin-right: 0.5em;">
-                  <label for="create_user_{{ loop.index0 }}" style="font-weight: 500;">
-                    <strong>{{ submission.username }}</strong> ({{ submission.email }})
+        <div class="form-section">
+          <h2 class="form-section-title">
+            <span class="form-section-icon">📺</span>
+            Plex Requests
+          </h2>
+          {% if submissions %}
+            <div class="scrollable-table-container">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Libraries</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for submission in submissions %}
+                    <tr data-plex-index="{{ loop.index0 }}">
+                      <td>{{ submission.email }}</td>
+                      <td>{{ submission.libraries_titles | join(', ') }}</td>
+                      <td>
+                        <button type="button" onclick="deletePlexRequest({{ loop.index0 }})" class="btn btn-secondary">Delete</button>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="muted">No Plex requests found.</p>
+          {% endif %}
+
+          <!-- Plex User Invitation Section -->
+          {% if submissions %}
+          <div class="form-section">
+            <h3 class="form-section-title">
+              <span class="form-section-icon">👥</span>
+              Invite Plex Users
+            </h3>
+            <div class="info-box">
+              <span>ℹ️</span>
+              <span>Select submissions to invite users to your Plex server. Users will be invited with access to the selected libraries.</span>
+            </div>
+            <form id="plex-user-invite-form">
+              <div class="form-group">
+                <label class="form-label">Select submissions to invite:</label>
+                <div class="checkbox-group">
+                  <label class="checkbox-option">
+                    <input type="checkbox" id="select_all_plex_users">
+                    <span>Select All</span>
                   </label>
-                  <div style="margin-left: 1.5em; margin-top: 0.3em; color: #aaa; font-size: 0.9em;">
-                    Password: •••••••• | Submitted: {{ submission.submitted_at[:10] }}
+                </div>
+                {% for submission in submissions %}
+                  <div class="user-selection-item">
+                    <input type="checkbox" name="invite_users" value="{{ loop.index0 }}" id="invite_user_{{ loop.index0 }}" class="plex-user-checkbox">
+                    <label for="invite_user_{{ loop.index0 }}">
+                      <strong>{{ submission.email }}</strong>
+                      <div class="user-details">
+                        Libraries: {{ submission.libraries_titles | join(', ') }} | 
+                        Submitted: {{ submission.submitted_at[:10] }}
+                      </div>
+                    </label>
+                  </div>
+                {% endfor %}
+              </div>
+              <div class="submit-section">
+                <button type="button" onclick="invitePlexUsers()" class="submit-btn">
+                  Invite Selected Users to Plex
+                </button>
+              </div>
+            </form>
+            {% if plex_invite_results %}
+            <div class="results-section">
+              <h4 class="form-section-title">Invitation Results:</h4>
+              {% for result in plex_invite_results %}
+                <div class="result-item {% if result.success %}success{% else %}error{% endif %}">
+                  <div class="result-title">{{ result.email }}</div>
+                  <div class="result-message">
+                    {% if result.success %}
+                      ✅ {{ result.message or 'Successfully invited user' }}
+                    {% else %}
+                      ❌ Failed to invite user: {{ result.error }}
+                    {% endif %}
                   </div>
                 </div>
               {% endfor %}
             </div>
-            
-            <div style="margin-bottom: 1.5em;">
-              <label style="display: block; margin-bottom: 0.5em; font-weight: bold;">User Type:</label>
-              <select name="user_type" id="abs_user_type" style="padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff; width: 200px;">
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
-                <option value="guest">Guest</option>
-              </select>
-              <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
-                <strong>User:</strong> Standard user access | <strong>Admin:</strong> Full administrative access | <strong>Guest:</strong> Limited access
-              </div>
-            </div>
-            
-            <div style="margin-bottom: 1.5em;">
-              <label style="display: block; margin-bottom: 0.5em; font-weight: bold;">Permissions:</label>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.8em;">
-                <label style="display: flex; align-items: center;">
-                  <input type="checkbox" name="permissions" value="download" checked style="margin-right: 0.5em;">
-                  Download items
-                </label>
-                <label style="display: flex; align-items: center;">
-                  <input type="checkbox" name="permissions" value="update" style="margin-right: 0.5em;">
-                  Update library items
-                </label>
-                <label style="display: flex; align-items: center;">
-                  <input type="checkbox" name="permissions" value="delete" style="margin-right: 0.5em;">
-                  Delete library items
-                </label>
-                <label style="display: flex; align-items: center;">
-                  <input type="checkbox" name="permissions" value="upload" style="margin-right: 0.5em;">
-                  Upload items
-                </label>
-                <label style="display: flex; align-items: center;">
-                  <input type="checkbox" name="permissions" value="accessAllLibraries" checked style="margin-right: 0.5em;">
-                  Access all libraries
-                </label>
-                <label style="display: flex; align-items: center;">
-                  <input type="checkbox" name="permissions" value="accessAllTags" checked style="margin-right: 0.5em;">
-                  Access all tags
-                </label>
-                <label style="display: flex; align-items: center;">
-                  <input type="checkbox" name="permissions" value="accessExplicitContent" checked style="margin-right: 0.5em;">
-                  Access explicit content
-                </label>
-              </div>
-            </div>
-            
-            <button type="button" onclick="createAbsUsers()" style="padding: 0.6em 1.2em; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; font-weight: bold;">
-              Create Selected Users in Audiobookshelf
-            </button>
-          </form>
-          
-          <script>
-            // Select All functionality for ABS user creation
-            document.addEventListener('DOMContentLoaded', function() {
-              const selectAllCheckbox = document.getElementById('select_all_users');
-              const userCheckboxes = document.querySelectorAll('.user-checkbox');
-              
-              if (selectAllCheckbox && userCheckboxes.length > 0) {
-                selectAllCheckbox.addEventListener('change', function() {
-                  userCheckboxes.forEach(checkbox => {
-                    checkbox.checked = this.checked;
-                  });
-                });
-                
-                // Update "Select All" state when individual checkboxes change
-                userCheckboxes.forEach(checkbox => {
-                  checkbox.addEventListener('change', function() {
-                    const allChecked = Array.from(userCheckboxes).every(cb => cb.checked);
-                    const someChecked = Array.from(userCheckboxes).some(cb => cb.checked);
-                    selectAllCheckbox.checked = allChecked;
-                    selectAllCheckbox.indeterminate = someChecked && !allChecked;
-                  });
-                });
-              }
-            });
-          </script>
-          
-          {% if abs_user_creation_results %}
-          <div style="margin-top: 2em;">
-            <h4 style="margin-bottom: 1em; color: var(--accent);">Creation Results:</h4>
-            {% for result in abs_user_creation_results %}
-              <div style="margin-bottom: 1em; padding: 0.8em; background: {% if result.success %}#1a3a1a{% else %}#3a1a1a{% endif %}; border-radius: 0.3em; border-left: 4px solid {% if result.success %}#4CAF50{% else %}#f44336{% endif %};">
-                <div style="font-weight: bold; margin-bottom: 0.3em;">
-                  {{ result.username }} ({{ result.email }})
-                </div>
-                <div style="color: {% if result.success %}#4CAF50{% else %}#f44336{% endif %}; font-weight: 500;">
-                  {% if result.success %}
-                    ✅ Successfully created user
-                  {% else %}
-                    ❌ Failed to create user: {{ result.error }}
-                  {% endif %}
-                </div>
-                {% if result.success and result.user_id %}
-                  <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
-                    User ID: {{ result.user_id }}
-                  </div>
-                {% endif %}
-              </div>
-            {% endfor %}
+            {% endif %}
           </div>
           {% endif %}
         </div>
-      {% else %}
-        <p style="margin-top:1em;">No Audiobookshelf requests found.</p>
-      {% endif %}
-    {% endif %}
 
-    <h2 style="margin-top:3em;">Storage</h2>
-    <div style="margin-top:1em;">
-      {% for drive in storage_info %}
-        <div style="margin-bottom:1em;">
-          <strong>{{ drive.mount }}</strong>: {{ drive.used }} GB used / {{ drive.total }} GB total ({{ drive.percent }}%)
-          <div style="background:#333; height:10px; width:100%; border-radius:3px; margin-top:4px;">
-            <div style="height:100%; width:{{ drive.percent }}%; background:var(--accent); border-radius:3px;"></div>
+        {% if ABS_ENABLED == 'yes' %}
+        <div class="form-section">
+          <h2 class="form-section-title">
+            <span class="form-section-icon">📚</span>
+            Audiobookshelf Requests
+          </h2>
+          <div class="warning-box">
+            <span>⚠️</span>
+            <span>Note: Passwords are censored for security. They are still available for user creation.</span>
           </div>
-        </div>
-      {% endfor %}
-    </div>
-
-    <h2 style="margin-top:3em;">Settings</h2>
-    <div style="margin-bottom:2em;">
-      <form method="post" id="admin-settings-form" style="max-width: 600px;" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div style="margin-bottom: 1.2em; color: #aaa; font-size: 0.98em; display: flex; align-items: center;">
-          <span style="margin-right: 0.5em;">🔑</span>
-          <span style="font-weight: bold; margin-right: 0.3em;">SITE_PASSWORD</span> and <span style="font-weight: bold; margin-left: 0.3em;">ADMIN_PASSWORD&nbsp;</span> must be different.
-        </div>
-        <div class="muted" style="margin-bottom: 1.2em; font-size: 0.98em; margin-left: 2.1em;">
-          Leaving either field blank will keep the current password.
-        </div>
-        <label style="display:block; margin-bottom: 1.2em;">SITE_PASSWORD (for guests):<br>
-          <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
-            <span style="font-size: 1.2em; margin-right: 0.7em;">🔑</span>
-            <input type="text" name="site_password" id="admin_site_password_box" value="{{ SITE_PASSWORD or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
-          </div>
-        </label>
-        <label style="display:block; margin-bottom: 1.2em;">ADMIN_PASSWORD (for admin):<br>
-          <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
-            <span style="font-size: 1.2em; margin-right: 0.7em;">🔑</span>
-            <input type="text" name="admin_password" id="admin_admin_password_box" value="{{ ADMIN_PASSWORD or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
-          </div>
-        </label>
-        <div id="admin-passwords-error" style="color:#f6b900; font-weight:bold; margin-bottom:1em;"></div>
-        <label style="display:block; margin-bottom: 1.2em;">Server Name:<br>
-          <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
-            <img src="{{ url_for('static', filename=logo_filename) }}" alt="Server Name" style="width: 24px; height: 24px; margin-right: 0.7em;">
-            <input type="text" name="server_name" id="server_name" value="{{ SERVER_NAME or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
-          </div>
-        </label>
-        <label style="display:block; margin-bottom: 1.2em;">Accent Color:<br>
-          <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
-            <input type="color" name="accent_color" id="accent_color" value="{{ ACCENT_COLOR or '#d33fbc' }}" style="width: 60px; height: 40px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
-            <input type="text" name="accent_color_text" id="accent_color_text" value="{{ ACCENT_COLOR or '#d33fbc' }}" placeholder="#d33fbc" style="width: 120px; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
-            <span style="color: #888; font-size: 0.9em; margin-left: 10px;">Choose your theme color</span>
-          </div>
-        </label>
-        
-        <div style="margin-bottom: 2em;">
-          <strong style="margin-bottom: 0.5em; display:block;">Custom Branding:</strong>
-          <div style="color: #888; font-size: 0.95em; margin-bottom: 1em;">
-              Upload your own logo and wordmark to customize the appearance. These can be changed later.
-          </div>
-          
-          <label style="display:block; margin-bottom: 1.2em;">Select New Logo:<br>
-              <input type="file" name="logo_file" id="logo_file" accept=".png,.webp,.jpg,.jpeg" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
-              <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
-                .png or .webp, ~350x350, 1:1
+          {% if audiobookshelf_submissions %}
+            <div class="scrollable-table-container">
+              <table class="admin-table">
+                <thead>
+                  <tr>
+                    <th>Email</th>
+                    <th>Username</th>
+                    <th>Password</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for submission in audiobookshelf_submissions %}
+                    <tr data-abs-index="{{ loop.index0 }}">
+                      <td>{{ submission.email }}</td>
+                      <td>{{ submission.username }}</td>
+                      <td>••••••••</td>
+                      <td>
+                        <button type="button" onclick="deleteAbsRequest({{ loop.index0 }})" class="btn btn-secondary">Delete</button>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            
+            <!-- ABS User Creation Section -->
+            <div class="form-section">
+              <h3 class="form-section-title">
+                <span class="form-section-icon">👥</span>
+                Create Audiobookshelf Users
+              </h3>
+              <div class="info-box">
+                <span>ℹ️</span>
+                <span>Select submissions to create users in Audiobookshelf. Users will be created with the specified username and password.</span>
               </div>
-              <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
+              
+              <form id="abs-user-creation-form">
+                <div class="form-group">
+                  <label class="form-label">Select submissions to create users:</label>
+                  <div class="checkbox-group">
+                    <label class="checkbox-option">
+                      <input type="checkbox" id="select_all_users">
+                      <span>Select All</span>
+                    </label>
+                  </div>
+                  {% for submission in audiobookshelf_submissions %}
+                    <div class="user-selection-item">
+                      <input type="checkbox" name="create_users" value="{{ loop.index0 }}" id="create_user_{{ loop.index0 }}" class="user-checkbox">
+                      <label for="create_user_{{ loop.index0 }}">
+                        <strong>{{ submission.username }}</strong> ({{ submission.email }})
+                        <div class="user-details">
+                          Password: •••••••• | Submitted: {{ submission.submitted_at[:10] }}
+                        </div>
+                      </label>
+                    </div>
+                  {% endfor %}
+                </div>
+                
+                <div class="form-group">
+                  <label class="form-label">User Type:</label>
+                  <select name="user_type" id="abs_user_type" class="form-input" style="width: 200px;">
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                    <option value="guest">Guest</option>
+                  </select>
+                  <div class="file-help">
+                    <strong>User:</strong> Standard user access | <strong>Admin:</strong> Full administrative access | <strong>Guest:</strong> Limited access
+                  </div>
+                </div>
+                
+                <div class="form-group">
+                  <label class="form-label">Permissions:</label>
+                  <div class="permissions-grid">
+                    <label class="checkbox-option">
+                      <input type="checkbox" name="permissions" value="download" checked>
+                      <span>Download items</span>
+                    </label>
+                    <label class="checkbox-option">
+                      <input type="checkbox" name="permissions" value="update">
+                      <span>Update library items</span>
+                    </label>
+                    <label class="checkbox-option">
+                      <input type="checkbox" name="permissions" value="delete">
+                      <span>Delete library items</span>
+                    </label>
+                    <label class="checkbox-option">
+                      <input type="checkbox" name="permissions" value="upload">
+                      <span>Upload items</span>
+                    </label>
+                    <label class="checkbox-option">
+                      <input type="checkbox" name="permissions" value="accessAllLibraries" checked>
+                      <span>Access all libraries</span>
+                    </label>
+                    <label class="checkbox-option">
+                      <input type="checkbox" name="permissions" value="accessAllTags" checked>
+                      <span>Access all tags</span>
+                    </label>
+                    <label class="checkbox-option">
+                      <input type="checkbox" name="permissions" value="accessExplicitContent" checked>
+                      <span>Access explicit content</span>
+                    </label>
+                  </div>
+                </div>
+                
+                <div class="submit-section">
+                  <button type="button" onclick="createAbsUsers()" class="submit-btn">
+                    Create Selected Users in Audiobookshelf
+                  </button>
+                </div>
+              </form>
+              
+              {% if abs_user_creation_results %}
+              <div class="results-section">
+                <h4 class="form-section-title">Creation Results:</h4>
+                {% for result in abs_user_creation_results %}
+                  <div class="result-item {% if result.success %}success{% else %}error{% endif %}">
+                    <div class="result-title">{{ result.username }} ({{ result.email }})</div>
+                    <div class="result-message">
+                      {% if result.success %}
+                        ✅ Successfully created user
+                      {% else %}
+                        ❌ Failed to create user: {{ result.error }}
+                      {% endif %}
+                    </div>
+                    {% if result.success and result.user_id %}
+                      <div class="result-details">User ID: {{ result.user_id }}</div>
+                    {% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+          {% else %}
+            <p class="muted">No Audiobookshelf requests found.</p>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="form-section">
+          <h2 class="form-section-title">
+            <span class="form-section-icon">💾</span>
+            Storage
+          </h2>
+          <div class="storage-info">
+            {% for drive in storage_info %}
+              <div class="storage-item">
+                <div class="storage-header">
+                  <strong>{{ drive.mount }}</strong>
+                  <span class="storage-stats">{{ drive.used }} GB used / {{ drive.total }} GB total ({{ drive.percent }}%)</span>
+                </div>
+                <div class="storage-bar">
+                  <div class="storage-bar-fill" style="width: {{ drive.percent }}%;"></div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2 class="form-section-title">
+            <span class="form-section-icon">⚙️</span>
+            Settings
+          </h2>
+          <form method="post" id="admin-settings-form" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            
+            <div class="warning-box">
+              <span>🔑</span>
+              <span><strong>SITE_PASSWORD</strong> and <strong>ADMIN_PASSWORD</strong> must be different.</span>
+            </div>
+            <div class="muted" style="margin-bottom: 1.2em; font-size: 0.98em; margin-left: 2.1em;">
+              Leaving either field blank will keep the current password.
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">SITE_PASSWORD (for guests):</label>
+              <div class="input-with-icon">
+                <span class="input-icon">🔑</span>
+                <input type="text" name="site_password" id="admin_site_password_box" value="{{ SITE_PASSWORD or '' }}" class="form-input">
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">ADMIN_PASSWORD (for admin):</label>
+              <div class="input-with-icon">
+                <span class="input-icon">🔑</span>
+                <input type="text" name="admin_password" id="admin_admin_password_box" value="{{ ADMIN_PASSWORD or '' }}" class="form-input">
+              </div>
+            </div>
+            
+            <div id="admin-passwords-error" class="error-box" style="display: none;"></div>
+            
+            <div class="form-group">
+              <label class="form-label">Server Name:</label>
+              <div class="input-with-icon">
+                <img src="{{ url_for('static', filename=logo_filename) }}" alt="Server Name" class="input-icon-img">
+                <input type="text" name="server_name" id="server_name" value="{{ SERVER_NAME or '' }}" class="form-input">
+              </div>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Accent Color:</label>
+              <div class="color-picker-group">
+                <input type="color" name="accent_color" id="accent_color" value="{{ ACCENT_COLOR or '#d33fbc' }}" class="color-picker">
+                <input type="text" name="accent_color_text" id="accent_color_text" value="{{ ACCENT_COLOR or '#d33fbc' }}" placeholder="#d33fbc" class="form-input color-input">
+              </div>
+              <div class="color-help">Choose your theme color</div>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Custom Branding:</label>
+              <div class="file-help">
+                Upload your own logo and wordmark to customize the appearance. These can be changed later.
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">Select New Logo:</label>
+                <input type="file" name="logo_file" id="logo_file" accept=".png,.webp,.jpg,.jpeg" class="file-input">
+                <div class="file-help">
+                  .png or .webp, ~350x350, 1:1<br>
                   This will replace the logo and automatically create a favicon.
+                </div>
+                <div class="info-box">
+                  <span>💡</span>
+                  <div>
+                    <strong>Need a logo?</strong><br>
+                    • <a href="https://vectorink.io/app/canvas" target="_blank" class="accent">Simple Vector Editor</a> - Create a custom logo<br>
+                    • <a href="http://logobook.com/letter/a/" target="_blank" class="accent">Letter Logos</a> - Find a logo for any letter
+                  </div>
+                </div>
               </div>
-              <div style="color: #aaa; font-size: 0.85em; margin-top: 0.5em; padding: 0.5em; background: #1a1a1a; border-radius: 4px; border-left: 3px solid var(--accent-color);">
-                  <strong>💡 Need a logo?</strong><br>
-                  • <a href="https://vectorink.io/app/canvas" target="_blank" style="color: var(--accent-color);">Simple Vector Editor</a> - Create a custom logo<br>
-                  • <a href="http://logobook.com/letter/a/" target="_blank" style="color: var(--accent-color);">Letter Logos</a> - Find a logo for any letter
-              </div>
-          </label>
-          
-          <label style="display:block; margin-bottom: 1.2em;">Select New Wordmark:<br>
-              <input type="file" name="wordmark_file" id="wordmark_file" accept=".png,.webp,.jpg,.jpeg" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
-              <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
-                .png or .webp, minimum dimensions ~1000x250, 4:1 or wider
-              </div>
-              <div style="color: #888; font-size: 0.9em; margin-top: 0.3em;">
+              
+              <div class="form-group">
+                <label class="form-label">Select New Wordmark:</label>
+                <input type="file" name="wordmark_file" id="wordmark_file" accept=".png,.webp,.jpg,.jpeg" class="file-input">
+                <div class="file-help">
+                  .png or .webp, minimum dimensions ~1000x250, 4:1 or wider<br>
                   This will replace the wordmark image.
+                </div>
+                <div class="info-box">
+                  <span>💡</span>
+                  <div>
+                    <strong>Need a wordmark?</strong><br>
+                    • <a href="https://fontmeme.com/netflix-font/" target="_blank" class="accent">Wordmark Generator</a> - Create text-based wordmarks<br>
+                    <span style="color: var(--text-secondary); font-size: 0.8em;">Try different fonts, make the output text as big as slider allows, and use the same hex as the accent.</span>
+                  </div>
+                </div>
               </div>
-              <div style="color: #aaa; font-size: 0.85em; margin-top: 0.5em; padding: 0.5em; background: #1a1a1a; border-radius: 4px; border-left: 3px solid var(--accent-color);">
-                  <strong>💡 Need a wordmark?</strong><br>
-                  • <a href="https://fontmeme.com/netflix-font/" target="_blank" style="color: var(--accent-color);">Wordmark Generator</a> - Create text-based wordmarks<br>
-                  <span style="color: #888; font-size: 0.8em;">Try different fonts, make the output text as big as slider allows, and use the same hex as the accent.</span>
-              </div>
-          </label>
-      </div>
+            </div>
 
-        <label style="display:block; margin-bottom: 1.2em;">Plex Token:<br>
-          <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
-            <img src="{{ url_for('static', filename='plex.webp') }}" alt="Plex Token" style="width: 24px; height: 24px; margin-right: 0.7em;">
-            <div style="display: flex; align-items: center; width: 100%; margin-top: 0.3em;">
-              <input type="password" name="plex_token" id="plex_token" value="{{ PLEX_TOKEN or '' }}" style="flex: 1; padding: 0.4em; border-radius: 4px 0 0 4px; border: 1px solid #444; background: #222; color: #fff; border-right: none;">
-              <button type="button" onclick="togglePasswordVisibility('plex_token')" style="padding: 0.4em; background: #333; color: #fff; border: 1px solid #444; border-left: none; border-radius: 0 4px 4px 0; cursor: pointer; font-size: 0.9em; width: 2.5em; height: 2.5em; display: flex; align-items: center; justify-content: center;">👁</button>
+        <div class="form-group">
+          <label class="form-label">Plex Token:</label>
+          <div class="input-with-icon">
+            <img src="{{ url_for('static', filename='plex.webp') }}" alt="Plex Token" class="input-icon-img">
+            <div class="password-input-group">
+              <input type="password" name="plex_token" id="plex_token" value="{{ PLEX_TOKEN or '' }}" class="form-input">
+              <button type="button" onclick="togglePasswordVisibility('plex_token')" class="password-toggle-btn">👁</button>
             </div>
           </div>
-        </label>
-        <label style="display:block; margin-bottom: 1.2em;">Plex URL:<br>
-          <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
-            <img src="{{ url_for('static', filename='plex.webp') }}" alt="Plex URL" style="width: 24px; height: 24px; margin-right: 0.7em;">
-            <input type="text" name="plex_url" id="plex_url" value="{{ PLEX_URL or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Plex URL:</label>
+          <div class="input-with-icon">
+            <img src="{{ url_for('static', filename='plex.webp') }}" alt="Plex URL" class="input-icon-img">
+            <input type="text" name="plex_url" id="plex_url" value="{{ PLEX_URL or '' }}" class="form-input">
           </div>
-        </label>
-        <button type="button" onclick="fetchLibrariesAdmin()" style="margin-bottom: 1.5em;">Fetch Plex Libraries</button><br>
+        </div>
+        
+        <div class="form-group">
+          <button type="button" onclick="fetchLibrariesAdmin()" class="btn btn-secondary">Fetch Plex Libraries</button>
+        </div>
         
         <!-- Current Library Selection Display -->
         {% if LIBRARY_IDS %}
-        <div class="current-library-selection" style="margin-bottom: 1.5em; padding: 1em; background: #2a2a2a; border-radius: 0.5em;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em;">
-            <strong style="display:block;">Currently Selected Libraries:</strong>
-            <button type="button" onclick="refreshLibraryTitles()" style="padding: 0.3em 0.8em; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;">Refresh Titles</button>
+        <div class="form-section">
+          <h3 class="form-section-title">
+            <span class="form-section-icon">📚</span>
+            Currently Selected Libraries
+          </h3>
+          <div class="current-library-selection">
+            <div class="library-header">
+              <strong>Selected Libraries:</strong>
+              <button type="button" onclick="refreshLibraryTitles()" class="btn btn-secondary">Refresh Titles</button>
+            </div>
+            {% set selected_ids = LIBRARY_IDS.split(',') %}
+            {% for lib_id in selected_ids %}
+              {% if lib_id.strip() %}
+                <div class="library-item">
+                  <strong>
+                    {% if library_notes[lib_id.strip()] and library_notes[lib_id.strip()]['title'] %}{{ library_notes[lib_id.strip()]['title'] }}{% else %}Unknown{% endif %} ({{ lib_id.strip() }})
+                  </strong>
+                  {% if library_notes[lib_id.strip()] and library_notes[lib_id.strip()]['description'] %}
+                    <span class="library-description">— {{ library_notes[lib_id.strip()]['description'] }}</span>
+                  {% endif %}
+                </div>
+              {% endif %}
+            {% endfor %}
           </div>
-          {% set selected_ids = LIBRARY_IDS.split(',') %}
-          {% for lib_id in selected_ids %}
-            {% if lib_id.strip() %}
-              <div style="margin-bottom: 0.5em;">
-                <strong>
-                  {% if library_notes[lib_id.strip()] and library_notes[lib_id.strip()]['title'] %}{{ library_notes[lib_id.strip()]['title'] }}{% else %}Unknown{% endif %} ({{ lib_id.strip() }})
-                </strong>
-                {% if library_notes[lib_id.strip()] and library_notes[lib_id.strip()]['description'] %}
-                  <span style="color: #888; font-size: 0.9em;">— {{ library_notes[lib_id.strip()]['description'] }}</span>
-                {% endif %}
-              </div>
-            {% endif %}
-          {% endfor %}
         </div>
         {% endif %}
         
-        <div id="libraries-section-admin" style="display:none; margin-bottom: 1.5em;">
-          <strong style="margin-bottom: 0.5em; display:block;">Select Libraries to make available:</strong>
-          <p>Title (ID)</p>
-          <div id="libraries-list-admin"></div>
+        <div id="libraries-section-admin" class="form-section" style="display:none;">
+          <h3 class="form-section-title">
+            <span class="form-section-icon">📚</span>
+            Select Libraries
+          </h3>
+          <div class="form-group">
+            <label class="form-label">Select Libraries to make available:</label>
+            <p class="muted">Title (ID)</p>
+            <div id="libraries-list-admin"></div>
+          </div>
         </div>
-        <div id="library-descriptions-section-admin" style="display:none; margin-bottom: 1.5em;">
-          <strong style="margin-bottom: 0.5em; display:block;">Enter a description for each selected library (optional):</strong>
-          <div id="library-descriptions-list-admin"></div>
+        
+        <div id="library-descriptions-section-admin" class="form-section" style="display:none;">
+          <h3 class="form-section-title">
+            <span class="form-section-icon">📝</span>
+            Library Descriptions
+          </h3>
+          <div class="form-group">
+            <label class="form-label">Enter a description for each selected library (optional):</label>
+            <div id="library-descriptions-list-admin"></div>
+          </div>
         </div>
 
-        <div id="abs-section-admin" style="margin-left: 20px; margin-bottom: 1.5em;">
-          <label style="margin-bottom: 0.5em;">Audiobook Library ID:<br>
-            <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
-              <img src="{{ url_for('static', filename='abs.webp') }}" alt="Audiobook Library ID" style="width: 24px; height: 24px; margin-right: 0.7em;">
-              <input type="text" name="audiobooks_id" id="audiobooks_id" value="{{ AUDIOBOOKS_ID or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+        <div id="abs-section-admin" class="form-section">
+          <h3 class="form-section-title">
+            <span class="form-section-icon">📚</span>
+            Audiobookshelf Configuration
+          </h3>
+          <div class="form-group">
+            <label class="form-label">Audiobook Library ID:</label>
+            <div class="input-with-icon">
+              <img src="{{ url_for('static', filename='abs.webp') }}" alt="Audiobook Library ID" class="input-icon-img">
+              <input type="text" name="audiobooks_id" id="audiobooks_id" value="{{ AUDIOBOOKS_ID or '' }}" class="form-input">
             </div>
-          </label>
-          <label style="margin-bottom: 0.5em;">Audiobookshelf Server URL:<br>
-            <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
-              <img src="{{ url_for('static', filename='abs.webp') }}" alt="Audiobookshelf Server URL" style="width: 24px; height: 24px; margin-right: 0.7em;">
-              <input type="text" name="audiobookshelf_url" id="audiobookshelf_url_admin" value="{{ AUDIOBOOKSHELF_URL or '' }}" style="width: 100%; margin-top: 0.3em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Audiobookshelf Server URL:</label>
+            <div class="input-with-icon">
+              <img src="{{ url_for('static', filename='abs.webp') }}" alt="Audiobookshelf Server URL" class="input-icon-img">
+              <input type="text" name="audiobookshelf_url" id="audiobookshelf_url_admin" value="{{ AUDIOBOOKSHELF_URL or '' }}" class="form-input">
             </div>
-          </label>
-          <label style="margin-bottom: 0.5em;">Audiobookshelf API Token:<br>
-            <div style="display: flex; align-items: center; margin-bottom: 0.5em;">
-              <img src="{{ url_for('static', filename='abs.webp') }}" alt="Audiobookshelf API Token" style="width: 24px; height: 24px; margin-right: 0.7em;">
-              <div style="display: flex; align-items: center; width: 100%; margin-top: 0.3em;">
-                <input type="password" name="audiobookshelf_token" id="audiobookshelf_token_admin" value="{{ AUDIOBOOKSHELF_TOKEN or '' }}" style="flex: 1; padding: 0.4em; border-radius: 4px 0 0 4px; border: 1px solid #444; background: #222; color: #fff; border-right: none;">
-                <button type="button" onclick="togglePasswordVisibility('audiobookshelf_token_admin')" style="padding: 0.4em; background: #333; color: #fff; border: 1px solid #444; border-left: none; border-radius: 0 4px 4px 0; cursor: pointer; font-size: 0.9em; width: 2.5em; height: 2.5em; display: flex; align-items: center; justify-content: center;">👁</button>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Audiobookshelf API Token:</label>
+            <div class="input-with-icon">
+              <img src="{{ url_for('static', filename='abs.webp') }}" alt="Audiobookshelf API Token" class="input-icon-img">
+              <div class="password-input-group">
+                <input type="password" name="audiobookshelf_token" id="audiobookshelf_token_admin" value="{{ AUDIOBOOKSHELF_TOKEN or '' }}" class="form-input">
+                <button type="button" onclick="togglePasswordVisibility('audiobookshelf_token_admin')" class="password-toggle-btn">👁</button>
               </div>
             </div>
-          </label>
-          <div style="color: #888; font-size: 0.95em; margin-top: 0.5em;">Leave all fields empty to disable Audiobookshelf integration. All fields are required.</div>
+          </div>
+          
+          <div class="info-box">
+            <span>ℹ️</span>
+            <span>Leave all fields empty to disable Audiobookshelf integration. All fields are required.</span>
+          </div>
         </div>
 
         <!-- Editable Service URLs -->
-        <div style="margin-bottom: 2em;">
-          <strong style="margin-bottom: 0.5em; display:block;">PUBLIC Service URLs:</strong>
+        <div class="form-section">
+          <h3 class="form-section-title">
+            <span class="form-section-icon">🔗</span>
+            Public Service URLs
+          </h3>
           {% for service in all_services %}
-            <div style="display: flex; align-items: center; margin-bottom: 1em;">
-              <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" style="width: 32px; height: 32px; border-radius: 8px; margin-right: 1em;">
-              <label style="flex: 0 0 120px; font-weight: bold;">{{ service.name }}:</label>
-              <input type="text" name="{{ service.env }}" value="{{ service.url }}" style="flex: 1 1 auto; margin-left: 1em; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+            <div class="form-group">
+              <label class="form-label">{{ service.name }}:</label>
+              <div class="service-url-input">
+                <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" class="service-icon">
+                <input type="text" name="{{ service.env }}" value="{{ service.url }}" class="form-input">
+              </div>
             </div>
           {% endfor %}
         </div>
 
-        <div id="discord-section-admin" style="margin-left: 20px; margin-bottom: 1.5em;">
-          <div style="margin-bottom: 1em;">
-            <strong style="display:block; margin-bottom:0.5em;">Notification Events:</strong>
-            <div style="display: flex; align-items: center; margin-bottom: 0.7em;">
-              <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" style="width: 32px; height: 32px; border-radius: 8px; margin-right: 1em; object-fit: contain; background: #232323;" />
-              <input type="checkbox" name="discord_notify_plex" id="discord_notify_plex" value="1" {% if DISCORD_NOTIFY_PLEX == '1' %}checked{% endif %} style="margin-right: 0.5em;">
-              <label for="discord_notify_plex" style="font-weight: 500;">Notify on new Plex user request</label>
-            </div>
-            <div style="display: flex; align-items: center; margin-bottom: 0.7em;">
-              <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" style="width: 32px; height: 32px; border-radius: 8px; margin-right: 1em; object-fit: contain; background: #232323;" />
-              <input type="checkbox" name="discord_notify_abs" id="discord_notify_abs" value="1" {% if DISCORD_NOTIFY_ABS == '1' %}checked{% endif %} style="margin-right: 0.5em;">
-              <label for="discord_notify_abs" style="font-weight: 500;">Notify on new Audiobookshelf user request</label>
-            </div>
-          </div>
-          <div style="display: flex; align-items: center; margin-bottom: 1em;">
-            <label style="flex: 0 0 140px; font-weight: bold;">Webhook URL:</label>
-            <div style="display: flex; align-items: center; margin-left: 1em;">
-              <input type="text" name="discord_webhook" id="discord_webhook_admin" value="{{ DISCORD_WEBHOOK or '' }}" style="flex: 1 1 auto; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
-            </div>
-          </div>
-          <div style="display: flex; align-items: center; margin-bottom: 1em;">
-            <label style="flex: 0 0 140px; font-weight: bold;">Username (optional):</label>
-            <div style="display: flex; align-items: center; margin-left: 1em;">
-              <input type="text" name="discord_username" id="discord_username_admin" value="{{ DISCORD_USERNAME or '' }}" placeholder="Onboarderr" style="flex: 1 1 auto; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
+        <div id="discord-section-admin" class="form-section">
+          <h3 class="form-section-title">
+            <span class="form-section-icon">📢</span>
+            Discord Notifications
+          </h3>
+          
+          <div class="form-group">
+            <label class="form-label">Notification Events:</label>
+            <div class="notification-options">
+              <label class="checkbox-option">
+                <input type="checkbox" name="discord_notify_plex" id="discord_notify_plex" value="1" {% if DISCORD_NOTIFY_PLEX == '1' %}checked{% endif %}>
+                <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
+                <span>Notify on new Plex user request</span>
+              </label>
+              <label class="checkbox-option">
+                <input type="checkbox" name="discord_notify_abs" id="discord_notify_abs" value="1" {% if DISCORD_NOTIFY_ABS == '1' %}checked{% endif %}>
+                <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
+                <span>Notify on new Audiobookshelf user request</span>
+              </label>
             </div>
           </div>
-          <div style="display: flex; align-items: center; margin-bottom: 1em;">
-            <label style="flex: 0 0 140px; font-weight: bold;">Avatar URL (optional):</label>
-            <div style="display: flex; align-items: center; margin-left: 1em;">
-              <input type="text" name="discord_avatar" id="discord_avatar_admin" value="{{ DISCORD_AVATAR or '' }}" placeholder="Default Logo" style="flex: 1 1 auto; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
-            </div>
+          
+          <div class="form-group">
+            <label class="form-label">Webhook URL:</label>
+            <input type="text" name="discord_webhook" id="discord_webhook_admin" value="{{ DISCORD_WEBHOOK or '' }}" class="form-input" placeholder="https://discord.com/api/webhooks/...">
           </div>
-          <div style="display: flex; align-items: center; margin-bottom: 1em;">
-            <label style="flex: 0 0 140px; font-weight: bold;">Color (optional):</label>
-            <div style="display: flex; align-items: center; margin-left: 1em;">
-              <input type="text" name="discord_color" id="discord_color_admin" value="{{ DISCORD_COLOR or '' }}" placeholder="#000000" style="flex: 1 1 auto; padding: 0.4em; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff;">
-            </div>
+          
+          <div class="form-group">
+            <label class="form-label">Username (optional):</label>
+            <input type="text" name="discord_username" id="discord_username_admin" value="{{ DISCORD_USERNAME or '' }}" class="form-input" placeholder="Onboarderr">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Avatar URL (optional):</label>
+            <input type="text" name="discord_avatar" id="discord_avatar_admin" value="{{ DISCORD_AVATAR or '' }}" class="form-input" placeholder="Default Logo">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Color (optional):</label>
+            <input type="text" name="discord_color" id="discord_color_admin" value="{{ DISCORD_COLOR or '' }}" class="form-input" placeholder="#000000">
           </div>
         </div>
+        
         {% if error_message %}
-        <div id="admin-setup-message" style="color: #f00; margin-bottom: 1em; padding: 0.7em 1em; background: #222; border-radius: 6px; border-left: 4px solid #f00;">{{ error_message }}</div>
+        <div id="admin-setup-message" class="error-box">{{ error_message }}</div>
         {% else %}
-        <div id="admin-setup-message" style="color: #f00; margin-bottom: 1em;"></div>
+        <div id="admin-setup-message" class="error-box" style="display: none;"></div>
         {% endif %}
-        <button type="submit" id="admin-submit-btn" style="margin-top: 1.5em;">Apply Settings</button>
-        <div style="margin-top:1.5em; color:#888; font-size:0.95em;">
-          <b>Note:</b> Changes will only take effect after you restart the server.
+        
+        <div class="submit-section">
+          <button type="submit" id="admin-submit-btn" class="submit-btn">Apply Settings</button>
+        </div>
+        
+        <div class="info-box">
+          <span>ℹ️</span>
+          <span><strong>Note:</strong> Changes will only take effect after you restart the server.</span>
         </div>
       </form>
               <script>

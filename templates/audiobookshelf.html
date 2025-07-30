@@ -2,31 +2,205 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ SERVER_NAME }}</title>
-      <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}" />
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}" />
+  <link rel="stylesheet" href="/static/modern-style.css" />
   <script>
     // Set accent color from environment variable
     document.addEventListener('DOMContentLoaded', function() {
       const accentColor = '{{ ACCENT_COLOR or "#d33fbc" }}';
       document.documentElement.style.setProperty('--accent-color', accentColor);
+      
+      // Enhanced collapsible section animations - simplified to prevent margin issues
+      const collapsibleSections = document.querySelectorAll('details.collapsible-section');
+      
+      collapsibleSections.forEach(details => {
+        const summary = details.querySelector('summary');
+        
+        if (!summary) return;
+        
+        // Let CSS handle the animations naturally
+        summary.addEventListener('click', function(e) {
+          // Allow default behavior but add smooth transitions
+          const isOpen = details.hasAttribute('open');
+          
+          if (!isOpen) {
+            // Add a small delay to ensure smooth opening
+            setTimeout(() => {
+              details.style.transition = 'all 0.3s ease';
+            }, 10);
+          }
+        });
+      });
     });
   </script>
 </head>
 <body>
   {% include "_bottom_nav.html" %}
-  <div class="container">
-    <h1>Welcome to Audiobookshelf!</h1>
-
-    {% set min_covers = 10 %}
-    {% set cover_count = abs_covers|length %}
-    {% set repeat_count = (min_covers // cover_count) + 2 if cover_count > 0 and cover_count < min_covers else 1 %}
-    <div class="poster-carousel-container">
-      <div id="audiobook-carousel" class="poster-carousel animate">
-        <!-- Images will be inserted by JS -->
+  
+  <!-- Fixed bottom-left service icons -->
+  {% if services %}
+    <div class="quick-access-panel">
+      <div class="quick-access-title">Quick Access</div>
+      <div class="quick-access-grid">
+        {% for service in services %}
+          <div class="quick-access-item">
+            <a href="{{ service.url }}" target="_blank" title="{{ service.name }}" class="service-link">
+              <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" class="quick-access-icon">
+            </a>
+            <div class="quick-access-label">
+              {% if service.name == "Plex" %}
+                Media
+              {% elif service.name == "Audiobookshelf" %}
+                Books
+              {% elif service.name == "Tautulli" %}
+                Stats
+              {% elif service.name == "Overseerr" %}
+                Request
+              {% else %}
+                {{ service.name }}
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
       </div>
     </div>
-    <script>
+  {% endif %}
+
+  <div class="onboarding-content">
+    <div class="onboarding-section">
+      <h1 class="onboarding-title" style="color: white !important; -webkit-text-fill-color: white !important; background: none !important;">Welcome to Audiobookshelf!</h1>
+      <p class="onboarding-intro">
+        While Plex can handle audiobooks, <a href="https://www.audiobookshelf.org/showcase/" target="_blank" class="accent">Audiobookshelf</a> (or just ABS) does a much better job (still for free). I reccomend it if you're an avid audio reader! You can listen on your phone or computer like Audible or Spotify.
+      </p>
+
+      <!-- Single Carousel with Library Selector -->
+      <div class="carousel-section">
+        <div class="poster-carousel-container">
+          <div class="poster-carousel animate" id="audiobook-carousel"></div>
+        </div>
+      </div>
+
+      <p class="carousel-note">
+        Random selection of some audiobooks on my server. Go <a href="/medialists" class="accent">here</a> for the full list.
+      </p>
+
+      <div class="screenshot-section">
+        <img src="{{ url_for('static', filename='abshome.webp') }}" alt="Homepage Example" class="toggle-grow" />
+        <p class="screenshot-caption">Click to enlarge (Zoom on mobile)</p>
+      </div>
+    </div>
+
+    <details {% if submitted %}open{% endif %} class="collapsible-section">
+      <summary class="collapsible-heading">1. Get Access</summary>
+      <p>To get started, fill out the form below. Let me know when you're done so I can add your account.</p>
+
+      <p class="muted">
+        Note: Please don't share the account you create with others. If you know someone who you think would enjoy having access, let me know. In most cases I'll be happy to add them with their own account.
+      </p>
+      <form method="POST" action="/audiobookshelf" id="audiobookshelf-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label for="email" class="form-label">Email:</label>
+          <input type="email" id="email" name="email" placeholder="Enter email" required
+                 class="form-input"
+                 {% if submitted %}disabled{% endif %}>
+        </div>
+    
+        <div class="form-group">
+          <label for="username" class="form-label">Username:</label>
+          <input type="text" id="username" name="username" placeholder="Choose a username" required
+                 class="form-input"
+                 {% if submitted %}disabled{% endif %}>
+        </div>
+    
+        <div class="form-group">
+          <label for="password" class="form-label">Password:</label>
+          <input type="text" id="password" name="password" placeholder="Choose a password" required
+                 class="form-input"
+                 {% if submitted %}disabled{% endif %}>
+        </div>
+    
+        <div class="submit-section">
+          <button type="submit" class="submit-btn" {% if submitted %}disabled{% endif %}>Submit</button>
+        </div>
+      </form>
+      <div id="audiobookshelf-success" style="display:none;">
+        <div class="info-box">
+          <span>✅</span>
+          <span><strong>Thanks! Your request has been submitted.</strong></span>
+        </div>
+      </div>
+    </details>
+
+    <details class="collapsible-section">
+      <summary class="collapsible-heading">2. Logging In</summary>
+      <p>
+        When I say so, you can access ABS on desktop at <a href="{{ AUDIOBOOKSHELF_URL }}" target="_blank" class="accent">{{ AUDIOBOOKSHELF_URL }}</a>, or download the app (see below) on your phone or tablet, and enter that same URL into the app when you open it.
+      </p>
+
+      <ul class="text-left max-800" style="margin: 1em 0;">
+        <li><a href="https://www.audiobookshelf.org/showcase/" target="_blank" class="accent">Android</a></li>
+      </ul>
+
+      <p>
+        There's no offical iOS app yet, but you can try these:
+      </p>
+
+      <ul class="text-left max-800" style="margin: 1em 0;">
+        <li><a href="https://apps.apple.com/us/app/shelfplayer/id6475221163" target="_blank" class="accent">ShelfPlayer</a></li>
+        <li><a href="https://apps.apple.com/us/app/plappa/id6475201956" target="_blank" class="accent">plappa</a></li>
+      </ul>
+    </details>
+
+    <details class="collapsible-section">
+      <summary class="collapsible-heading">3. First Time Setup</summary>
+      <p>
+        There's not a whole lot to do for ABS, you can start listening right away!
+      </p>
+    
+      <p>
+        Look through the settings in whichever app you get and change anything to your liking. It has useful features like an automatic sleep timer, playback speed change, bookmarking, and more. 	
+      </p>
+
+      <p class="accent">
+        Note: You can download audiobooks for offline listening, in case my server is offline or you go off-grid.
+      </p>
+
+      <div class="screenshot-section">
+        <img src="{{ url_for('static', filename='abssetup.webp') }}" alt="Settings" class="toggle-grow" />
+        <p class="screenshot-caption">Settings Example</p>
+      </div>
+    </details>
+
+    <details class="collapsible-section">
+      <summary class="collapsible-heading">4. Requests</summary>
+      <p>
+        I don't have an automated system for requesting audiobooks (yet), but I can add them manually if available.
+      </p>
+
+      <p>
+        If you want a book, look for it before you ask me. See <a href="https://fmhy.pages.dev/readingpiracyguide#audiobooks" target="_blank" class="accent">this</a> list of sites.
+      </p>
+
+      {% if tautulli_enabled %}
+      <h3>Notifications</h3>
+      <p>
+        For notifications about newly added audiobooks, ask me about my Discord.
+      </p>
+      {% endif %}
+    </details>
+
+    <details class="collapsible-section">
+      <summary class="collapsible-heading">5. Issues</summary>
+      <p>
+        If you have issues playing a specific book, let me know.
+      </p>
+    </details>
+  </div>
+
+  <script>
     // --- Seamless Infinite Carousel Logic (transform-based) ---
     function setupInfiniteCarousel(carousel) {
       const container = carousel.parentElement;
@@ -110,150 +284,25 @@
       }
     }
 
-    // Fetch covers and initialize carousel
-    fetch('/audiobook-covers')
+    // Fetch covers with Goodreads links and initialize carousel
+    fetch('/audiobook-covers-with-links')
       .then(res => res.json())
-      .then(paths => {
+      .then(data => {
         const container = document.getElementById('audiobook-carousel');
-        container.innerHTML = paths.map(path => `<img src="${path}" class="carousel-img" alt="Audiobook cover" loading="lazy">`).join('');
+        const posters = data.posters || [];
+        const goodreadsLinks = data.goodreads_links || [];
+        
+        container.innerHTML = posters.map((path, index) => {
+          const goodreadsLink = goodreadsLinks[index];
+          if (goodreadsLink) {
+            return `<a href="${goodreadsLink}" target="_blank" class="accent"><img src="${path}" class="carousel-img" alt="Audiobook cover" loading="lazy"></a>`;
+          } else {
+            return `<img src="${path}" class="carousel-img" alt="Audiobook cover" loading="lazy">`;
+          }
+        }).join('');
         setupInfiniteCarousel(container);
       });
-    </script>
-
-    <p style="color: #888">
-     Random selection of some audiobooks on my server. Go <a href="/medialists" class="accent">here</a> for the full list.
-    </p>
-
-    <p style="max-width:850px">
-      While Plex can handle audiobooks, <a href="https://www.audiobookshelf.org/showcase/" target="_blank">Audiobookshelf</a> (or just ABS) does a much better job (still for free). I reccomend it if you're an avid audio reader! You can listen on your phone or computer like Audible or Spotify.
-    </p>
-
-    <img src="{{ url_for('static', filename='abshome.webp') }}" alt="Homepage Example" class="toggle-grow" />
-
-    <p style="color: #888">
-      Click to enlarge (Zoom on mobile)
-    </p>
- 
-  </div>
-  <div class="container">
-      <details {% if submitted %}open{% endif %}>
-      <summary class="collapsible-heading">1. Get Access</summary>
-      <div style="margin-left: 1em;">
-        <p>To get started, fill out the form below. Let me know when you're done so I can add your account.</p>
-
-        <p class="muted">
-          Note: Please don't share the account you create with others. If you know someone who you think would enjoy having access, let me know. In most cases I'll be happy to add them with their own account.
-        </p>
-        <form method="POST" action="/audiobookshelf" id="audiobookshelf-form" style="margin-bottom: 1em;">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <label for="email">Email:</label><br>
-          <input type="email" id="email" name="email" placeholder="Enter email" required
-                 class="max-300"
-                 {% if submitted %}disabled{% endif %}><br>
-        
-          <label for="username">Username:</label><br>
-          <input type="text" id="username" name="username" placeholder="Choose a username" required
-                 class="max-300"
-                 {% if submitted %}disabled{% endif %}><br>
-        
-          <label for="password">Password:</label><br>
-          <input type="text" id="password" name="password" placeholder="Choose a password" required
-                 class="max-300"
-                 {% if submitted %}disabled{% endif %}><br>
-        
-          <button type="submit" {% if submitted %}disabled{% endif %}>Submit</button>
-        </form>
-        <div id="audiobookshelf-success" style="display:none;">
-          <p class="accent" style="font-weight: bold; margin-top: 1em;">
-            Thanks! Your request has been submitted.
-          </p>
-        </div>
-        
-      </div>
-    </details>
-  </div>
-  <div class="container">
-    <details>
-      <summary class="collapsible-heading">2. Logging In</summary>
-      <div style="margin-left: 1em;">
-        <p>
-          When I say so, you can access ABS on desktop at <a href="{{ AUDIOBOOKSHELF_URL }}" target="_blank">{{ AUDIOBOOKSHELF_URL }}</a>, or download the app (see below) on your phone or tablet, and enter that same URL into the app when you open it.
-        </p>
-
-        <ul style="text-align:left; max-width:800px; margin: 1em 0;">
-          <li><a href="https://www.audiobookshelf.org/showcase/" target="_blank">Android</a></li>
-        </ul>
-
-        <p>
-          There's no offical iOS app yet, but you can try these:
-        </p>
-
-        <ul style="text-align:left; max-width:800px; margin: 1em 0;">
-          <li><a href="https://apps.apple.com/us/app/shelfplayer/id6475221163" target="_blank">ShelfPlayer</a></li>
-          <li><a href="https://apps.apple.com/us/app/plappa/id6475201956" target="_blank">plappa</a></li>
-        </ul>
-
-      </div>
-    </details>
-  </div>
-  <div class="container">
-    <details>
-      <summary class="collapsible-heading">3. First Time Setup</summary>
-      <div style="margin-left: 1em;">    
-        <p>
-          There's not a whole lot to do for ABS, you can start listening right away!
-        </p>
-      
-        <p>
-          Look through the settings in whichever app you get and change anything to your liking. It has useful features like an automatic sleep timer, playback speed change, bookmarking, and more. 	
-        </p>
-
-        <p class="accent">
-          Note: You can download audiobooks for offline listening, in case my server is offline or you go off-grid.
-        </p>
-
-        <img src="{{ url_for('static', filename='abssetup.webp') }}" alt="Settings" class="toggle-grow" />
-
-      </div>
-    </details>
-  </div>
-  <div class="container">
-    <details>
-      <summary class="collapsible-heading">4. Requests</summary>
-      <div style="margin-left: 1em;">
-    
-        <p>
-          I don't have an automated system for requesting audiobooks (yet), but I can add them manually if available.
-        </p>
-
-        <p>
-          If you want a book, look for it before you ask me. See <a href="https://fmhy.pages.dev/readingpiracyguide#audiobooks" target="_blank">this</a> list of sites.
-        </p>
-  
-    
-        {% if tautulli_enabled %}
-        <h3>Notifications</h3>
-        <p>
-          For notifications about newly added audiobooks, ask me about my Discord.
-        </p>
-        {% endif %}
-    
-    
-      </div>
-    </details>
-  </div>
-  <div class="container">
-    <details>
-      <summary class="collapsible-heading">5. Issues</summary>
-      <div style="margin-left: 1em;">
-    
-        <p>
-          If you have issues playing a specific book, let me know.
-        </p>
-    
-      </div>
-    </details>
-  </div>
+  </script>
 
   <script>
     function handleSubmit(event) {

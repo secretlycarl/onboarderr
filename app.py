@@ -60,7 +60,7 @@ def is_running_in_docker():
         return any(var in os.environ for var in ['DOCKER_CONTAINER', 'KUBERNETES_SERVICE_HOST'])
 
 # Application configuration
-APP_PORT = 10000
+APP_PORT = 12000
 
 def get_app_url():
     """Determine the correct URL to open in browser"""
@@ -859,11 +859,15 @@ def audiobookshelf():
 
     tautulli_enabled = bool(os.getenv("TAUTULLI"))
     
+    # Get public services data for icons (end user services only)
+    services = build_public_services_data()
+    
     return render_template(
         "audiobookshelf.html",
         submitted=submitted,
         abs_covers=abs_covers,
         tautulli_enabled=tautulli_enabled,
+        services=services
     )
 
 # Add this helper at the top (after imports)
@@ -1086,6 +1090,8 @@ def services():
         current_accent_color = os.getenv("ACCENT_COLOR", "")
         if accent_color and accent_color != current_accent_color:
             safe_set_key(env_path, "ACCENT_COLOR", accent_color)
+            # Reload environment variables to apply the new accent color immediately
+            load_dotenv(override=True)
 
         # Trigger background poster refresh if library settings changed
         library_ids = request.form.getlist("library_ids")
@@ -1608,7 +1614,9 @@ def download_abs_audiobook_posters():
                                     # Get book details from the nested media structure
                                     media = book.get("media", {})
                                     cover_path = media.get("coverPath")
-                                    title = media.get("metadata", {}).get("title", "Unknown")
+                                    metadata = media.get("metadata", {})
+                                    title = metadata.get("title", "Unknown")
+                                    author = metadata.get("authorName", "")
                                     
                                     if cover_path:
                                         # Use the correct cover URL pattern
@@ -1617,8 +1625,22 @@ def download_abs_audiobook_posters():
                                         cover_response = requests.get(cover_url, headers=headers, timeout=10)
                                         if cover_response.status_code == 200:
                                             out_path = os.path.join(audiobook_dir, f"audiobook{poster_count+1}.webp")
+                                            meta_path = os.path.join(audiobook_dir, f"audiobook{poster_count+1}.json")
+                                            
+                                            # Save the poster image
                                             with open(out_path, "wb") as f:
                                                 f.write(cover_response.content)
+                                            
+                                            # Save the metadata
+                                            meta_data = {
+                                                "title": title,
+                                                "author": author,
+                                                "id": item_id,
+                                                "library_id": library_id
+                                            }
+                                            with open(meta_path, "w", encoding="utf-8") as f:
+                                                json.dump(meta_data, f, ensure_ascii=False, indent=2)
+                                            
                                             poster_count += 1
                                 if poster_count >= 25:
                                     break
@@ -2124,6 +2146,9 @@ def medialists():
     abs_books = fetch_abs_books() if abs_enabled else []
     abs_book_groups = group_books_by_letter(abs_books) if abs_books else {}
 
+    # Get public services data for icons (end user services only)
+    services = build_public_services_data()
+
     return render_template(
         "medialists.html",
         library_media=library_media,
@@ -2135,6 +2160,7 @@ def medialists():
         abs_book_groups=abs_book_groups,
         filtered_libraries=filtered_libraries,  # Pass library info for AJAX
         logo_filename=get_logo_filename(),
+        services=services
     )
 
 @app.route("/audiobook-covers")
@@ -2152,6 +2178,63 @@ def get_random_audiobook_covers():
     
     random.shuffle(existing_paths)
     return jsonify(existing_paths)
+
+@app.route("/audiobook-covers-with-links")
+def get_random_audiobook_covers_with_links():
+    if os.getenv("ABS_ENABLED", "yes") != "yes":
+        return ("Not Found", 404)
+    
+    # Check which audiobook poster files actually exist
+    audiobook_dir = os.path.join("static", "posters", "audiobooks")
+    existing_paths = []
+    goodreads_links = []
+    
+    for i in range(25):
+        poster_path = os.path.join(audiobook_dir, f"audiobook{i+1}.webp")
+        if os.path.exists(poster_path):
+            poster_url = f"/static/posters/audiobooks/audiobook{i+1}.webp"
+            existing_paths.append(poster_url)
+            
+            # Try to get actual title and author from metadata if available
+            json_path = os.path.join(audiobook_dir, f"audiobook{i+1}.json")
+            search_query = ""
+            
+            try:
+                if os.path.exists(json_path):
+                    with open(json_path, 'r', encoding='utf-8') as f:
+                        meta = json.load(f)
+                        title = meta.get('title', '')
+                        author = meta.get('author', '')
+                        
+                        if title and author:
+                            search_query = f"{title} {author}"
+                        elif title:
+                            search_query = title
+                        else:
+                            # Fallback to generic filename if no metadata
+                            search_query = f"audiobook{i+1}".replace('_', ' ').replace('-', ' ').title()
+                else:
+                    # Fallback to generic filename if no JSON file
+                    search_query = f"audiobook{i+1}".replace('_', ' ').replace('-', ' ').title()
+            except (IOError, json.JSONDecodeError):
+                # Fallback to generic filename if JSON read fails
+                search_query = f"audiobook{i+1}".replace('_', ' ').replace('-', ' ').title()
+            
+            # Create Goodreads search URL with proper URL encoding
+            import urllib.parse
+            encoded_query = urllib.parse.quote(search_query)
+            goodreads_url = f"https://www.goodreads.com/search?q={encoded_query}"
+            goodreads_links.append(goodreads_url)
+    
+    # Shuffle both arrays in the same order
+    combined = list(zip(existing_paths, goodreads_links))
+    random.shuffle(combined)
+    existing_paths, goodreads_links = zip(*combined) if combined else ([], [])
+    
+    return jsonify({
+        "posters": existing_paths,
+        "goodreads_links": goodreads_links
+    })
 
 def is_setup_complete():
     return os.getenv("SETUP_COMPLETE") == "1"
@@ -2640,22 +2723,19 @@ def get_lastfm_url(artist_name):
     
     return f"https://www.last.fm/music/{encoded_name}"
 
-def is_music_artist(poster_data):
+def is_music_artist(poster_data, library_info=None):
     """Check if a poster represents a music artist"""
     if not poster_data:
         return False
     
-    # Check if this is from a music library (artist type)
-    # We'll need to check the library context or metadata
-    # For now, we'll check if it has a title but no year (typical for artists)
-    title = poster_data.get("title")
-    year = poster_data.get("year")
-    
-    # If it has a title but no year, it's likely an artist
-    # Also check if the title doesn't look like a movie/show title
-    if title and year is None:
-        # Additional checks could be added here
-        return True
+    # If library info is provided, check if it's actually a music library
+    if library_info and library_info.get("media_type") == "artist":
+        title = poster_data.get("title")
+        year = poster_data.get("year")
+        
+        # For music libraries, if it has a title but no year, it's likely an artist
+        if title and year is None:
+            return True
     
     return False
 
@@ -2761,7 +2841,7 @@ def ajax_load_library_posters():
                         poster_file = meta.get("poster")
                         poster_url = f"/static/posters/{section_id}/{poster_file}" if poster_file else None
                         # Check if this is a music artist and add Last.fm URL
-                        is_artist = is_music_artist(meta)
+                        is_artist = is_music_artist(meta, library)
                         lastfm_url = get_lastfm_url(title) if is_artist else None
                         
                         title_to_poster[title] = {
@@ -2788,7 +2868,7 @@ def ajax_load_library_posters():
             else:
                 # Just the title without poster
                 # Check if this might be a music artist (no year typically indicates artist)
-                is_artist = is_music_artist({"title": title, "year": None})
+                is_artist = is_music_artist({"title": title, "year": None}, library)
                 lastfm_url = get_lastfm_url(title) if is_artist else None
                 
                 unified_items.append({
@@ -2923,7 +3003,7 @@ def ajax_load_posters_by_letter():
                         item_key = f"{meta_title}_{meta_year}" if meta_year else meta_title
                         
                         # Check if this is a music artist and add Last.fm URL
-                        is_artist = is_music_artist(meta)
+                        is_artist = is_music_artist(meta, library)
                         lastfm_url = get_lastfm_url(meta_title) if is_artist else None
                         
                         item_to_poster[item_key] = {
@@ -2966,7 +3046,7 @@ def ajax_load_posters_by_letter():
             if not poster_found:
                 # Just the title without poster
                 # Check if this might be a music artist (no year typically indicates artist)
-                is_artist = is_music_artist({"title": title, "year": year})
+                is_artist = is_music_artist({"title": title, "year": year}, library)
                 lastfm_url = get_lastfm_url(title) if is_artist else None
                 
                 unified_items.append({
@@ -3273,7 +3353,7 @@ def get_random_posters():
             
             if not all_files:
                 print(f"No poster files found in {poster_dir}")
-                return jsonify({"posters": [], "imdb_ids": []})
+                return jsonify({"posters": [], "imdb_ids": [], "titles": []})
             
             # Get random posters
             import random
@@ -3285,10 +3365,15 @@ def get_random_posters():
             posters = []
             imdb_ids = []
             lastfm_urls = []
+            titles = []
             
             for fname in selected_files:
                 poster_url = f"/static/posters/{section_id}/{fname}"
                 posters.append(poster_url)
+                
+                # Extract title from filename
+                title = fname.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ').title()
+                titles.append(title)
                 
                 # Load metadata
                 json_path = os.path.join(poster_dir, fname.rsplit('.', 1)[0] + '.json')
@@ -3299,8 +3384,11 @@ def get_random_posters():
                         with open(json_path, 'r', encoding='utf-8') as f:
                             meta = json.load(f)
                             imdb_id = meta.get('imdb')
+                            # Use metadata title if available
+                            if meta.get('title'):
+                                titles[-1] = meta.get('title')
                             # Check if this is a music artist
-                            is_artist = is_music_artist(meta)
+                            is_artist = is_music_artist(meta, lib)
                             if is_artist:
                                 title = meta.get('title')
                                 lastfm_url = get_lastfm_url(title) if title else None
@@ -3315,11 +3403,12 @@ def get_random_posters():
             return jsonify({
                 "posters": posters,
                 "imdb_ids": imdb_ids,
-                "lastfm_urls": lastfm_urls
+                "lastfm_urls": lastfm_urls,
+                "titles": titles
             })
         else:
             print(f"Poster directory does not exist: {poster_dir}")
-            return jsonify({"posters": [], "imdb_ids": [], "lastfm_urls": []})
+            return jsonify({"posters": [], "imdb_ids": [], "lastfm_urls": [], "titles": []})
             
     except Exception as e:
         print(f"Error getting random posters for {library_name}: {e}")
@@ -3347,6 +3436,7 @@ def get_random_posters_all():
         all_posters = []
         all_imdb_ids = []
         all_lastfm_urls = []
+        all_titles = []
         
         # Collect posters from all libraries (excluding music unless explicitly requested)
         for lib in libraries:
@@ -3369,6 +3459,10 @@ def get_random_posters_all():
                     poster_url = f"/static/posters/{section_id}/{fname}"
                     all_posters.append(poster_url)
                     
+                    # Extract title from filename
+                    title = fname.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ').title()
+                    all_titles.append(title)
+                    
                     # Load metadata
                     json_path = os.path.join(poster_dir, fname.rsplit('.', 1)[0] + '.json')
                     imdb_id = None
@@ -3378,8 +3472,11 @@ def get_random_posters_all():
                             with open(json_path, 'r', encoding='utf-8') as f:
                                 meta = json.load(f)
                                 imdb_id = meta.get('imdb')
+                                # Use metadata title if available
+                                if meta.get('title'):
+                                    all_titles[-1] = meta.get('title')
                                 # Check if this is a music artist
-                                is_artist = is_music_artist(meta)
+                                is_artist = is_music_artist(meta, lib)
                                 if is_artist:
                                     title = meta.get('title')
                                     lastfm_url = get_lastfm_url(title) if title else None
@@ -3392,7 +3489,7 @@ def get_random_posters_all():
         
         if not all_posters:
             print("No posters found in any library")
-            return jsonify({"posters": [], "imdb_ids": [], "lastfm_urls": []})
+            return jsonify({"posters": [], "imdb_ids": [], "lastfm_urls": [], "titles": []})
         
         # Get random posters from all libraries combined
         import random
@@ -3402,16 +3499,19 @@ def get_random_posters_all():
             selected_posters = [all_posters[i] for i in indices]
             selected_imdb_ids = [all_imdb_ids[i] for i in indices]
             selected_lastfm_urls = [all_lastfm_urls[i] for i in indices]
+            selected_titles = [all_titles[i] for i in indices]
         else:
             selected_posters = all_posters
             selected_imdb_ids = all_imdb_ids
             selected_lastfm_urls = all_lastfm_urls
+            selected_titles = all_titles
         
         print(f"Returning {len(selected_posters)} posters from all libraries")
         return jsonify({
             "posters": selected_posters,
             "imdb_ids": selected_imdb_ids,
-            "lastfm_urls": selected_lastfm_urls
+            "lastfm_urls": selected_lastfm_urls,
+            "titles": selected_titles
         })
             
     except Exception as e:

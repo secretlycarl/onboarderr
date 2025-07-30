@@ -1,5 +1,7 @@
 <img src="{{ url_for('static', filename=wordmark_filename) }}" alt="Wordmark" class="wordmark" />
-<div class="bottom-nav">
+
+<!-- Desktop Navigation -->
+<div class="bottom-nav desktop-nav">
   <a href="/onboarding">Join Plex</a>
   {% if ABS_ENABLED == 'yes' %}
   <a href="/audiobookshelf">Join Audiobookshelf</a>
@@ -12,6 +14,52 @@
   {% endif %}
 </div>
 
+<!-- Mobile Navigation -->
+<div class="mobile-nav">
+  <div class="mobile-nav-header">
+    <span class="mobile-nav-title">
+      {% if request.endpoint == 'onboarding' %}
+        Join Plex
+      {% elif request.endpoint == 'audiobookshelf' %}
+        Join Audiobookshelf
+      {% elif request.endpoint == 'medialists' %}
+        Media Lists
+      {% elif request.endpoint == 'services' %}
+        Admin
+      {% else %}
+        Navigation
+      {% endif %}
+    </span>
+    <button class="mobile-nav-toggle" id="mobile-nav-toggle" aria-label="Toggle navigation menu">
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+    </button>
+  </div>
+  <div class="mobile-nav-menu" id="mobile-nav-menu">
+    <a href="/onboarding" class="mobile-nav-link">Join Plex</a>
+    {% if ABS_ENABLED == 'yes' %}
+    <a href="/audiobookshelf" class="mobile-nav-link">Join Audiobookshelf</a>
+    {% endif %}
+    <a href="/medialists" class="mobile-nav-link">Media Lists</a>
+    {% if is_admin %}
+    <a href="/services" class="mobile-nav-link">Admin</a>
+    {% else %}
+    <a href="#" id="mobile-admin-login-link" class="mobile-nav-link">Admin</a>
+    {% endif %}
+    
+    {% if services %}
+    <div class="mobile-service-links">
+      {% for service in services %}
+        <a href="{{ service.url }}" target="_blank" title="{{ service.name }}" class="mobile-service-link">
+          <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" class="mobile-service-icon">
+        </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
 {% if not is_admin %}
 <!-- Admin Password Modal -->
 <div id="admin-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
@@ -22,25 +70,144 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <label for="admin-password">Enter Admin Password:</label><br>
       <input type="password" id="admin-password" name="password" style="margin:1em 0; width:100%; padding:0.5em; border-radius:6px; border:1px solid #444; background:#222; color:#fff;" required><br>
-      <button type="submit" style="padding:0.5em 1.5em; border-radius:6px; background:#a84fff; color:#fff; border:none; font-weight:bold;">Login as Admin</button>
+      <button type="submit" style="padding:0.5em 1.5em; border-radius:6px; background: var(--accent-color); color:#fff; border:none; font-weight:bold;">Login as Admin</button>
     </form>
     <div id="admin-login-error" style="color:#f44; margin-top:1em; display:none;"></div>
   </div>
 </div>
 <script>
+  console.log('Bottom nav script loaded!');
+  
   document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded in bottom nav!');
+    
+    // Mobile navigation toggle
+    const mobileNavToggle = document.getElementById('mobile-nav-toggle');
+    const mobileNavMenu = document.getElementById('mobile-nav-menu');
+    
+    console.log('Mobile nav elements found:', {
+      toggle: mobileNavToggle,
+      menu: mobileNavMenu
+    });
+    
+    // Debug: Check if mobile nav should be visible
+    const isMobile = window.innerWidth <= 768;
+    const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
+    console.log('Device detection:', {
+      windowWidth: window.innerWidth,
+      isMobile: isMobile,
+      isTouchDevice: isTouchDevice,
+      shouldShowMobileNav: isMobile || isTouchDevice
+    });
+    
+    if (mobileNavToggle && mobileNavMenu) {
+      console.log('Adding click listener to mobile nav toggle');
+      
+      // Improved toggle function with fallback
+      const handleMobileNavToggle = function(e) {
+        console.log('Mobile nav toggle clicked!');
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const isOpen = mobileNavMenu.classList.contains('mobile-nav-menu-open');
+        console.log('Menu is currently open:', isOpen);
+        
+        if (isOpen) {
+          mobileNavMenu.classList.remove('mobile-nav-menu-open');
+          mobileNavToggle.classList.remove('mobile-nav-toggle-active');
+          console.log('Menu closed');
+        } else {
+          mobileNavMenu.classList.add('mobile-nav-menu-open');
+          mobileNavToggle.classList.add('mobile-nav-toggle-active');
+          console.log('Menu opened');
+        }
+        
+        console.log('Menu classes after toggle:', mobileNavMenu.className);
+        console.log('Toggle classes after toggle:', mobileNavToggle.className);
+        
+        // Force a reflow to ensure the transition works
+        mobileNavMenu.offsetHeight;
+      };
+      
+      // Add multiple event listeners to ensure it works
+      mobileNavToggle.addEventListener('click', handleMobileNavToggle);
+      mobileNavToggle.addEventListener('touchstart', handleMobileNavToggle);
+      
+      // Close menu when clicking outside
+      document.addEventListener('click', function(event) {
+        if (!mobileNavToggle.contains(event.target) && !mobileNavMenu.contains(event.target)) {
+          mobileNavMenu.classList.remove('mobile-nav-menu-open');
+          mobileNavToggle.classList.remove('mobile-nav-toggle-active');
+        }
+      });
+      
+      // Test the toggle on load to ensure it works
+      setTimeout(() => {
+        console.log('Testing mobile nav toggle...');
+        console.log('Initial menu classes:', mobileNavMenu.className);
+        console.log('Initial toggle classes:', mobileNavToggle.className);
+        
+        // Test if the elements are properly styled
+        const computedStyle = window.getComputedStyle(mobileNavMenu);
+        console.log('Menu computed styles:', {
+          display: computedStyle.display,
+          maxHeight: computedStyle.maxHeight,
+          opacity: computedStyle.opacity,
+          transform: computedStyle.transform
+        });
+        
+        // Test the toggle functionality
+        console.log('Testing toggle functionality...');
+        mobileNavMenu.classList.add('mobile-nav-menu-open');
+        mobileNavToggle.classList.add('mobile-nav-toggle-active');
+        setTimeout(() => {
+          mobileNavMenu.classList.remove('mobile-nav-menu-open');
+          mobileNavToggle.classList.remove('mobile-nav-toggle-active');
+          console.log('Toggle test completed');
+        }, 1000);
+      }, 100);
+      
+    } else {
+      console.error('Mobile nav elements not found!', {
+        toggle: mobileNavToggle,
+        menu: mobileNavMenu
+      });
+    }
+    
+    // Admin modal functionality
     var link = document.getElementById('admin-login-link');
+    var mobileLink = document.getElementById('mobile-admin-login-link');
     var modal = document.getElementById('admin-modal');
     var closeBtn = document.getElementById('close-admin-modal');
+    
     if (link && modal && closeBtn) {
       link.addEventListener('click', function(e) {
         e.preventDefault();
         modal.style.display = 'flex';
         document.getElementById('admin-password').focus();
       });
+    }
+    
+    if (mobileLink && modal && closeBtn) {
+      mobileLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        modal.style.display = 'flex';
+        document.getElementById('admin-password').focus();
+        // Close mobile menu when opening modal
+        if (mobileNavMenu) {
+          mobileNavMenu.classList.remove('mobile-nav-menu-open');
+          mobileNavToggle.classList.remove('mobile-nav-toggle-active');
+        }
+      });
+    }
+    
+    if (closeBtn) {
       closeBtn.addEventListener('click', function() {
         modal.style.display = 'none';
       });
+    }
+    
+    if (modal) {
       modal.addEventListener('click', function(e) {
         if (e.target === modal) modal.style.display = 'none';
       });

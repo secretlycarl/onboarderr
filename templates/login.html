@@ -2,20 +2,127 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ SERVER_NAME }}</title>
-      <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}">
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}">
+  <link rel="stylesheet" href="/static/modern-style.css">
+  <style>
+    :root {
+      --accent-color: {{ ACCENT_COLOR or "#d33fbc" }};
+    }
+    
+    .login-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      background: linear-gradient(135deg, var(--bg) 0%, #1a1a2e 100%);
+    }
+    
+    .login-card {
+      max-width: 400px;
+      width: 100%;
+      background: var(--container-bg);
+      border-radius: 1rem;
+      padding: 2.5rem 2rem;
+      text-align: center;
+      box-shadow: var(--shadow-xl);
+      border: 1px solid var(--border);
+    }
+    
+    .login-logo {
+      max-width: 200px;
+      height: auto;
+      margin: 0 auto 1.5rem;
+      display: block;
+    }
+    
+    .login-title {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 1.5rem;
+    }
+    
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    
+    .login-form label {
+      font-weight: 500;
+      color: var(--text);
+      text-align: left;
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+    
+    .login-form input {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: var(--input-bg);
+      border: 1px solid var(--input-border);
+      border-radius: 0.5rem;
+      color: var(--text);
+      font-size: 1rem;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+    
+    .login-form input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-10);
+    }
+    
+    .login-form input::placeholder {
+      color: var(--text-secondary);
+    }
+    
+    .login-btn {
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+      color: white;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 600;
+      border-radius: 0.5rem;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: var(--shadow);
+      width: 100%;
+    }
+    
+    .login-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    @media (max-width: 640px) {
+      .login-card {
+        padding: 2rem 1.5rem;
+        margin: 1rem;
+      }
+      
+      .login-title {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
 </head>
-<body style="display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
-  <div class="container login-container" style="max-width: 100%;">
-    <img src="{{ url_for('static', filename=logo_filename) }}" alt="Logo" style="display: block; margin: 0 auto; max-width: 200px" >
-    <h1 style="text-align: center">Welcome to {{ SERVER_NAME }}!</h1>
-    <form method="POST">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <label for="password">Please enter the password.</label><br>
-      <input type="password" name="password" placeholder="Enter password" required autofocus>
-      <button type="submit">Enter</button>
-    </form>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <img src="{{ url_for('static', filename=logo_filename) }}" alt="Logo" class="login-logo">
+      <h1 class="login-title" style="color: white;">Welcome to {{ SERVER_NAME }}!</h1>
+      <form method="POST" class="login-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="password" name="password" id="password" placeholder="Enter password" required autofocus>
+        <button type="submit" class="login-btn">Enter</button>
+      </form>
+    </div>
   </div>
 </body>
 </html>
