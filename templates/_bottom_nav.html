@@ -49,7 +49,7 @@
     <a href="#" id="mobile-admin-link" class="nav-mobile-link">Admin</a>
     {% endif %}
     
-    {% if services %}
+    {% if services and QUICK_ACCESS_ENABLED == 'yes' %}
     <div class="nav-mobile-services">
       {% for service in services %}
         <a href="{{ service.url }}" target="_blank" title="{{ service.name }}" class="nav-service-link">

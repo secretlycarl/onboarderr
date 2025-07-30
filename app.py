@@ -60,7 +60,7 @@ def is_running_in_docker():
         return any(var in os.environ for var in ['DOCKER_CONTAINER', 'KUBERNETES_SERVICE_HOST'])
 
 # Application configuration
-APP_PORT = 11000
+APP_PORT = 10000
 
 def get_app_url():
     """Determine the correct URL to open in browser"""
@@ -126,7 +126,8 @@ def inject_server_name():
         SERVER_NAME=os.getenv("SERVER_NAME", "DefaultName"),
         ABS_ENABLED=os.getenv("ABS_ENABLED", "yes"),
         AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", ""),
-        ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc")
+        ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc"),
+        QUICK_ACCESS_ENABLED=os.getenv("QUICK_ACCESS_ENABLED", "yes")
     )
 
 @app.context_processor
@@ -942,6 +943,7 @@ def services():
         "library_ids" in request.form or
         "audiobookshelf_url" in request.form or
         "accent_color" in request.form or
+        "quick_access_enabled" in request.form or
         "logo_file" in request.files or
         "wordmark_file" in request.files
     ):
@@ -1066,6 +1068,12 @@ def services():
         current_discord_notify_abs = os.getenv("DISCORD_NOTIFY_ABS", "1")
         if discord_notify_abs in ["1", "0"] and discord_notify_abs != current_discord_notify_abs:
             safe_set_key(env_path, "DISCORD_NOTIFY_ABS", discord_notify_abs)
+
+        # Handle Quick Access setting
+        quick_access_enabled = request.form.get("quick_access_enabled", "yes")
+        current_quick_access = os.getenv("QUICK_ACCESS_ENABLED", "yes")
+        if quick_access_enabled in ["yes", "no"] and quick_access_enabled != current_quick_access:
+            safe_set_key(env_path, "QUICK_ACCESS_ENABLED", quick_access_enabled)
 
         # Handle password fields
         site_password = request.form.get("site_password", "").strip()
@@ -2431,6 +2439,10 @@ def setup():
                 safe_set_key(env_path, "DISCORD_AVATAR", discord_avatar)
             if discord_color:
                 safe_set_key(env_path, "DISCORD_COLOR", discord_color)
+        
+        # Save Quick Access setting
+        quick_access_enabled = form.get("quick_access_enabled", "yes")
+        safe_set_key(env_path, "QUICK_ACCESS_ENABLED", quick_access_enabled)
         # Save selected library IDs and names
         library_ids = request.form.getlist("library_ids")
         library_notes = {}
@@ -2772,7 +2784,8 @@ def get_template_context():
         "show_services": os.getenv("SHOW_SERVICES", "yes").lower() == "yes",
         "custom_services_url": os.getenv("CUSTOM_SERVICES_URL", "").strip(),
         "DISCORD_NOTIFY_PLEX": os.getenv("DISCORD_NOTIFY_PLEX", "1"),
-        "DISCORD_NOTIFY_ABS": os.getenv("DISCORD_NOTIFY_ABS", "1")
+        "DISCORD_NOTIFY_ABS": os.getenv("DISCORD_NOTIFY_ABS", "1"),
+        "QUICK_ACCESS_ENABLED": os.getenv("QUICK_ACCESS_ENABLED", "yes")
     }
 
 @app.route("/ajax/load-library-posters", methods=["POST"])

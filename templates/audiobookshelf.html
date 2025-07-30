@@ -40,7 +40,7 @@
   {% include "_bottom_nav.html" %}
   
   <!-- Fixed bottom-left service icons -->
-  {% if services %}
+  {% if services and QUICK_ACCESS_ENABLED == 'yes' %}
     <div class="quick-access-panel">
       <div class="quick-access-title">Quick Access</div>
       <div class="quick-access-grid">

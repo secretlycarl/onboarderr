@@ -530,6 +530,31 @@
           {% endfor %}
         </div>
 
+        <!-- Quick Access Configuration -->
+        <div class="form-section">
+          <h3 class="form-section-title">
+            <span class="form-section-icon">⚡</span>
+            Quick Access Links
+          </h3>
+          
+          <div class="form-group">
+            <label class="form-label">Display Quick Access Links?</label>
+            <div class="radio-group">
+              <label class="radio-option">
+                <input type="radio" name="quick_access_enabled" value="yes" id="quick_access_enabled_yes" class="radio-input" {% if QUICK_ACCESS_ENABLED == 'yes' or not QUICK_ACCESS_ENABLED %}checked{% endif %}>
+                <span>Yes</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="quick_access_enabled" value="no" id="quick_access_enabled_no" class="radio-input" {% if QUICK_ACCESS_ENABLED == 'no' %}checked{% endif %}>
+                <span>No</span>
+              </label>
+            </div>
+            <div class="file-help">
+              Quick access links appear as a floating panel on desktop and in the mobile navigation menu. They provide direct access to your media services.
+            </div>
+          </div>
+        </div>
+
         <div id="discord-section-admin" class="form-section">
           <h3 class="form-section-title">
             <span class="form-section-icon">📢</span>
