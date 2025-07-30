@@ -92,7 +92,7 @@
         </div>
 
         <p class="carousel-note">
-          Random selection of posters from each library. Go <a href="/medialists" class="accent">here</a> for the full list.
+          Random selection of posters from each library. Go <a href="/medialists" class="accent">here</a> for the full list. <span class="mobile-only">On mobile, scroll horizontally to browse through posters.</span>
         </p>
 
         <div class="screenshot-section">
@@ -464,6 +464,12 @@
         // Clear existing content
         carousel.innerHTML = '';
         carousel.style.transform = 'translateX(0px)';
+        
+        // Reset scroll position for mobile
+        const container = carousel.parentElement;
+        if (container) {
+          container.scrollLeft = 0;
+        }
         
         // Show loading state
         carousel.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 200px; color: #888;">Loading posters...</div>';
@@ -851,6 +857,13 @@
         let lastLoadCheck = 0;
         let isLoading = false; // Prevent multiple simultaneous loads
 
+        // Detect mobile/touch device
+        const isMobile = window.matchMedia('(pointer: coarse)').matches || 
+                        'ontouchstart' in window || 
+                        navigator.maxTouchPoints > 0;
+        
+        console.log('Carousel setup - Mobile detected:', isMobile);
+
         // Clear any existing animation and event listeners
         if (carousel.rafId) {
           cancelAnimationFrame(carousel.rafId);
@@ -867,6 +880,175 @@
 
         // Reset transform
         carousel.style.transform = 'translateX(0px)';
+        
+        // If mobile, enable both auto-animation AND manual scrolling
+        if (isMobile) {
+          console.log('Setting up mobile carousel (auto-animation + manual scrolling)');
+          container.classList.add('scrollable');
+          
+          // Add touch event handling with improved physics
+          let isScrolling = false;
+          let startX = 0;
+          let scrollLeft = 0;
+          let startTime = 0;
+          let isUserInteracting = false; // Track if user is actively scrolling
+          let lastTouchX = 0;
+          let lastTouchTime = 0;
+          let velocity = 0;
+          let momentumInterval = null;
+          
+          container.addEventListener('touchstart', function(e) {
+            isScrolling = true;
+            isUserInteracting = true;
+            startX = e.touches[0].pageX - container.offsetLeft;
+            scrollLeft = container.scrollLeft;
+            startTime = Date.now();
+            lastTouchX = startX;
+            lastTouchTime = startTime;
+            velocity = 0;
+            container.classList.add('scrolling');
+            
+            // Clear any existing momentum
+            if (momentumInterval) {
+              clearInterval(momentumInterval);
+              momentumInterval = null;
+            }
+            
+            console.log('Touch started - auto-scroll paused');
+          }, { passive: true });
+          
+          container.addEventListener('touchmove', function(e) {
+            if (!isScrolling) return;
+            e.preventDefault();
+            
+            const currentX = e.touches[0].pageX - container.offsetLeft;
+            const currentTime = Date.now();
+            
+            // Calculate velocity for momentum
+            if (lastTouchTime > 0) {
+              const timeDiff = currentTime - lastTouchTime;
+              const distanceDiff = currentX - lastTouchX;
+              if (timeDiff > 0) {
+                velocity = distanceDiff / timeDiff;
+              }
+            }
+            
+            const walk = (currentX - startX) * 1.5; // Reduced multiplier for smoother feel
+            container.scrollLeft = scrollLeft - walk;
+            
+            // Update offset to sync with manual scrolling for infinite loading
+            offset = -container.scrollLeft;
+            
+            lastTouchX = currentX;
+            lastTouchTime = currentTime;
+          }, { passive: false });
+          
+          container.addEventListener('touchend', function(e) {
+            const endTime = Date.now();
+            const duration = endTime - startTime;
+            
+            // Remove scrolling class
+            container.classList.remove('scrolling');
+            
+            // If it was a quick tap (less than 200ms), it might be a click
+            if (duration < 200) {
+              // Allow the click event to propagate to the poster link
+              setTimeout(() => {
+                isScrolling = false;
+                isUserInteracting = false;
+                console.log('Quick tap - auto-scroll resumed');
+              }, 50);
+            } else {
+              isScrolling = false;
+              
+              // Apply momentum scrolling with improved physics
+              if (Math.abs(velocity) > 0.2) {
+                let currentVelocity = velocity * 15; // Much gentler scale for natural feel
+                const friction = 0.88; // More friction for smoother deceleration
+                let lastScrollLeft = container.scrollLeft;
+                
+                momentumInterval = setInterval(() => {
+                  if (Math.abs(currentVelocity) < 0.3) {
+                    clearInterval(momentumInterval);
+                    momentumInterval = null;
+                    setTimeout(() => {
+                      isUserInteracting = false;
+                      console.log('Momentum ended - auto-scroll resumed');
+                    }, 200); // Longer delay to ensure auto-scroll resumes
+                    return;
+                  }
+                  
+                  const newScrollLeft = container.scrollLeft - currentVelocity;
+                  container.scrollLeft = newScrollLeft;
+                  
+                  // Update offset to sync with momentum scrolling
+                  offset = -newScrollLeft;
+                  
+                  // Check if we've reached the end and need more content
+                  if (newScrollLeft >= container.scrollWidth - container.clientWidth - 200) {
+                    // Near the end, trigger infinite loading
+                    if (onLoadMore && !isLoading) {
+                      console.log('Near end of carousel, loading more posters...');
+                      isLoading = true;
+                      onLoadMore().then(() => {
+                        isLoading = false;
+                      }).catch(error => {
+                        console.error('Error loading more posters:', error);
+                        isLoading = false;
+                      });
+                    }
+                  }
+                  
+                  currentVelocity *= friction;
+                }, 16); // ~60fps
+              } else {
+                // No significant momentum, just reset interaction flag
+                setTimeout(() => {
+                  isUserInteracting = false;
+                  console.log('No momentum - auto-scroll resumed');
+                }, 300);
+              }
+            }
+          }, { passive: true });
+          
+          // Add scroll event listener for infinite loading during manual scrolling
+          container.addEventListener('scroll', function() {
+            // Update offset to sync with manual scrolling
+            offset = -container.scrollLeft;
+            
+            // Check if we're near the end and need more content
+            if (container.scrollLeft >= container.scrollWidth - container.clientWidth - 300) {
+              if (onLoadMore && !isLoading) {
+                console.log('Near end of carousel during manual scroll, loading more posters...');
+                isLoading = true;
+                onLoadMore().then(() => {
+                  isLoading = false;
+                }).catch(error => {
+                  console.error('Error loading more posters:', error);
+                  isLoading = false;
+                });
+              }
+            }
+          }, { passive: true });
+          
+          // Ensure minimum posters for mobile
+          setInterval(() => {
+            if (carousel.children.length < 10) {
+              console.log('Mobile carousel running low on posters, adding more...');
+              ensureMinimumPosters();
+            }
+          }, 10000); // Check every 10 seconds on mobile
+          
+          // Safety mechanism to ensure auto-scroll resumes if stuck
+          setInterval(() => {
+            if (isUserInteracting && !momentumInterval && !container.classList.contains('scrolling')) {
+              console.log('Safety reset - auto-scroll was stuck, resuming...');
+              isUserInteracting = false;
+            }
+          }, 2000); // Check every 2 seconds
+          
+          // Don't return - continue to auto-animation logic below
+        }
 
         // Set carousel width
         function updateWidth() {
@@ -905,7 +1087,10 @@
               return;
             }
             
-            if (!isPaused) {
+            // On mobile, pause auto-animation when user is interacting
+            const shouldPauseForMobile = isMobile && isUserInteracting;
+            
+            if (!isPaused && !shouldPauseForMobile) {
               offset -= scrollSpeed;
               carousel.style.transform = `translateX(${offset}px)`;
               

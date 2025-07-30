@@ -987,6 +987,60 @@ a:hover {
   margin-bottom: 2rem;
 }
 
+/* Mobile Carousel Styles - Enable Manual Scrolling */
+@media (pointer: coarse) and (max-width: 1800px) {
+  .poster-carousel-container {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+  
+  .poster-carousel-container::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+  
+  .poster-carousel,
+  #show-poster-carousel {
+    /* Disable transform animations on mobile */
+    transform: none !important;
+    /* Allow natural flex layout for scrolling */
+    flex-wrap: nowrap;
+    /* Ensure proper width for scrolling */
+    width: max-content;
+    min-width: 100%;
+  }
+  
+  /* Ensure images don't shrink on mobile */
+  .carousel-img {
+    flex-shrink: 0;
+  }
+  
+  /* Visual feedback during scrolling */
+  .poster-carousel-container.scrolling {
+    cursor: grabbing;
+  }
+  
+  .poster-carousel-container.scrolling .carousel-img {
+    transition: transform 0.1s ease;
+  }
+  
+
+  
+  /* Mobile-only content */
+  .mobile-only {
+    display: none;
+  }
+  
+  @media (pointer: coarse) and (max-width: 1800px) {
+    .mobile-only {
+      display: inline;
+    }
+  }
+}
+
 /* Library Selector Styles */
 .library-selector {
   display: flex;
@@ -1078,11 +1132,11 @@ a:hover {
   }
   
   .poster-carousel {
-    gap: 1.5rem;
+    gap: 1rem;
   }
 
   #show-poster-carousel {
-    gap: 1.5rem;
+    gap: 1rem;
   }
   
   /* Consistent text sizing for mobile */
