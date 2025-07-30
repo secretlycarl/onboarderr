@@ -60,7 +60,7 @@ def is_running_in_docker():
         return any(var in os.environ for var in ['DOCKER_CONTAINER', 'KUBERNETES_SERVICE_HOST'])
 
 # Application configuration
-APP_PORT = 11000
+APP_PORT = 10000
 
 def get_app_url():
     """Determine the correct URL to open in browser"""
