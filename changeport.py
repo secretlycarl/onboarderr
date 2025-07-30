@@ -16,23 +16,8 @@ Examples:
 import os
 import sys
 import re
-import shutil
-from datetime import datetime
 
-def backup_files():
-    """Create backups of files that will be modified"""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    files_to_backup = ['compose.yml', 'Dockerfile']
-    
-    backup_dir = f"backup_{timestamp}"
-    os.makedirs(backup_dir, exist_ok=True)
-    
-    for file in files_to_backup:
-        if os.path.exists(file):
-            shutil.copy2(file, os.path.join(backup_dir, file))
-            print(f"Backed up {file} to {backup_dir}/")
-    
-    return backup_dir
+
 
 
 
@@ -71,29 +56,22 @@ def update_dockerfile(new_port):
         print("⚠ Could not find EXPOSE line in Dockerfile")
 
 def update_env_file(new_port):
-    """Add or update APP_PORT in .env file"""
-    env_file = '.env'
+    """Add or update APP_PORT in .env file, or empty.env if .env doesn't exist"""
+    # Try .env first, then empty.env if .env doesn't exist
+    env_file = '.env' if os.path.exists('.env') else 'empty.env'
     
-    # Read existing .env file
+    # Read existing env file
     if os.path.exists(env_file):
         with open(env_file, 'r', encoding='utf-8') as f:
             lines = f.readlines()
     else:
         lines = []
     
-    # Check if APP_PORT already exists
-    app_port_exists = False
-    for i, line in enumerate(lines):
-        if line.strip().startswith('APP_PORT='):
-            lines[i] = f'APP_PORT={new_port}\n'
-            app_port_exists = True
-            break
+    # Remove all existing APP_PORT lines and add a new one
+    lines = [line for line in lines if not line.strip().startswith('APP_PORT=')]
+    lines.append(f'APP_PORT={new_port}\n')
     
-    # Add APP_PORT if it doesn't exist
-    if not app_port_exists:
-        lines.append(f'APP_PORT={new_port}\n')
-    
-    # Write back to .env file
+    # Write back to env file
     with open(env_file, 'w', encoding='utf-8') as f:
         f.writelines(lines)
     
@@ -130,10 +108,6 @@ def main():
     print(f"🔄 Changing port to {new_port}...")
     print()
     
-    # Create backups
-    backup_dir = backup_files()
-    print()
-    
     # Update files
     update_compose_yml(new_port)
     update_dockerfile(new_port)
@@ -149,8 +123,6 @@ def main():
     print("     docker-compose down && docker-compose up -d")
     print("  4. If using Docker directly, rebuild your image:")
     print("     docker build -t onboarderr .")
-    print()
-    print(f"Backup files are available in: {backup_dir}/")
 
 if __name__ == "__main__":
     main() 

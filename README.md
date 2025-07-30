@@ -120,7 +120,7 @@ python changeport.py 8080  # Change to port 8080
 python changeport.py 9000  # Change to port 9000
 ```
 
-This script will automatically update all necessary files (`compose.yml`, `Dockerfile`) and create backups of the original files.
+This script will automatically update all necessary files (`compose.yml`, `Dockerfile`).
 
 Alternatively, you can manually change the port by:
 1. Setting `APP_PORT=8080` in your `.env` file
