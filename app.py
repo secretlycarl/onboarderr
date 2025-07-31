@@ -2374,7 +2374,7 @@ def setup():
             prompt = True
         service_keys = [
             'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
-            'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR'
+            'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR', 'JELLYSEERR'
         ]
         service_urls = {key: os.getenv(key, "") for key in service_keys}
         return render_template(
@@ -2414,7 +2414,7 @@ def setup():
                 error_message = "SITE_PASSWORD, ADMIN_PASSWORD, and DRIVES are required."
                 service_keys = [
                     'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
-                    'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR'
+                    'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR', 'JELLYSEERR'
                 ]
                 service_urls = {key: os.getenv(key, "") for key in service_keys}
                 return render_template("setup.html", error_message=error_message, prompt_passwords=True, site_password=site_password, admin_password=admin_password, drives=drives, service_urls=service_urls)
@@ -2422,7 +2422,7 @@ def setup():
                 error_message = "SITE_PASSWORD and ADMIN_PASSWORD must be different."
                 service_keys = [
                     'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
-                    'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR'
+                    'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR', 'JELLYSEERR'
                 ]
                 service_urls = {key: os.getenv(key, "") for key in service_keys}
                 return render_template("setup.html", error_message=error_message, prompt_passwords=True, site_password=site_password, admin_password=admin_password, drives=drives, service_urls=service_urls)
@@ -2523,7 +2523,7 @@ def setup():
         # Save service URLs
         service_keys = [
             'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
-            'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR'
+            'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR', 'JELLYSEERR'
         ]
         for key in service_keys:
             url_val = form.get(key, "").strip()
@@ -2673,6 +2673,7 @@ def get_service_definitions():
         ("Bazarr", "BAZARR", "bazarr.webp"),
         ("Pulsarr", "PULSARR", "pulsarr.webp"),
         ("Overseerr", "OVERSEERR", "overseerr.webp"),
+        ("Jellyseerr", "JELLYSEERR", "jellyseerr.webp"),
     ]
 
 def get_public_service_definitions():
@@ -2682,6 +2683,7 @@ def get_public_service_definitions():
         ("Audiobookshelf", "AUDIOBOOKSHELF", "abs.webp"),
         ("Tautulli", "TAUTULLI", "tautulli.webp"),
         ("Overseerr", "OVERSEERR", "overseerr.webp"),
+        ("Jellyseerr", "JELLYSEERR", "jellyseerr.webp"),
     ]
 
 def load_json_file(filename, default=None):
