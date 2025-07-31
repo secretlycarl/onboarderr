@@ -75,7 +75,7 @@
           Plex Media Server (or just <a href="https://support.plex.tv/articles/200288286-what-is-plex/" target="_blank" class="accent">Plex</a>) lets me share my collection of movies and shows with you, just like Netflix, but you don't have to pay. You can watch on your TV, computer, phone, or tablet!
         </p>
 
-        {% set library_list = library_posters.keys()|list %}
+        {% set library_list = carousel_libraries|map(attribute='title')|list %}
 
         <!-- Single Carousel with Library Selector -->
         <div class="carousel-section">
@@ -85,10 +85,17 @@
           
           <div class="library-selector">
             <button class="library-tab {% if default_library == 'random-all' %}active{% endif %}" data-library="random-all">🎲 Random All</button>
-            {% for lib_name in library_list %}
-              <button class="library-tab {% if default_library == lib_name %}active{% endif %}" data-library="{{ lib_name }}">{{ lib_name }}</button>
+            {% for lib in carousel_libraries %}
+              <button class="library-tab {% if default_library == lib.title %}active{% endif %}" data-library="{{ lib.title }}">{{ lib.title }}</button>
             {% endfor %}
           </div>
+          
+          {% if not carousel_libraries %}
+          <div class="info-box">
+            <span>ℹ️</span>
+            <span>No library carousels are currently enabled. Please contact the administrator to enable carousels for specific libraries.</span>
+          </div>
+          {% endif %}
         </div>
 
         <p class="carousel-note">
@@ -444,6 +451,12 @@
         console.log(`Loading carousel with ${defaultLibrary}`);
         currentLibrary = defaultLibrary;
         loadCarousel('main-carousel', defaultLibrary);
+      } else if (Object.keys(libraryPosters).length === 0) {
+        // No libraries available, show message
+        const carousel = document.getElementById('main-carousel');
+        if (carousel) {
+          carousel.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 200px; color: #888;">No library carousels are currently enabled.</div>';
+        }
       }
       
       function loadCarousel(carouselId, library) {

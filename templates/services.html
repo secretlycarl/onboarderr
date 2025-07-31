@@ -473,6 +473,21 @@
             <div id="library-descriptions-list-admin"></div>
           </div>
         </div>
+        
+        <div id="library-carousels-section-admin" class="form-section" style="display:none;">
+          <h3 class="form-section-title">
+            <span class="form-section-icon">🎠</span>
+            Library Carousel Settings
+          </h3>
+          <div class="form-group">
+            <label class="form-label">Select which libraries should show their own carousel:</label>
+            <div class="info-box">
+              <span>ℹ️</span>
+              <span>Uncheck to hide the carousel for that library. Users can still request access and see its contents on Media Lists.</span>
+            </div>
+            <div class="notification-options" id="library-carousels-list-admin"></div>
+          </div>
+        </div>
 
         <div id="abs-section-admin" class="form-section">
           <h3 class="form-section-title">
@@ -702,8 +717,11 @@
           var list = document.getElementById('libraries-list-admin');
           var descSection = document.getElementById('library-descriptions-section-admin');
           var descList = document.getElementById('library-descriptions-list-admin');
+          var carouselSection = document.getElementById('library-carousels-section-admin');
+          var carouselList = document.getElementById('library-carousels-list-admin');
           list.innerHTML = '';
           descList.innerHTML = '';
+          carouselList.innerHTML = '';
           
           // Get currently selected library IDs
           var currentLibraryIds = [];
@@ -755,16 +773,54 @@
                   descDiv.appendChild(descInput);
                   descList.appendChild(descDiv);
                   
+                  // Add carousel checkbox
+                  var carouselLabel = document.createElement('label');
+                  carouselLabel.className = 'checkbox-option';
+                  carouselLabel.style.display = checkbox.checked ? 'flex' : 'none';
+                  
+                  var carouselCheckbox = document.createElement('input');
+                  carouselCheckbox.type = 'checkbox';
+                  carouselCheckbox.name = 'library_carousels';
+                  carouselCheckbox.value = lib.key;
+                  carouselCheckbox.id = 'admin_carousel_' + lib.key;
+                  carouselCheckbox.className = 'checkbox-input';
+                  
+                  // Check if this library has carousel enabled
+                  var currentCarousels = [];
+                  {% if LIBRARY_CAROUSELS %}
+                      {% set carousel_ids = LIBRARY_CAROUSELS.split(',') %}
+                      {% for carousel_id in carousel_ids %}
+                          {% if carousel_id.strip() %}
+                              currentCarousels.push('{{ carousel_id.strip() }}');
+                          {% endif %}
+                      {% endfor %}
+                  {% endif %}
+                  
+                  // Default to checked for new libraries, or if already in current carousels
+                  if (currentCarousels.includes(lib.key) || currentCarousels.length === 0) {
+                      carouselCheckbox.checked = true;
+                  }
+                     
+                  var carouselSpan = document.createElement('span');
+                  carouselSpan.textContent = lib.title;
+                     
+                  carouselLabel.appendChild(carouselCheckbox);
+                  carouselLabel.appendChild(carouselSpan);
+                  carouselList.appendChild(carouselLabel);
+                  
                   // Add change event listener to update libraries immediately
                   checkbox.addEventListener('change', function() {
                       descDiv.style.display = checkbox.checked ? 'block' : 'none';
+                      carouselLabel.style.display = checkbox.checked ? 'flex' : 'none';
                       updateLibrariesImmediately();
                   });
               });
               descSection.style.display = 'block';
+              carouselSection.style.display = 'block';
           } else {
               section.style.display = 'none';
               descSection.style.display = 'none';
+              carouselSection.style.display = 'none';
               alert('No libraries found or error fetching libraries.');
           }
       }).catch((err) => {

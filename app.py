@@ -130,7 +130,8 @@ def inject_server_name():
         AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", ""),
         ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc"),
         QUICK_ACCESS_ENABLED=os.getenv("QUICK_ACCESS_ENABLED", "yes"),
-        MOBILE_SCROLL_MODE=os.getenv("MOBILE_SCROLL_MODE", "auto")
+        MOBILE_SCROLL_MODE=os.getenv("MOBILE_SCROLL_MODE", "auto"),
+        LIBRARY_CAROUSELS=os.getenv("LIBRARY_CAROUSELS", "")
     )
 
 @app.context_processor
@@ -663,7 +664,7 @@ def onboarding():
 
     submitted = False
     library_notes = load_library_notes()
-    selected_ids = os.getenv("LIBRARY_IDS", "").split(",") if os.getenv("LIBRARY_IDS") else []
+    selected_ids = [id.strip() for id in os.getenv("LIBRARY_IDS", "").split(",") if id.strip()]
 
     if request.method == "POST":
         email = request.form.get("email")
@@ -694,16 +695,35 @@ def onboarding():
             return jsonify({"success": False, "error": "Missing required fields."})
 
     try:
-        libraries = [lib for lib in get_plex_libraries() if lib["key"] in selected_ids]
+        # Get all libraries from Plex
+        all_libraries = get_plex_libraries()
+        
+        # Filter libraries for access requests (only selected ones from LIBRARY_IDS)
+        # Convert both sides to strings to ensure proper comparison
+        selected_ids_str = [str(id).strip() for id in selected_ids]
+        available_libraries = [lib for lib in all_libraries if str(lib["key"]) in selected_ids_str]
+        
+        # Get libraries for carousel display (filtered by carousel settings)
+        carousel_libraries = available_libraries.copy()
+        library_carousels = os.getenv("LIBRARY_CAROUSELS", "")
+        if library_carousels:
+            # Only show libraries that have carousels enabled for carousel display
+            carousel_ids = [str(id).strip() for id in library_carousels.split(",") if str(id).strip()]
+            carousel_libraries = [lib for lib in available_libraries if str(lib["key"]) in carousel_ids]
+        
+        # For the template, use available_libraries for access requests and carousel_libraries for carousel display
+        libraries = available_libraries  # This is used for the "get access" checkboxes
     except Exception as e:
         if debug_mode:
             print(f"Failed to get Plex libraries: {e}")
         libraries = []
+        all_libraries = []
+        carousel_libraries = []
 
     # Build static poster URLs for each library (limit to 10 per library)
     library_posters = {}
     poster_imdb_ids = {}
-    for lib in libraries:
+    for lib in carousel_libraries:
         section_id = lib["key"]
         name = lib["title"]
         poster_dir = os.path.join("static", "posters", section_id)
@@ -762,20 +782,24 @@ def onboarding():
     
     # Check if any library has media_type of "artist" (music)
     # Only check currently available libraries that are actually shown in the UI
-    has_music_library = any(lib.get("media_type") == "artist" for lib in libraries)
+    has_music_library = any(lib.get("media_type") == "artist" for lib in carousel_libraries)
     
     if debug_mode:
         print(f"[DEBUG] Music library check: {has_music_library}")
         print(f"[DEBUG] Total libraries from Plex API: {len(all_libraries)}")
-        print(f"[DEBUG] Libraries shown in UI: {len(libraries)}")
+        print(f"[DEBUG] Libraries for access requests: {len(libraries)}")
+        print(f"[DEBUG] Libraries for carousel display: {len(carousel_libraries)}")
         print(f"[DEBUG] All libraries from Plex API:")
         for lib in all_libraries:
             print(f"[DEBUG]   - {lib['title']} (ID: {lib['key']}, type: {lib.get('media_type', 'unknown')})")
-        print(f"[DEBUG] Libraries shown in UI:")
+        print(f"[DEBUG] Libraries for access requests:")
         for lib in libraries:
             print(f"[DEBUG]   - {lib['title']} (ID: {lib['key']}, type: {lib.get('media_type', 'unknown')})")
+        print(f"[DEBUG] Libraries for carousel display:")
+        for lib in carousel_libraries:
+            print(f"[DEBUG]   - {lib['title']} (ID: {lib['key']}, type: {lib.get('media_type', 'unknown')})")
             if lib.get("media_type") == "artist":
-                print(f"[DEBUG] Found music library in UI: {lib['title']} (ID: {lib['key']})")
+                print(f"[DEBUG] Found music library in carousel: {lib['title']} (ID: {lib['key']})")
         # Also check library_notes.json for comparison
         library_notes = load_library_notes()
         music_in_notes = [lib_id for lib_id, note in library_notes.items() 
@@ -806,7 +830,8 @@ def onboarding():
     
     return render_template(
         "onboarding.html",
-        libraries=libraries,
+        libraries=available_libraries,  # Use filtered libraries for access requests
+        carousel_libraries=carousel_libraries,  # Use filtered libraries for carousel display
         submitted=submitted,
         library_notes=library_notes,
         pulsarr_enabled=pulsarr_enabled,
@@ -1120,6 +1145,12 @@ def services():
         if quick_access_enabled in ["yes", "no"] and quick_access_enabled != current_quick_access:
             safe_set_key(env_path, "QUICK_ACCESS_ENABLED", quick_access_enabled)
 
+        # Handle Library Carousel settings
+        library_carousels = request.form.getlist("library_carousels")
+        current_carousels = os.getenv("LIBRARY_CAROUSELS", "")
+        if library_carousels and ",".join(library_carousels) != current_carousels:
+            safe_set_key(env_path, "LIBRARY_CAROUSELS", ",".join(library_carousels))
+
         # Handle password fields
         site_password = request.form.get("site_password", "").strip()
         admin_password = request.form.get("admin_password", "").strip()
@@ -1305,6 +1336,10 @@ def fetch_libraries():
                     "key": key, 
                     "media_type": media_type
                 })
+        
+        # For configuration purposes, show all libraries so admin can select which ones should be available
+        # The filtering will be handled by the frontend based on current LIBRARY_IDS
+        
         return jsonify({"libraries": libraries})
     except Exception as e:
         return jsonify({"error": str(e)})
@@ -2535,6 +2570,14 @@ def setup():
                         "description": desc
                     }
                 save_library_notes(library_notes)
+                
+                # Handle Library Carousel settings
+                library_carousels = request.form.getlist("library_carousels")
+                if library_carousels:
+                    safe_set_key(env_path, "LIBRARY_CAROUSELS", ",".join(library_carousels))
+                else:
+                    # If no carousels selected, set to empty to show all
+                    safe_set_key(env_path, "LIBRARY_CAROUSELS", "")
             except Exception as e:
                 safe_set_key(env_path, "LIBRARY_IDS", ",".join(library_ids))
                 safe_set_key(env_path, "LIBRARY_NAMES", "")
@@ -2844,6 +2887,7 @@ def get_template_context():
         "AUDIOBOOKS_ID": os.getenv("AUDIOBOOKS_ID", ""),
         "ABS_ENABLED": os.getenv("ABS_ENABLED", "no"),
         "LIBRARY_IDS": os.getenv("LIBRARY_IDS", ""),
+        "LIBRARY_CAROUSELS": os.getenv("LIBRARY_CAROUSELS", ""),
         "DISCORD_WEBHOOK": os.getenv("DISCORD_WEBHOOK", ""),
         "DISCORD_USERNAME": os.getenv("DISCORD_USERNAME", ""),
         "DISCORD_AVATAR": os.getenv("DISCORD_AVATAR", ""),

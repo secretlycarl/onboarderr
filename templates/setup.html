@@ -164,6 +164,21 @@
                         <h3 class="form-section-title">Enter a description for each selected library (optional):</h3>
                         <div id="library-descriptions-list"></div>
                     </div>
+                    
+                    <div id="library-carousels-section" class="description-section" style="display:none;">
+                        <h3 class="form-section-title">
+                            <span class="form-section-icon">🎠</span>
+                            Library Carousel Settings
+                        </h3>
+                        <div class="form-group">
+                            <label class="form-label">Select which libraries should show their own carousel:</label>
+                            <div class="info-box">
+                                <span>ℹ️</span>
+                                <span>Uncheck to hide the carousel for that library. Users can still request access and see its contents on Media Lists.</span>
+                            </div>
+                            <div class="notification-options" id="library-carousels-list"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Audiobookshelf Configuration -->
@@ -372,9 +387,11 @@
                 var list = document.getElementById('libraries-list');
                 var descSection = document.getElementById('library-descriptions-section');
                 var descList = document.getElementById('library-descriptions-list');
+                var carouselSection = document.getElementById('library-carousels-section');
+                var carouselList = document.getElementById('library-carousels-list');
                 list.innerHTML = '';
                 descList.innerHTML = '';
-                var anyChecked = false;
+                carouselList.innerHTML = '';
                 if (data.libraries && data.libraries.length > 0) {
                     section.style.display = 'block';
                     data.libraries.forEach(function(lib) {
@@ -426,11 +443,39 @@
                             descDiv.style.display = checkbox.checked ? 'block' : 'none';
                             updateDescSectionVisibility();
                         });
+                        
+                        // Add carousel checkbox (only for selected libraries)
+                        var carouselLabel = document.createElement('label');
+                        carouselLabel.className = 'checkbox-option';
+                        carouselLabel.style.display = 'none'; // Hidden by default
+                        
+                        var carouselCheckbox = document.createElement('input');
+                        carouselCheckbox.type = 'checkbox';
+                        carouselCheckbox.name = 'library_carousels';
+                        carouselCheckbox.value = lib.key;
+                        carouselCheckbox.id = 'carousel_' + lib.key;
+                        carouselCheckbox.className = 'checkbox-input';
+                        carouselCheckbox.checked = true; // Checked by default
+                        
+                        var carouselSpan = document.createElement('span');
+                        carouselSpan.textContent = lib.title;
+                        
+                        carouselLabel.appendChild(carouselCheckbox);
+                        carouselLabel.appendChild(carouselSpan);
+                        carouselList.appendChild(carouselLabel);
+                        
+                        // Show/hide carousel field when checkbox is toggled
+                        checkbox.addEventListener('change', function() {
+                            carouselLabel.style.display = checkbox.checked ? 'flex' : 'none';
+                            updateCarouselSectionVisibility();
+                        });
                     });
                     updateDescSectionVisibility();
+                    updateCarouselSectionVisibility();
                 } else {
                     section.style.display = 'none';
                     descSection.style.display = 'none';
+                    carouselSection.style.display = 'none';
                     alert('No libraries found or error fetching libraries.');
                 }
             })
@@ -447,6 +492,15 @@
                 if (cb.checked) anyChecked = true;
             });
             descSection.style.display = anyChecked ? 'block' : 'none';
+        }
+        
+        function updateCarouselSectionVisibility() {
+            var carouselSection = document.getElementById('library-carousels-section');
+            var anyChecked = false;
+            document.querySelectorAll('input[name="library_ids"]').forEach(function(cb) {
+                if (cb.checked) anyChecked = true;
+            });
+            carouselSection.style.display = anyChecked ? 'block' : 'none';
         }
         
         function validateSetupForm() {
