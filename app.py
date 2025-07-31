@@ -127,7 +127,8 @@ def inject_server_name():
         ABS_ENABLED=os.getenv("ABS_ENABLED", "yes"),
         AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", ""),
         ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc"),
-        QUICK_ACCESS_ENABLED=os.getenv("QUICK_ACCESS_ENABLED", "yes")
+        QUICK_ACCESS_ENABLED=os.getenv("QUICK_ACCESS_ENABLED", "yes"),
+        MOBILE_SCROLL_MODE=os.getenv("MOBILE_SCROLL_MODE", "auto")
     )
 
 @app.context_processor

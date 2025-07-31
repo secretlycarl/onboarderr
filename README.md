@@ -222,6 +222,15 @@ https://github.com/homarr-labs/dashboard-icons/tree/main/webp has all icons.
 
 Most customization is done on setup and settings in the admin panel, but you may want to tweak some HTML contents or instructional images it comes with.
 
+## Mobile Poster Scrolling
+
+You can control how poster carousels behave on mobile devices by setting the `MOBILE_SCROLL_MODE` environment variable in your `.env` file:
+
+- `MOBILE_SCROLL_MODE=auto` (default): Auto-scroll with manual touch interaction
+- `MOBILE_SCROLL_MODE=manual`: Manual scrolling only, no auto-scroll
+
+This affects both the main onboarding page and audiobookshelf page poster carousels.
+
 - ```onboarding_section7.html``` is personalized, you should change it to what you want it to say
 
 - Delete placeholder ```plex_submissions.json``` and ```audiobookshelf_submissions.json```. The ones that come with it have example data to populate the requests sections on ```/services```

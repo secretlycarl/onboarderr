@@ -532,11 +532,13 @@
         
         // Function to add posters to carousel
         function addPostersToCarousel(posters, imdbIds, lastfmUrls, titles) {
+          console.log('Adding posters to carousel:', posters.length);
           // Clear loading state
           carousel.innerHTML = '';
           
           if (posters.length === 0) {
             carousel.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 200px; color: #888;">No posters available for this library</div>';
+            console.log('No posters available');
             return;
           }
           
@@ -561,10 +563,11 @@
           });
           
           console.log(`Added ${posters.length} new posters for ${library}`);
+          console.log('Carousel now has', carousel.children.length, 'children');
         }
         
         // Function to append posters to the end of carousel (out of view)
-        function appendPostersToCarousel(posters, imdbIds, lastfmUrls, titles) {
+        function appendPostersToCarousel(posters, imdbIds, lastfmUrls, titles, updateObserver = null) {
           if (posters.length === 0) {
             return;
           }
@@ -591,6 +594,16 @@
           
           // Update carousel width after adding new posters
           updateWidth();
+          
+          // Update intersection observer to watch the new last 4 images
+          if (updateObserver) {
+            try {
+              updateObserver();
+            } catch (error) {
+              console.error('Error updating intersection observer:', error);
+            }
+          }
+          
           console.log(`Appended ${posters.length} new posters to carousel for ${library}`);
         }
         
@@ -618,12 +631,12 @@
         // Function to ensure minimum posters in carousel
         function ensureMinimumPosters() {
           const currentPosters = carousel.children.length;
-          if (currentPosters < 5) {
+          if (currentPosters < 8) { // Increased minimum threshold
             console.log(`Only ${currentPosters} posters left, adding more...`);
             // Try to load more posters
-            fetchRandomPosters(5).then(data => {
+            fetchRandomPosters(10).then(data => { // Load more at once
               if (data.posters.length > 0) {
-                appendPostersToCarousel(data.posters, data.imdb_ids, [], data.titles || []);
+                appendPostersToCarousel(data.posters, data.imdb_ids, [], data.titles || [], updateObserver);
               } else {
                 // If AJAX fails, try fallback data
                 if (library === 'random-all') {
@@ -640,21 +653,21 @@
                   if (allPosters.length > 0) {
                     // Get random selection from all posters
                     const indices = [];
-                    for (let i = 0; i < Math.min(5, allPosters.length); i++) {
+                    for (let i = 0; i < Math.min(10, allPosters.length); i++) {
                       indices.push(Math.floor(Math.random() * allPosters.length));
                     }
                     const nextBatch = indices.map(i => allPosters[i]);
                     const nextImdbIds = indices.map(i => allImdbIds[i] || null);
-                    appendPostersToCarousel(nextBatch, nextImdbIds, [], []);
+                    appendPostersToCarousel(nextBatch, nextImdbIds, [], [], updateObserver);
                   }
                 } else if (libraryPosters[library] && libraryPosters[library].length > 0) {
                   const posters = libraryPosters[library];
                   const imdbIds = posterImdbIds[library] || [];
-                  const nextBatch = posters.slice(0, 5);
-                  const nextImdbIds = imdbIds.slice(0, 5);
-                                      if (nextBatch.length > 0) {
-                      appendPostersToCarousel(nextBatch, nextImdbIds, [], []);
-                    }
+                  const nextBatch = posters.slice(0, 10);
+                  const nextImdbIds = imdbIds.slice(0, 10);
+                  if (nextBatch.length > 0) {
+                    appendPostersToCarousel(nextBatch, nextImdbIds, [], [], updateObserver);
+                  }
                 }
               }
             }).catch(error => {
@@ -665,17 +678,31 @@
         
         // Load initial posters
         fetchRandomPosters(15).then(data => {
-                      if (data.posters.length > 0) {
-              addPostersToCarousel(data.posters, data.imdb_ids, data.lastfm_urls, data.titles);
+          console.log('Fetched initial posters:', data.posters.length);
+          if (data.posters.length > 0) {
+            addPostersToCarousel(data.posters, data.imdb_ids, data.lastfm_urls, data.titles);
+            console.log('Added initial posters, carousel children:', carousel.children.length);
             
-            // Start animation immediately
-            setupInfiniteCarousel(carousel, async () => {
-              // Load more random posters when needed
-              const newData = await fetchRandomPosters(5);
-              if (newData.posters.length > 0) {
-                appendPostersToCarousel(newData.posters, newData.imdb_ids, newData.lastfm_urls, newData.titles);
+            // Wait a moment for images to load, then start animation
+            setTimeout(() => {
+              console.log('Starting animation after delay, carousel children:', carousel.children.length);
+              const updateObserver = setupInfiniteCarousel(carousel, async () => {
+                // Load more random posters when needed
+                const newData = await fetchRandomPosters(5);
+                if (newData.posters.length > 0) {
+                  appendPostersToCarousel(newData.posters, newData.imdb_ids, newData.lastfm_urls, newData.titles, updateObserver);
+                }
+              });
+              
+              // Setup intersection observer for the initial posters
+              if (updateObserver) {
+                try {
+                  updateObserver();
+                } catch (error) {
+                  console.error('Error setting up intersection observer:', error);
+                }
               }
-            });
+            }, 500);
           } else {
             // Fallback to original library_posters data if AJAX fails
             console.log('AJAX failed, using fallback data for', library);
@@ -702,7 +729,7 @@
                 addPostersToCarousel(initialPosters, initialImdbIds, [], []);
                 
                 // Start animation with fallback loading
-                setupInfiniteCarousel(carousel, () => {
+                const updateObserver = setupInfiniteCarousel(carousel, () => {
                   // Load more random posters
                   const nextIndices = [];
                   for (let i = 0; i < Math.min(5, allPosters.length); i++) {
@@ -711,9 +738,18 @@
                   const nextBatch = nextIndices.map(i => allPosters[i]);
                   const nextImdbIds = nextIndices.map(i => allImdbIds[i] || null);
                   if (nextBatch.length > 0) {
-                    appendPostersToCarousel(nextBatch, nextImdbIds, [], []);
+                    appendPostersToCarousel(nextBatch, nextImdbIds, [], [], updateObserver);
                   }
                 });
+                
+                // Setup intersection observer for the initial posters
+                if (updateObserver) {
+                  try {
+                    updateObserver();
+                  } catch (error) {
+                    console.error('Error setting up intersection observer:', error);
+                  }
+                }
               } else {
                 addPostersToCarousel([], [], [], []);
               }
@@ -728,7 +764,7 @@
               addPostersToCarousel(initialPosters, initialImdbIds, [], []);
               
               // Start animation with fallback loading
-              setupInfiniteCarousel(carousel, () => {
+              const updateObserver = setupInfiniteCarousel(carousel, () => {
                 // Load more from original data
                 const currentCount = carousel.children.length;
                 const nextBatch = posters.slice(currentCount, currentCount + 5);
@@ -737,6 +773,15 @@
                   appendPostersToCarousel(nextBatch, nextImdbIds, [], []);
                 }
               });
+              
+              // Setup intersection observer for the initial posters
+              if (updateObserver) {
+                try {
+                  updateObserver();
+                } catch (error) {
+                  console.error('Error setting up intersection observer:', error);
+                }
+              }
             } else {
               // No posters available at all
               addPostersToCarousel([], [], []);
@@ -767,7 +812,7 @@
               
               addPostersToCarousel(initialPosters, initialImdbIds);
               
-              setupInfiniteCarousel(carousel, () => {
+              const updateObserver = setupInfiniteCarousel(carousel, () => {
                 // Load more random posters
                 const nextIndices = [];
                 for (let i = 0; i < Math.min(5, allPosters.length); i++) {
@@ -776,9 +821,18 @@
                 const nextBatch = nextIndices.map(i => allPosters[i]);
                 const nextImdbIds = nextIndices.map(i => allImdbIds[i] || null);
                 if (nextBatch.length > 0) {
-                  appendPostersToCarousel(nextBatch, nextImdbIds, [], []);
+                  appendPostersToCarousel(nextBatch, nextImdbIds, [], [], updateObserver);
                 }
               });
+              
+              // Setup intersection observer for the initial posters
+              if (updateObserver) {
+                try {
+                  updateObserver();
+                } catch (error) {
+                  console.error('Error setting up intersection observer:', error);
+                }
+              }
                           } else {
                 addPostersToCarousel([], [], [], []);
               }
@@ -791,14 +845,23 @@
             
             addPostersToCarousel(initialPosters, initialImdbIds, [], []);
             
-            setupInfiniteCarousel(carousel, () => {
+            const updateObserver = setupInfiniteCarousel(carousel, () => {
               const currentCount = carousel.children.length;
               const nextBatch = posters.slice(currentCount, currentCount + 5);
               const nextImdbIds = imdbIds.slice(currentCount, currentCount + 5);
               if (nextBatch.length > 0) {
-                appendPostersToCarousel(nextBatch, nextImdbIds, []);
+                appendPostersToCarousel(nextBatch, nextImdbIds, [], [], updateObserver);
               }
             });
+            
+            // Setup intersection observer for the initial posters
+            if (updateObserver) {
+              try {
+                updateObserver();
+              } catch (error) {
+                console.error('Error setting up intersection observer:', error);
+              }
+            }
           } else {
             addPostersToCarousel([], [], [], []);
           }
@@ -857,12 +920,14 @@
         let lastLoadCheck = 0;
         let isLoading = false; // Prevent multiple simultaneous loads
 
-        // Detect mobile/touch device
-        const isMobile = window.matchMedia('(pointer: coarse)').matches || 
-                        'ontouchstart' in window || 
-                        navigator.maxTouchPoints > 0;
+        // Detect mobile/touch device - more specific detection
+        const isMobile = window.matchMedia('(pointer: coarse)').matches && 
+                        (window.innerWidth <= 1800 || 'ontouchstart' in window);
         
         console.log('Carousel setup - Mobile detected:', isMobile);
+        console.log('Screen width:', window.innerWidth);
+        console.log('Pointer type:', window.matchMedia('(pointer: coarse)').matches);
+        console.log('Touch support:', 'ontouchstart' in window);
 
         // Clear any existing animation and event listeners
         if (carousel.rafId) {
@@ -881,174 +946,171 @@
         // Reset transform
         carousel.style.transform = 'translateX(0px)';
         
-        // If mobile, enable both auto-animation AND manual scrolling
-        if (isMobile) {
-          console.log('Setting up mobile carousel (auto-animation + manual scrolling)');
-          container.classList.add('scrollable');
-          
-          // Add touch event handling with improved physics
-          let isScrolling = false;
-          let startX = 0;
-          let scrollLeft = 0;
-          let startTime = 0;
-          let isUserInteracting = false; // Track if user is actively scrolling
-          let lastTouchX = 0;
-          let lastTouchTime = 0;
-          let velocity = 0;
-          let momentumInterval = null;
-          
+        // Check mobile scroll mode from environment
+        const mobileScrollMode = '{{ MOBILE_SCROLL_MODE }}' || 'auto';
+        console.log('Mobile scroll mode:', mobileScrollMode);
+        
+        // If manual mode is enabled, disable auto-animation
+        if (mobileScrollMode === 'manual') {
+          console.log('Manual scroll mode enabled - disabling auto-animation');
+          isPaused = true;
+        } else {
+          console.log('Auto scroll mode enabled - using desktop auto-scroll method');
+          // Use the same auto-scroll method as desktop (no mobile-specific handling)
+        }
+        
+        // Add manual scrolling support for touch devices only
+        let isUserInteracting = false;
+        let manualScrollStartX = 0;
+        let manualScrollStartOffset = 0;
+        let isManualScrolling = false;
+        
+        // Only enable manual scrolling on touch devices
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        
+        if (isTouchDevice) {
+          // Touch event handling for manual scrolling (touch devices only)
           container.addEventListener('touchstart', function(e) {
-            isScrolling = true;
             isUserInteracting = true;
-            startX = e.touches[0].pageX - container.offsetLeft;
-            scrollLeft = container.scrollLeft;
-            startTime = Date.now();
-            lastTouchX = startX;
-            lastTouchTime = startTime;
-            velocity = 0;
-            container.classList.add('scrolling');
-            
-            // Clear any existing momentum
-            if (momentumInterval) {
-              clearInterval(momentumInterval);
-              momentumInterval = null;
-            }
-            
-            console.log('Touch started - auto-scroll paused');
+            isManualScrolling = true;
+            manualScrollStartX = e.touches[0].clientX;
+            manualScrollStartOffset = offset;
+            console.log('Manual scroll started - auto-scroll paused');
           }, { passive: true });
           
           container.addEventListener('touchmove', function(e) {
-            if (!isScrolling) return;
-            e.preventDefault();
-            
-            const currentX = e.touches[0].pageX - container.offsetLeft;
-            const currentTime = Date.now();
-            
-            // Calculate velocity for momentum
-            if (lastTouchTime > 0) {
-              const timeDiff = currentTime - lastTouchTime;
-              const distanceDiff = currentX - lastTouchX;
-              if (timeDiff > 0) {
-                velocity = distanceDiff / timeDiff;
-              }
-            }
-            
-            const walk = (currentX - startX) * 1.5; // Reduced multiplier for smoother feel
-            container.scrollLeft = scrollLeft - walk;
-            
-            // Update offset to sync with manual scrolling for infinite loading
-            offset = -container.scrollLeft;
-            
-            lastTouchX = currentX;
-            lastTouchTime = currentTime;
-          }, { passive: false });
-          
-          container.addEventListener('touchend', function(e) {
-            const endTime = Date.now();
-            const duration = endTime - startTime;
-            
-            // Remove scrolling class
-            container.classList.remove('scrolling');
-            
-            // If it was a quick tap (less than 200ms), it might be a click
-            if (duration < 200) {
-              // Allow the click event to propagate to the poster link
-              setTimeout(() => {
-                isScrolling = false;
-                isUserInteracting = false;
-                console.log('Quick tap - auto-scroll resumed');
-              }, 50);
-            } else {
-              isScrolling = false;
+            if (isManualScrolling) {
+              const deltaX = e.touches[0].clientX - manualScrollStartX;
+              // Natural scrolling direction - swipe left moves content left
+              let newOffset = manualScrollStartOffset + deltaX;
               
-              // Apply momentum scrolling with improved physics
-              if (Math.abs(velocity) > 0.2) {
-                let currentVelocity = velocity * 15; // Much gentler scale for natural feel
-                const friction = 0.88; // More friction for smoother deceleration
-                let lastScrollLeft = container.scrollLeft;
-                
-                momentumInterval = setInterval(() => {
-                  if (Math.abs(currentVelocity) < 0.3) {
-                    clearInterval(momentumInterval);
-                    momentumInterval = null;
-                    setTimeout(() => {
-                      isUserInteracting = false;
-                      console.log('Momentum ended - auto-scroll resumed');
-                    }, 200); // Longer delay to ensure auto-scroll resumes
-                    return;
-                  }
-                  
-                  const newScrollLeft = container.scrollLeft - currentVelocity;
-                  container.scrollLeft = newScrollLeft;
-                  
-                  // Update offset to sync with momentum scrolling
-                  offset = -newScrollLeft;
-                  
-                  // Check if we've reached the end and need more content
-                  if (newScrollLeft >= container.scrollWidth - container.clientWidth - 200) {
-                    // Near the end, trigger infinite loading
-                    if (onLoadMore && !isLoading) {
-                      console.log('Near end of carousel, loading more posters...');
-                      isLoading = true;
-                      onLoadMore().then(() => {
-                        isLoading = false;
-                      }).catch(error => {
-                        console.error('Error loading more posters:', error);
-                        isLoading = false;
-                      });
-                    }
-                  }
-                  
-                  currentVelocity *= friction;
-                }, 16); // ~60fps
-              } else {
-                // No significant momentum, just reset interaction flag
-                setTimeout(() => {
-                  isUserInteracting = false;
-                  console.log('No momentum - auto-scroll resumed');
-                }, 300);
-              }
+              // Prevent scrolling past available images
+              const totalWidth = carousel.scrollWidth || carousel.offsetWidth;
+              const containerWidth = container.offsetWidth;
+              const maxScroll = Math.max(0, totalWidth - containerWidth);
+              
+              // Clamp the offset to prevent scrolling beyond available content
+              newOffset = Math.max(-maxScroll, Math.min(0, newOffset));
+              
+              offset = newOffset;
+              carousel.style.transform = `translateX(${offset}px)`;
             }
           }, { passive: true });
           
-          // Add scroll event listener for infinite loading during manual scrolling
-          container.addEventListener('scroll', function() {
-            // Update offset to sync with manual scrolling
-            offset = -container.scrollLeft;
-            
-            // Check if we're near the end and need more content
-            if (container.scrollLeft >= container.scrollWidth - container.clientWidth - 300) {
-              if (onLoadMore && !isLoading) {
-                console.log('Near end of carousel during manual scroll, loading more posters...');
+          container.addEventListener('touchend', function(e) {
+            isManualScrolling = false;
+            setTimeout(() => {
+              isUserInteracting = false;
+              console.log('Manual scroll ended - auto-scroll resumed');
+            }, 300);
+          }, { passive: true });
+        }
+        
+        // Quick poster loading when near the end (for auto-scroll)
+        function checkForMorePosters() {
+          if (onLoadMore && !isLoading) {
+            const remainingImages = carousel.children.length;
+            if (remainingImages <= 15) {
+              console.log('Near end during auto-scroll - loading more posters quickly!');
+              isLoading = true;
+              onLoadMore().then(() => {
+                isLoading = false;
+              }).catch(error => {
+                console.error('Error loading more posters:', error);
+                isLoading = false;
+                ensureMinimumPosters();
+              });
+            }
+          }
+        }
+
+        // Setup intersection observer to detect when last few images come into view
+        function setupIntersectionObserver() {
+          console.log('Setting up intersection observer...');
+          console.log('onLoadMore available:', !!onLoadMore);
+          console.log('IntersectionObserver available:', !!window.IntersectionObserver);
+          
+          if (!onLoadMore || !window.IntersectionObserver) {
+            console.log('Intersection observer setup failed - missing requirements');
+            return null;
+          }
+          
+          let lastTriggerTime = 0;
+          const minTriggerInterval = 0; 
+          
+          const observer = new IntersectionObserver((entries) => {
+            console.log('Intersection observer triggered:', entries.length, 'entries');
+            entries.forEach(entry => {
+              console.log('Entry:', entry.isIntersecting, 'target:', entry.target);
+              const now = Date.now();
+              if (entry.isIntersecting && !isLoading && (now - lastTriggerTime) > minTriggerInterval) {
+                console.log('Last few images are now visible - triggering load');
+                lastTriggerTime = now;
                 isLoading = true;
                 onLoadMore().then(() => {
+                  console.log('onLoadMore completed successfully');
                   isLoading = false;
                 }).catch(error => {
                   console.error('Error loading more posters:', error);
                   isLoading = false;
+                  ensureMinimumPosters();
+                });
+              } else {
+                console.log('Intersection observer conditions not met:', {
+                  isIntersecting: entry.isIntersecting,
+                  isLoading: isLoading,
+                  timeSinceLastTrigger: now - lastTriggerTime,
+                  minInterval: minTriggerInterval
                 });
               }
+            });
+          }, {
+            root: null, // Use viewport instead of container
+            rootMargin: '100px', // Trigger when 100px away from viewport
+            threshold: 0.1
+          });
+
+          // Function to observe the last few images
+          function observeLastImages() {
+            console.log('Updating intersection observer...');
+            // Disconnect previous observations
+            observer.disconnect();
+            
+            const images = Array.from(carousel.children);
+            console.log('Total images in carousel:', images.length);
+            if (images.length >= 5) {
+              // Observe all of the last 5 images
+              const last5Images = images.slice(-5);
+              console.log('Observing last 5 images:', last5Images.length);
+              
+              last5Images.forEach((img, index) => {
+                if (img) {
+                  observer.observe(img);
+                  console.log(`Now observing image ${images.length - 5 + index + 1} of ${images.length}`);
+                }
+              });
+            } else {
+              console.log('Not enough images to observe (need at least 5, have', images.length, ')');
             }
-          }, { passive: true });
-          
-          // Ensure minimum posters for mobile
-          setInterval(() => {
-            if (carousel.children.length < 10) {
-              console.log('Mobile carousel running low on posters, adding more...');
-              ensureMinimumPosters();
-            }
-          }, 10000); // Check every 10 seconds on mobile
-          
-          // Safety mechanism to ensure auto-scroll resumes if stuck
-          setInterval(() => {
-            if (isUserInteracting && !momentumInterval && !container.classList.contains('scrolling')) {
-              console.log('Safety reset - auto-scroll was stuck, resuming...');
-              isUserInteracting = false;
-            }
-          }, 2000); // Check every 2 seconds
-          
-          // Don't return - continue to auto-animation logic below
+          }
+
+          // Initial setup
+          observeLastImages();
+
+          // Return function to update observation when new images are added
+          return observeLastImages;
         }
+
+        // Setup the intersection observer (optional)
+        const updateObserver = setupIntersectionObserver();
+        if (updateObserver) {
+          console.log('Intersection observer setup successful');
+        } else {
+          console.log('Intersection observer not available, using fallback method');
+        }
+        
+        // Debug: Log animation state
+        console.log('Animation setup - isPaused:', isPaused, 'isUserInteracting:', isUserInteracting, 'scrollSpeed:', scrollSpeed);
 
         // Set carousel width
         function updateWidth() {
@@ -1083,20 +1145,30 @@
           try {
             // Don't animate if there are no images or if we have a loading/error message
             if (carousel.children.length === 0 || carousel.querySelector('div')) {
+              console.log('Animation skipped - no children or loading message');
               carousel.rafId = requestAnimationFrame(animate);
               return;
             }
             
-            // On mobile, pause auto-animation when user is interacting
-            const shouldPauseForMobile = isMobile && isUserInteracting;
-            
-            if (!isPaused && !shouldPauseForMobile) {
+            // Pause on hover or when user is manually scrolling
+            if (!isPaused && !isUserInteracting) {
+              // Check if we have enough images before scrolling
+              if (carousel.children.length < 3) {
+                console.log('Not enough images to scroll, pausing animation');
+                carousel.rafId = requestAnimationFrame(animate);
+                return;
+              }
+              
               offset -= scrollSpeed;
               carousel.style.transform = `translateX(${offset}px)`;
+              // Debug: log animation state occasionally
+              if (Math.random() < 0.001) { // Very rare logging
+                console.log('Animation running - offset:', offset, 'isPaused:', isPaused, 'isUserInteracting:', isUserInteracting, 'children:', carousel.children.length);
+              }
               
-              // Remove images that have scrolled completely off screen
+              // Remove images that have scrolled completely off screen, but maintain minimum
               const firstImg = carousel.children[0];
-              if (firstImg && (firstImg.tagName === 'IMG' || firstImg.tagName === 'A')) {
+              if (firstImg && (firstImg.tagName === 'IMG' || firstImg.tagName === 'A') && carousel.children.length > 5) {
                 const firstImgWidth = firstImg.offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
                 if (Math.abs(offset) >= firstImgWidth) {
                   firstImg.remove();
@@ -1105,32 +1177,15 @@
                   
                   // Update width after removing image
                   updateWidth();
+                  console.log('Removed image, remaining children:', carousel.children.length);
                 }
               }
               
-              // Check if we need to load more posters (every 3 seconds)
+              // Fallback: Check if we need to load more posters (every 5 seconds as backup)
               const now = Date.now();
-              if (onLoadMore && now - lastLoadCheck > 3000 && !isLoading) {
+              if (now - lastLoadCheck > 5000) {
                 lastLoadCheck = now;
-                const remainingImages = carousel.children.length;
-                if (remainingImages <= 15) { // Load earlier to prevent gaps
-                  console.log(`Only ${remainingImages} images left, loading more...`);
-                  isLoading = true;
-                  try {
-                    onLoadMore().then(() => {
-                      isLoading = false;
-                    }).catch(error => {
-                      console.error('Error loading more posters:', error);
-                      isLoading = false;
-                      // Use safety mechanism to ensure minimum posters
-                      ensureMinimumPosters();
-                    });
-                  } catch (error) {
-                    console.error('Error in onLoadMore:', error);
-                    isLoading = false;
-                    ensureMinimumPosters();
-                  }
-                }
+                checkForMorePosters();
               }
             }
             carousel.rafId = requestAnimationFrame(animate);
@@ -1146,7 +1201,12 @@
         
         // Start animation immediately
         console.log(`Starting animation for carousel ${carousel.id}`);
+        console.log('Animation state - isPaused:', isPaused, 'isUserInteracting:', isUserInteracting);
+        console.log('Carousel children count:', carousel.children.length);
         animate();
+        
+        // Return the observer update function
+        return updateObserver;
 
         // Pause on hover - store handlers to prevent duplicates
         carousel._mouseEnterHandler = () => { 

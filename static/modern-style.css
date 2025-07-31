@@ -1004,8 +1004,8 @@ a:hover {
   
   .poster-carousel,
   #show-poster-carousel {
-    /* Disable transform animations on mobile */
-    transform: none !important;
+    /* Allow transform animations for auto-scroll */
+    /* transform: none !important; - REMOVED to allow auto-scroll */
     /* Allow natural flex layout for scrolling */
     flex-wrap: nowrap;
     /* Ensure proper width for scrolling */

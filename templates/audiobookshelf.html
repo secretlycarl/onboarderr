@@ -209,156 +209,71 @@
       let isPaused = false;
       let offset = 0;
 
-      // Detect mobile/touch device
-      const isMobile = window.matchMedia('(pointer: coarse)').matches || 
-                      'ontouchstart' in window || 
-                      navigator.maxTouchPoints > 0;
+      // Detect mobile/touch device - more specific detection
+      const isMobile = window.matchMedia('(pointer: coarse)').matches && 
+                      (window.innerWidth <= 1800 || 'ontouchstart' in window);
       
       console.log('Audiobookshelf carousel setup - Mobile detected:', isMobile);
+      console.log('Screen width:', window.innerWidth);
+      console.log('Pointer type:', window.matchMedia('(pointer: coarse)').matches);
+      console.log('Touch support:', 'ontouchstart' in window);
 
-      // If mobile, enable both auto-animation AND manual scrolling
-      if (isMobile) {
-        console.log('Setting up mobile audiobookshelf carousel (auto-animation + manual scrolling)');
-        container.classList.add('scrollable');
+      // Check mobile scroll mode from environment
+      const mobileScrollMode = '{{ MOBILE_SCROLL_MODE }}' || 'auto';
+      console.log('Mobile scroll mode:', mobileScrollMode);
+      
+      // If manual mode is enabled, disable auto-animation
+      if (mobileScrollMode === 'manual') {
+        console.log('Manual scroll mode enabled - disabling auto-animation');
+        isPaused = true;
+      } else {
+        console.log('Auto scroll mode enabled - using desktop auto-scroll method');
+        // Use the same auto-scroll method as desktop (no mobile-specific handling)
+      }
+      
+      // Add manual scrolling support for touch devices only
+      let isUserInteracting = false;
+      let manualScrollStartX = 0;
+      let manualScrollStartOffset = 0;
+      let isManualScrolling = false;
+      
+      // Only enable manual scrolling on touch devices
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      
+      if (isTouchDevice) {
+        // Touch event handling for manual scrolling (touch devices only)
+        container.addEventListener('touchstart', function(e) {
+          isUserInteracting = true;
+          isManualScrolling = true;
+          manualScrollStartX = e.touches[0].clientX;
+          manualScrollStartOffset = offset;
+          console.log('Manual scroll started - auto-scroll paused');
+        }, { passive: true });
         
-                  // Add touch event handling with improved physics
-          let isScrolling = false;
-          let startX = 0;
-          let scrollLeft = 0;
-          let startTime = 0;
-          let isUserInteracting = false; // Track if user is actively scrolling
-          let lastTouchX = 0;
-          let lastTouchTime = 0;
-          let velocity = 0;
-          let momentumInterval = null;
-          
-          container.addEventListener('touchstart', function(e) {
-            isScrolling = true;
-            isUserInteracting = true;
-            startX = e.touches[0].pageX - container.offsetLeft;
-            scrollLeft = container.scrollLeft;
-            startTime = Date.now();
-            lastTouchX = startX;
-            lastTouchTime = startTime;
-            velocity = 0;
-            container.classList.add('scrolling');
-            
-            // Clear any existing momentum
-            if (momentumInterval) {
-              clearInterval(momentumInterval);
-              momentumInterval = null;
-            }
-            
-            console.log('Touch started - auto-scroll paused');
-          }, { passive: true });
-          
-          container.addEventListener('touchmove', function(e) {
-            if (!isScrolling) return;
-            e.preventDefault();
-            
-            const currentX = e.touches[0].pageX - container.offsetLeft;
-            const currentTime = Date.now();
-            
-            // Calculate velocity for momentum
-            if (lastTouchTime > 0) {
-              const timeDiff = currentTime - lastTouchTime;
-              const distanceDiff = currentX - lastTouchX;
-              if (timeDiff > 0) {
-                velocity = distanceDiff / timeDiff;
-              }
-            }
-            
-            const walk = (currentX - startX) * 1.5; // Reduced multiplier for smoother feel
-            container.scrollLeft = scrollLeft - walk;
-            
-            // Update offset to sync with manual scrolling for infinite loading
-            offset = -container.scrollLeft;
-            
-            lastTouchX = currentX;
-            lastTouchTime = currentTime;
-          }, { passive: false });
-          
-          container.addEventListener('touchend', function(e) {
-            const endTime = Date.now();
-            const duration = endTime - startTime;
-            
-            // Remove scrolling class
-            container.classList.remove('scrolling');
-            
-            // If it was a quick tap (less than 200ms), it might be a click
-            if (duration < 200) {
-              // Allow the click event to propagate to the poster link
-              setTimeout(() => {
-                isScrolling = false;
-                isUserInteracting = false;
-                console.log('Quick tap - auto-scroll resumed');
-              }, 50);
-            } else {
-              isScrolling = false;
-              
-              // Apply momentum scrolling with improved physics
-              if (Math.abs(velocity) > 0.2) {
-                let currentVelocity = velocity * 15; // Much gentler scale for natural feel
-                const friction = 0.88; // More friction for smoother deceleration
-                let lastScrollLeft = container.scrollLeft;
-                
-                momentumInterval = setInterval(() => {
-                  if (Math.abs(currentVelocity) < 0.3) {
-                    clearInterval(momentumInterval);
-                    momentumInterval = null;
-                    setTimeout(() => {
-                      isUserInteracting = false;
-                      console.log('Momentum ended - auto-scroll resumed');
-                    }, 200); // Longer delay to ensure auto-scroll resumes
-                    return;
-                  }
-                  
-                  const newScrollLeft = container.scrollLeft - currentVelocity;
-                  container.scrollLeft = newScrollLeft;
-                  
-                  // Update offset to sync with momentum scrolling
-                  offset = -newScrollLeft;
-                  
-                  // Check if we've reached the end and need more content
-                  if (newScrollLeft >= container.scrollWidth - container.clientWidth - 200) {
-                    // Near the end, trigger infinite loading by duplicating images
-                    console.log('Near end of audiobookshelf carousel, duplicating images...');
-                    duplicateImages();
-                  }
-                  
-                  currentVelocity *= friction;
-                }, 16); // ~60fps
-              } else {
-                // No significant momentum, just reset interaction flag
-                setTimeout(() => {
-                  isUserInteracting = false;
-                  console.log('No momentum - auto-scroll resumed');
-                }, 300);
-              }
-            }
-          }, { passive: true });
-          
-          // Add scroll event listener for infinite loading during manual scrolling
-          container.addEventListener('scroll', function() {
-            // Update offset to sync with manual scrolling
-            offset = -container.scrollLeft;
-            
-            // Check if we're near the end and need more content
-            if (container.scrollLeft >= container.scrollWidth - container.clientWidth - 300) {
-              console.log('Near end of audiobookshelf carousel during manual scroll, duplicating images...');
-              duplicateImages();
-            }
-          }, { passive: true });
-          
-          // Safety mechanism to ensure auto-scroll resumes if stuck
-          setInterval(() => {
-            if (isUserInteracting && !momentumInterval && !container.classList.contains('scrolling')) {
-              console.log('Safety reset - auto-scroll was stuck, resuming...');
-              isUserInteracting = false;
-            }
-          }, 2000); // Check every 2 seconds
+        container.addEventListener('touchmove', function(e) {
+          if (isManualScrolling) {
+            const deltaX = e.touches[0].clientX - manualScrollStartX;
+            offset = manualScrollStartOffset + deltaX;
+            carousel.style.transform = `translateX(${offset}px)`;
+          }
+        }, { passive: true });
         
-        // Don't return - continue to auto-animation logic below
+        container.addEventListener('touchend', function(e) {
+          isManualScrolling = false;
+          setTimeout(() => {
+            isUserInteracting = false;
+            console.log('Manual scroll ended - auto-scroll resumed');
+          }, 300);
+        }, { passive: true });
+      }
+      
+      // Quick poster loading when near the end (for auto-scroll)
+      function checkForMorePosters() {
+        const remainingImages = carousel.children.length;
+        if (remainingImages <= 15) {
+          console.log('Near end during auto-scroll - duplicating images quickly!');
+          duplicateImages();
+        }
       }
 
       // Duplicate initial images to allow seamless looping
@@ -385,10 +300,8 @@
 
       // Animation loop using transform
       function animate() {
-                    // On mobile, pause auto-animation when user is interacting
-            const shouldPauseForMobile = isMobile && isUserInteracting;
-            
-            if (!isPaused && !shouldPauseForMobile) {
+                                         // Pause on hover or when user is manually scrolling
+             if (!isPaused && !isUserInteracting) {
           offset -= scrollSpeed;
           carousel.style.transform = `translateX(${offset}px)`;
           const firstImg = carousel.children[0];
