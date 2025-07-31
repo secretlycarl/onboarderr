@@ -88,7 +88,7 @@
 
       <div class="screenshot-section">
         <img src="{{ url_for('static', filename='abshome.webp') }}" alt="Homepage Example" class="toggle-grow" />
-        <p class="screenshot-caption">Click to enlarge (Zoom on mobile)</p>
+                  <p class="screenshot-caption">Click to enlarge</p>
       </div>
     </div>
 
@@ -170,7 +170,7 @@
 
       <div class="screenshot-section">
         <img src="{{ url_for('static', filename='abssetup.webp') }}" alt="Settings" class="toggle-grow" />
-        <p class="screenshot-caption">Settings Example</p>
+                  <p class="screenshot-caption">Click to enlarge</p>
       </div>
     </details>
 
@@ -384,28 +384,8 @@
     }
   </script>
 
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      // Only enable enlarge on screens wider than 1081px (adjust as needed)
-      if (window.innerWidth >= 1081) {
-        document.querySelectorAll(".toggle-grow").forEach(function (img) {
-          img.addEventListener("click", function () {
-            const isGrown = img.classList.toggle("grown");
-
-            if (!isGrown) {
-              img.style.left = "0px";
-              img.style.top = "0px";
-              img.style.position = "relative";
-              img.style.zIndex = "";
-            } else {
-              img.style.position = "relative";
-              img.style.zIndex = 10;
-            }
-          });
-        });
-      }
-    });
-  </script>
+  <!-- Image Modal Script -->
+  <script src="{{ url_for('static', filename='image-modal.js') }}"></script>
 
   <script>
     // AJAX audiobookshelf form submission
