@@ -57,10 +57,10 @@
         <label for="list-select" class="form-label">Select Library:</label>
         <select id="list-select" class="form-input" style="max-width: 350px;">
           {% for lib_name in library_media.keys() %}
-            <option value="plex-{{ loop.index0 }}">Plex - {{ lib_name }}</option>
+            <option value="plex-{{ loop.index0 }}" {% if selected_service == 'plex' and selected_library == lib_name %}selected{% endif %}>Plex - {{ lib_name }}</option>
           {% endfor %}
           {% if abs_book_groups %}
-            <option value="abs">Audiobookshelf</option>
+            <option value="abs" {% if selected_service == 'abs' %}selected{% endif %}>Audiobookshelf</option>
           {% endif %}
         </select>
       </div>
@@ -233,10 +233,16 @@
         }
       });
       
-      // Show the first section by default
+      // Show the pre-selected section or first section by default
       if (select.options.length > 0) {
-        showSection(select.options[0].value);
-        select.value = select.options[0].value;
+        const selectedOption = select.querySelector('option[selected]');
+        if (selectedOption) {
+          showSection(selectedOption.value);
+          select.value = selectedOption.value;
+        } else {
+          showSection(select.options[0].value);
+          select.value = select.options[0].value;
+        }
       }
       
       select.addEventListener("change", function () {

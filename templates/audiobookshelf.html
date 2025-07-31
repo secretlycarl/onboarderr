@@ -83,7 +83,7 @@
       </div>
 
       <p class="carousel-note">
-        Random selection of some audiobooks on my server. Go <a href="/medialists" class="accent">here</a> for the full list. <span class="mobile-only">On mobile, scroll horizontally to browse through covers.</span>
+        Random selection of some audiobooks on my server. Go <a href="/medialists?service=abs" class="accent">here</a> for the full list. <span class="mobile-only">On mobile, scroll horizontally to browse through covers.</span>
       </p>
 
       <div class="screenshot-section">
@@ -315,9 +315,7 @@
         rafId = requestAnimationFrame(animate);
       }
 
-      // Pause on hover
-      container.addEventListener('mouseenter', () => { isPaused = true; });
-      container.addEventListener('mouseleave', () => { isPaused = false; });
+      // Hover pause functionality removed - carousel continues scrolling on hover
 
       // Wait for images to load before starting
       const imgs = carousel.querySelectorAll('img');

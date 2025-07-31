@@ -1993,6 +1993,9 @@ def group_books_by_letter(books):
 
 @app.route("/medialists")
 def medialists():
+    # Get query parameters for pre-selecting library
+    selected_library = request.args.get('library')
+    selected_service = request.args.get('service', 'plex')  # 'plex' or 'abs'
     if not session.get("authenticated"):
         return redirect(url_for("login"))
 
@@ -2207,7 +2210,9 @@ def medialists():
         abs_book_groups=abs_book_groups,
         filtered_libraries=filtered_libraries,  # Pass library info for AJAX
         logo_filename=get_logo_filename(),
-        services=services
+        services=services,
+        selected_library=selected_library,
+        selected_service=selected_service
     )
 
 @app.route("/audiobook-covers")

@@ -92,7 +92,7 @@
         </div>
 
         <p class="carousel-note">
-          Random selection of posters from each library. Go <a href="/medialists" class="accent">here</a> for the full list. <span class="mobile-only">On mobile, scroll horizontally to browse through posters.</span>
+          Random selection of posters from each library. Go <a href="/medialists" class="accent" id="medialists-link">here</a> for the full list. <span class="mobile-only">On mobile, scroll horizontally to browse through posters.</span>
         </p>
 
         <div class="screenshot-section">
@@ -871,6 +871,26 @@
       // Library tab switching functionality
       const libraryTabs = document.querySelectorAll('.library-tab');
       
+      // Function to update the medialists link
+      function updateMedialistsLink() {
+        const medialistsLink = document.getElementById('medialists-link');
+        if (medialistsLink) {
+          if (currentLibrary === 'random-all') {
+            // For random view, go to first available library
+            const firstLibraryTab = document.querySelector('.library-tab:not([data-library="random-all"])');
+            if (firstLibraryTab) {
+              const firstLibrary = firstLibraryTab.getAttribute('data-library');
+              medialistsLink.href = `/medialists?service=plex&library=${encodeURIComponent(firstLibrary)}`;
+            } else {
+              medialistsLink.href = '/medialists';
+            }
+          } else {
+            // For specific library, go to that library's list
+            medialistsLink.href = `/medialists?service=plex&library=${encodeURIComponent(currentLibrary)}`;
+          }
+        }
+      }
+      
       libraryTabs.forEach(tab => {
         tab.addEventListener('click', function() {
           const targetLibrary = this.getAttribute('data-library');
@@ -886,11 +906,17 @@
             // Update current library tracking
             currentLibrary = targetLibrary;
             
+            // Update medialists link
+            updateMedialistsLink();
+            
             // Load new carousel data
             loadCarousel('main-carousel', targetLibrary);
           }
         });
       });
+      
+      // Initialize medialists link
+      updateMedialistsLink();
 
       // Image modal system is now handled by image-modal.js
 
