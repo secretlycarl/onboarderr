@@ -213,39 +213,40 @@
                     </h2>
                     
                     <div class="form-group">
-                        <label class="form-label">Enable Discord Notifications for New User Requests?</label>
-                        <div class="radio-group">
-                            <label class="radio-option">
-                                <input type="radio" name="discord_enabled" value="yes" id="discord_enabled_yes" onchange="toggleDiscord()" class="radio-input">
-                                <span>Yes</span>
+                        <label class="form-label">Notification Events:</label>
+                        <div class="notification-options">
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="discord_notify_plex" id="discord_notify_plex" value="1" class="checkbox-input">
+                                <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
+                                <span>Notify on new Plex user request</span>
                             </label>
-                            <label class="radio-option">
-                                <input type="radio" name="discord_enabled" value="no" id="discord_enabled_no" onchange="toggleDiscord()" class="radio-input" checked>
-                                <span>No</span>
+                            <label class="checkbox-option">
+                                <input type="checkbox" name="discord_notify_abs" id="discord_notify_abs" value="1" class="checkbox-input">
+                                <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
+                                <span>Notify on new Audiobookshelf user request</span>
                             </label>
                         </div>
                     </div>
                     
-                    <div id="discord-section" style="display: none;">
-                        <div class="form-group">
-                            <label class="form-label">Discord Webhook URL:</label>
-                            <input type="text" name="discord_webhook" id="discord_webhook" class="form-input">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label">Discord Username (optional):</label>
-                            <input type="text" name="discord_username" id="discord_username" placeholder="Onboarderr" class="form-input">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label">Discord Avatar URL (optional):</label>
-                            <input type="text" name="discord_avatar" id="discord_avatar" class="form-input">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label">Discord Color (optional):</label>
-                            <input type="text" name="discord_color" id="discord_color" placeholder="#000000" class="form-input">
-                        </div>
+                    <div class="form-group">
+                        <label class="form-label">Discord Webhook URL:</label>
+                        <input type="text" name="discord_webhook" id="discord_webhook" class="form-input" placeholder="https://discord.com/api/webhooks/...">
+                        <div class="file-help">Leave blank to disable Discord notifications</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Discord Username (optional):</label>
+                        <input type="text" name="discord_username" id="discord_username" placeholder="Onboarderr" class="form-input">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Discord Avatar URL (optional):</label>
+                        <input type="text" name="discord_avatar" id="discord_avatar" class="form-input" placeholder="Default Logo">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Discord Color (optional):</label>
+                        <input type="text" name="discord_color" id="discord_color" placeholder="#000000" class="form-input">
                     </div>
                 </div>
 
@@ -346,18 +347,7 @@
             }
         }
         
-        function toggleDiscord() {
-            var discord = document.querySelector('input[name="discord_enabled"]:checked').value;
-            var discordSection = document.getElementById('discord-section');
-            var discordInput = document.getElementById('discord_webhook');
-            if (discord === 'yes') {
-                discordSection.style.display = 'block';
-                if (discordInput) discordInput.disabled = false;
-            } else {
-                discordSection.style.display = 'none';
-                if (discordInput) discordInput.disabled = true;
-            }
-        }
+
         
         function fetchLibraries() {
             var token = document.getElementById('plex_token').value;
@@ -471,11 +461,6 @@
             var audiobooksId = document.getElementById('audiobooks_id').value.trim();
             var audiobookshelfUrl = document.getElementById('audiobookshelf_url').value.trim();
             var audiobookshelfToken = document.getElementById('audiobookshelf_token').value.trim();
-            var discordEnabled = '';
-            var discordRadios = document.getElementsByName('discord_enabled');
-            for (var i = 0; i < discordRadios.length; i++) {
-              if (discordRadios[i].checked) discordEnabled = discordRadios[i].value;
-            }
             var discordWebhook = document.getElementById('discord_webhook').value.trim();
             var libraryCheckboxes = document.querySelectorAll('input[name="library_ids"]');
             var anyLibraryChecked = false;
@@ -497,8 +482,6 @@
               if (!audiobookshelfUrl) missing.push('Audiobookshelf URL');
               if (!audiobookshelfToken) missing.push('Audiobookshelf API Token');
             }
-            if (!discordEnabled) missing.push('Enable Discord Notifications?');
-            if (discordEnabled === 'yes' && !discordWebhook) missing.push('Discord Webhook URL');
             if (missing.length > 0) {
                 submitBtn.disabled = true;
                 msgDiv.querySelector('span:last-child').textContent = 'Some entries are missing: ' + missing.join(', ');
@@ -543,11 +526,6 @@
             var audiobooksId = document.getElementById('audiobooks_id').value.trim();
             var audiobookshelfUrl = document.getElementById('audiobookshelf_url').value.trim();
             var audiobookshelfToken = document.getElementById('audiobookshelf_token').value.trim();
-            var discordEnabled = '';
-            var discordRadios = document.getElementsByName('discord_enabled');
-            for (var i = 0; i < discordRadios.length; i++) {
-              if (discordRadios[i].checked) discordEnabled = discordRadios[i].value;
-            }
             var discordWebhook = document.getElementById('discord_webhook').value.trim();
             var libraryCheckboxes = document.querySelectorAll('input[name="library_ids"]');
             var anyLibraryChecked = false;
@@ -567,8 +545,6 @@
               if (!audiobookshelfUrl) missing.push('Audiobookshelf URL');
               if (!audiobookshelfToken) missing.push('Audiobookshelf API Token');
             }
-            if (!discordEnabled) missing.push('Enable Discord Notifications?');
-            if (discordEnabled === 'yes' && !discordWebhook) missing.push('Discord Webhook URL');
             if (missing.length > 0) {
                 e.preventDefault();
                 msgDiv.querySelector('span:last-child').textContent = 'Some entries are missing: ' + missing.join(', ');
@@ -584,7 +560,6 @@
         
         // Initialize visibility and validation on page load
         toggleABS();
-        toggleDiscord(); // Initialize Discord visibility
         validateSetupForm();
         
         // Show error message if it exists on page load

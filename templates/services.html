@@ -512,48 +512,7 @@
           </div>
         </div>
 
-        <!-- Editable Service URLs -->
-        <div class="form-section">
-          <h3 class="form-section-title">
-            <span class="form-section-icon">🔗</span>
-            Public Service URLs
-          </h3>
-          {% for service in all_services %}
-            <div class="form-group">
-              <label class="form-label">{{ service.name }}:</label>
-              <div class="service-url-input">
-                <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" class="service-icon">
-                <input type="text" name="{{ service.env }}" value="{{ service.url }}" class="form-input">
-              </div>
-            </div>
-          {% endfor %}
-        </div>
-
-        <!-- Quick Access Configuration -->
-        <div class="form-section">
-          <h3 class="form-section-title">
-            <span class="form-section-icon">⚡</span>
-            Quick Access Links
-          </h3>
-          
-          <div class="form-group">
-            <label class="form-label">Display Quick Access Links?</label>
-            <div class="radio-group">
-              <label class="radio-option">
-                <input type="radio" name="quick_access_enabled" value="yes" id="quick_access_enabled_yes" class="radio-input" {% if QUICK_ACCESS_ENABLED == 'yes' or not QUICK_ACCESS_ENABLED %}checked{% endif %}>
-                <span>Yes</span>
-              </label>
-              <label class="radio-option">
-                <input type="radio" name="quick_access_enabled" value="no" id="quick_access_enabled_no" class="radio-input" {% if QUICK_ACCESS_ENABLED == 'no' %}checked{% endif %}>
-                <span>No</span>
-              </label>
-            </div>
-            <div class="file-help">
-              Quick access links appear as a floating panel on desktop and in the mobile navigation menu. They provide direct access to your media services.
-            </div>
-          </div>
-        </div>
-
+        
         <div id="discord-section-admin" class="form-section">
           <h3 class="form-section-title">
             <span class="form-section-icon">📢</span>
@@ -579,6 +538,7 @@
           <div class="form-group">
             <label class="form-label">Webhook URL:</label>
             <input type="text" name="discord_webhook" id="discord_webhook_admin" value="{{ DISCORD_WEBHOOK or '' }}" class="form-input" placeholder="https://discord.com/api/webhooks/...">
+            <div class="file-help">Leave blank to disable Discord notifications</div>
           </div>
           
           <div class="form-group">
@@ -595,6 +555,48 @@
             <label class="form-label">Color (optional):</label>
             <input type="text" name="discord_color" id="discord_color_admin" value="{{ DISCORD_COLOR or '' }}" class="form-input" placeholder="#000000">
           </div>
+        </div>
+
+        <!-- Quick Access Configuration -->
+        <div class="form-section">
+          <h3 class="form-section-title">
+            <span class="form-section-icon">⚡</span>
+             Quick Access Links
+          </h3>
+                  
+           <div class="form-group">
+            <label class="form-label">Display Quick Access Links?</label>
+            <div class="radio-group">
+              <label class="radio-option">
+                <input type="radio" name="quick_access_enabled" value="yes" id="quick_access_enabled_yes" class="radio-input" {% if QUICK_ACCESS_ENABLED == 'yes' or not QUICK_ACCESS_ENABLED %}checked{% endif %}>
+                <span>Yes</span>
+              </label>
+               <label class="radio-option">
+                <input type="radio" name="quick_access_enabled" value="no" id="quick_access_enabled_no" class="radio-input" {% if QUICK_ACCESS_ENABLED == 'no' %}checked{% endif %}>
+                <span>No</span>
+              </label>
+            </div>
+             <div class="file-help">
+              Quick access links appear as a floating panel on desktop and in the mobile navigation menu. They provide direct access to your media services.
+             </div>
+           </div>
+         </div>
+        
+        <!-- Editable Service URLs -->
+        <div class="form-section">
+          <h3 class="form-section-title">
+            <span class="form-section-icon">🔗</span>
+            Public Service URLs
+          </h3>
+          {% for service in all_services %}
+            <div class="form-group">
+              <label class="form-label">{{ service.name }}:</label>
+              <div class="service-url-input">
+                <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" class="service-icon">
+                <input type="text" name="{{ service.env }}" value="{{ service.url }}" class="form-input">
+              </div>
+            </div>
+          {% endfor %}
         </div>
         
         {% if error_message %}

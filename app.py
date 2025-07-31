@@ -2445,7 +2445,6 @@ def setup():
         abs_enabled = form.get("abs_enabled", "")
         audiobooks_id = form.get("audiobooks_id", "").strip()
         audiobookshelf_url = form.get("audiobookshelf_url", "").strip()
-        discord_enabled = form.get("discord_enabled", "")
         discord_webhook = form.get("discord_webhook", "").strip()
         discord_username = form.get("discord_username", "").strip()
         discord_avatar = form.get("discord_avatar", "").strip()
@@ -2478,6 +2477,17 @@ def setup():
                 safe_set_key(env_path, "DISCORD_AVATAR", discord_avatar)
             if discord_color:
                 safe_set_key(env_path, "DISCORD_COLOR", discord_color)
+        
+        # Save Discord notification settings
+        discord_notify_plex = form.get("discord_notify_plex")
+        if discord_notify_plex is None:
+            discord_notify_plex = "0"
+        safe_set_key(env_path, "DISCORD_NOTIFY_PLEX", discord_notify_plex)
+        
+        discord_notify_abs = form.get("discord_notify_abs")
+        if discord_notify_abs is None:
+            discord_notify_abs = "0"
+        safe_set_key(env_path, "DISCORD_NOTIFY_ABS", discord_notify_abs)
         
         # Save Quick Access setting
         quick_access_enabled = form.get("quick_access_enabled", "yes")
