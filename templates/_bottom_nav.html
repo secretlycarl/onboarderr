@@ -10,7 +10,7 @@
   {% if is_admin %}
   <a href="/services">Admin</a>
   {% else %}
-  <a href="#" id="admin-login-link">Admin</a>
+  <a href="/logout">Log Out</a>
   {% endif %}
 </nav>
 
@@ -46,7 +46,7 @@
     {% if is_admin %}
     <a href="/services" class="nav-mobile-link">Admin</a>
     {% else %}
-    <a href="#" id="mobile-admin-link" class="nav-mobile-link">Admin</a>
+    <a href="/logout" class="nav-mobile-link">Log Out</a>
     {% endif %}
     
     {% if services and QUICK_ACCESS_ENABLED == 'yes' %}
@@ -63,19 +63,3 @@
 
 
 
-{% if not is_admin %}
-<!-- Admin Modal -->
-<div id="admin-modal" class="modal">
-  <div class="modal-content">
-    <button id="close-modal" class="modal-close">&times;</button>
-    <h2>Admin Login</h2>
-    <form id="admin-login-form" method="POST" action="/login">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <label for="admin-password">Password:</label>
-      <input type="password" id="admin-password" name="password" required>
-      <button type="submit">Login</button>
-    </form>
-    <div id="admin-error" class="modal-error"></div>
-  </div>
-</div>
-{% endif %}

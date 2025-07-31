@@ -964,6 +964,12 @@ def login():
 
     return render_template("login.html")
 
+@app.route("/logout")
+def logout():
+    """Clear session and redirect to login"""
+    session.clear()
+    return redirect(url_for("login"))
+
 @app.route("/services", methods=["GET", "POST"])
 def services():
     if not session.get("admin_authenticated"):
