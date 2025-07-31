@@ -2807,10 +2807,24 @@ details.letter-details {
   position: relative;
   transform: scale(0.8);
   transition: transform 0.3s ease;
+  overflow: visible;
 }
 
 .image-modal.open .image-modal-content {
   transform: scale(1);
+}
+
+.image-modal.zoomed .image-modal-close {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.image-modal-zoom-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
 }
 
 .image-modal img {
@@ -2822,6 +2836,15 @@ details.letter-details {
   border-radius: 0.5rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   transition: opacity 0.3s ease;
+  transform-origin: center center;
+  will-change: transform;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 .image-modal-close {
@@ -2875,6 +2898,12 @@ details.letter-details {
   .image-modal-content {
     max-width: 95vw;
     max-height: 95vh;
+  }
+  
+  .image-modal-zoom-container {
+    max-width: 95vw;
+    max-height: 95vh;
+    overflow: visible;
   }
   
   .image-modal-close {
