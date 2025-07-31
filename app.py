@@ -60,7 +60,7 @@ def is_running_in_docker():
         return any(var in os.environ for var in ['DOCKER_CONTAINER', 'KUBERNETES_SERVICE_HOST'])
 
 # Application configuration
-APP_PORT = int(os.getenv("APP_PORT", "10000"))
+# APP_PORT will be set after load_dotenv() is called
 
 def get_app_url():
     """Determine the correct URL to open in browser"""
@@ -109,6 +109,8 @@ def ensure_secret_key():
 
 ensure_secret_key()
 load_dotenv()
+# Set APP_PORT after loading environment variables
+APP_PORT = int(os.getenv("APP_PORT"))
 debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
 
 app = Flask(__name__)
@@ -877,6 +879,42 @@ def is_setup_complete():
     return os.getenv("SETUP_COMPLETE", "0") == "1"
 
 # Update login route to check setup status
+@app.route("/admin-login", methods=["POST"])
+def admin_login():
+    """Handle admin login via AJAX"""
+    if not is_setup_complete():
+        return jsonify({"success": False, "error": "Setup not complete"})
+    
+    entered_password = request.form.get("password")
+    if not entered_password:
+        return jsonify({"success": False, "error": "Password is required"})
+    
+    # Always reload from .env
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+    
+    # Get hashed passwords and salts
+    admin_password_hash = os.getenv("ADMIN_PASSWORD_HASH")
+    admin_password_salt = os.getenv("ADMIN_PASSWORD_SALT")
+    
+    # For backward compatibility, check plain text passwords if hashes don't exist
+    admin_password_plain = os.getenv("ADMIN_PASSWORD")
+    
+    # Check admin password
+    admin_authenticated = False
+    if admin_password_hash and admin_password_salt:
+        admin_authenticated = verify_password(entered_password, admin_password_salt, admin_password_hash)
+    elif admin_password_plain:
+        # Fallback to plain text for backward compatibility
+        admin_authenticated = (entered_password == admin_password_plain)
+    
+    if admin_authenticated:
+        session["authenticated"] = True
+        session["admin_authenticated"] = True
+        return jsonify({"success": True})
+    else:
+        return jsonify({"success": False, "error": "Incorrect admin password"})
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if not is_setup_complete():
