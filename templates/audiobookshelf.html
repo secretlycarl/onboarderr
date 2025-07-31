@@ -201,7 +201,7 @@
   </div>
 
   <script>
-    // --- Seamless Infinite Carousel Logic (transform-based) ---
+    // --- Enhanced Infinite Carousel Logic with Mobile Optimizations ---
     function setupInfiniteCarousel(carousel) {
       const container = carousel.parentElement;
       let scrollSpeed = 0.5; // px per frame
@@ -231,43 +231,85 @@
         // Use the same auto-scroll method as desktop (no mobile-specific handling)
       }
       
-      // Add manual scrolling support for touch devices only
+      // Enhanced manual scrolling support for touch devices
       let isUserInteracting = false;
       let manualScrollStartX = 0;
       let manualScrollStartOffset = 0;
       let isManualScrolling = false;
+      let lastScrollPosition = 0;
       
       // Only enable manual scrolling on touch devices
       const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
       
       if (isTouchDevice) {
-        // Touch event handling for manual scrolling (touch devices only)
+        // Improved touch event handling for manual scrolling
+        let touchStartTime = 0;
+        let lastTouchMoveTime = 0;
+        let scrollVelocity = 0;
+        let lastTouchX = 0;
+        
         container.addEventListener('touchstart', function(e) {
           isUserInteracting = true;
           isManualScrolling = true;
           manualScrollStartX = e.touches[0].clientX;
           manualScrollStartOffset = offset;
+          lastTouchX = manualScrollStartX;
+          touchStartTime = Date.now();
+          scrollVelocity = 0;
           console.log('Manual scroll started - auto-scroll paused');
         }, { passive: true });
         
         container.addEventListener('touchmove', function(e) {
           if (isManualScrolling) {
-            const deltaX = e.touches[0].clientX - manualScrollStartX;
+            const now = Date.now();
+            const currentTouchX = e.touches[0].clientX;
+            
+            // Calculate velocity for smoother scrolling
+            if (lastTouchMoveTime > 0) {
+              const timeDelta = now - lastTouchMoveTime;
+              if (timeDelta > 0) {
+                scrollVelocity = (currentTouchX - lastTouchX) / timeDelta;
+              }
+            }
+            
+            // Throttle touch move events to reduce jumpiness
+            if (now - lastTouchMoveTime < 16) { // ~60fps
+              return;
+            }
+            lastTouchMoveTime = now;
+            lastTouchX = currentTouchX;
+            
+            // Smooth manual scrolling
+            const deltaX = currentTouchX - manualScrollStartX;
             offset = manualScrollStartOffset + deltaX;
             carousel.style.transform = `translateX(${offset}px)`;
+            
+            // Update scroll position for infinite scroll detection
+            lastScrollPosition = offset;
           }
         }, { passive: true });
         
         container.addEventListener('touchend', function(e) {
           isManualScrolling = false;
+          const touchDuration = Date.now() - touchStartTime;
+          
+          // Apply momentum scrolling if velocity is high enough
+          if (Math.abs(scrollVelocity) > 0.5) {
+            const momentumDistance = scrollVelocity * 100;
+            offset += momentumDistance;
+            carousel.style.transform = `translateX(${offset}px)`;
+          }
+          
+          // Reset interaction flag with appropriate delay based on touch duration
+          const resetDelay = touchDuration < 100 ? 50 : 150;
           setTimeout(() => {
             isUserInteracting = false;
             console.log('Manual scroll ended - auto-scroll resumed');
-          }, 300);
+          }, resetDelay);
         }, { passive: true });
       }
       
-      // Quick poster loading when near the end (for auto-scroll)
+      // Enhanced poster loading with better infinite scroll
       function checkForMorePosters() {
         const remainingImages = carousel.children.length;
         if (remainingImages <= 15) {
@@ -276,78 +318,113 @@
         }
       }
 
-      // Duplicate initial images to allow seamless looping
+      // Improved duplicate images function
       function duplicateImages() {
         const imgs = Array.from(carousel.children);
+        const fragment = document.createDocumentFragment();
+        
         imgs.forEach(img => {
           const clone = img.cloneNode(true);
-          carousel.appendChild(clone);
+          // Ensure cloned images load properly
+          if (clone.tagName === 'IMG') {
+            clone.style.opacity = '0';
+            clone.addEventListener('load', function() {
+              this.style.opacity = '1';
+            });
+          }
+          fragment.appendChild(clone);
         });
+        
+        carousel.appendChild(fragment);
+        updateWidth();
       }
 
-      // Set carousel width
+      // Enhanced carousel width calculation
       function updateWidth() {
-        // Instead of setting to total width, set to container's width plus a buffer
         const containerWidth = container.offsetWidth;
-        // Buffer: add width of 2 images (if available)
         let buffer = 0;
         if (carousel.children.length > 0) {
           const imgWidth = carousel.children[0].offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
-          buffer = imgWidth * 4;
+          buffer = imgWidth * 6; // Increased buffer for smoother infinite scroll
         }
         carousel.style.width = (containerWidth + buffer) + 'px';
       }
 
-      // Animation loop using transform
+      // Improved animation loop with better infinite scroll
       function animate() {
-                                         // Pause on hover or when user is manually scrolling
-             if (!isPaused && !isUserInteracting) {
+        if (!isPaused && !isUserInteracting) {
           offset -= scrollSpeed;
           carousel.style.transform = `translateX(${offset}px)`;
+          
           const firstImg = carousel.children[0];
-          const firstImgWidth = firstImg.offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
-          if (Math.abs(offset) >= firstImgWidth) {
-            carousel.appendChild(firstImg);
-            offset += firstImgWidth;
-            carousel.style.transform = `translateX(${offset}px)`;
+          if (firstImg) {
+            const firstImgWidth = firstImg.offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
+            if (Math.abs(offset) >= firstImgWidth) {
+              // Move first image to end for infinite scroll
+              carousel.appendChild(firstImg);
+              offset += firstImgWidth;
+              carousel.style.transform = `translateX(${offset}px)`;
+              
+              // Check if we need more images
+              checkForMorePosters();
+            }
           }
         }
         rafId = requestAnimationFrame(animate);
       }
 
-      // Hover pause functionality removed - carousel continues scrolling on hover
-
-      // Wait for images to load before starting
-      const imgs = carousel.querySelectorAll('img');
-      let loaded = 0;
-      if (imgs.length === 0) {
-        animate();
-        return;
-      }
-      let started = false;
-      function maybeStart() {
-        if (!started && loaded > 0) {
-          started = true;
-          duplicateImages();
-          updateWidth();
+      // Enhanced image loading with better performance
+      function initializeCarousel() {
+        const imgs = carousel.querySelectorAll('img');
+        let loaded = 0;
+        let started = false;
+        
+        function maybeStart() {
+          if (!started && loaded > 0) {
+            started = true;
+            duplicateImages();
+            updateWidth();
+            animate();
+          }
+        }
+        
+        if (imgs.length === 0) {
           animate();
+          return;
         }
-      }
-      imgs.forEach(img => {
-        if (img.complete) {
-          loaded++;
-          maybeStart();
-        } else {
-          img.addEventListener('load', () => {
+        
+        imgs.forEach(img => {
+          // Set opacity to 0 initially
+          img.style.opacity = '0';
+          
+          if (img.complete) {
             loaded++;
+            // Set opacity to 1 when image is already loaded
+            img.style.opacity = '1';
             maybeStart();
-          });
+          } else {
+            img.addEventListener('load', () => {
+              loaded++;
+              // Set opacity to 1 when image loads
+              img.style.opacity = '1';
+              maybeStart();
+            });
+            img.addEventListener('error', () => {
+              // Handle failed image loads
+              loaded++;
+              maybeStart();
+            });
+          }
+        });
+        
+        // Fallback: if all images are loaded, ensure animation starts
+        if (loaded === imgs.length) {
+          maybeStart();
         }
-      });
-      // Fallback: if all images are loaded, ensure animation starts
-      if (loaded === imgs.length) {
-        maybeStart();
       }
+
+      // Initialize the carousel
+      initializeCarousel();
     }
 
     // Fetch covers with Goodreads links and initialize carousel
@@ -363,9 +440,9 @@
           const goodreadsLink = goodreadsLinks[index];
           const title = titles[index] || `Audiobook ${index + 1}`;
           if (goodreadsLink) {
-            return `<a href="${goodreadsLink}" target="_blank" class="accent" title="${title}"><img src="${path}" class="carousel-img" alt="Audiobook cover" loading="lazy"></a>`;
+            return `<a href="${goodreadsLink}" target="_blank" class="accent" title="${title}"><img src="${path}" class="carousel-img" alt="Audiobook cover" loading="lazy" style="opacity: 0; transition: opacity 0.3s ease;"></a>`;
           } else {
-            return `<img src="${path}" class="carousel-img" alt="Audiobook cover" loading="lazy" title="${title}">`;
+            return `<img src="${path}" class="carousel-img" alt="Audiobook cover" loading="lazy" title="${title}" style="opacity: 0; transition: opacity 0.3s ease;">`;
           }
         }).join('');
         setupInfiniteCarousel(container);

@@ -1189,6 +1189,8 @@ a:hover {
   border-radius: 0.5rem;
   position: relative;
   padding: 10px 0;
+  /* Ensure proper box-sizing for accurate height calculation */
+  box-sizing: border-box;
 }
 
 .poster-carousel {
@@ -1202,12 +1204,29 @@ a:hover {
 }
 
 .carousel-img {
-  width: 140px;
+  width: 130px;
   height: 200px;
   object-fit: cover;
   border-radius: 0.5rem;
   box-shadow: var(--shadow-lg);
   transition: transform 0.2s ease, box-shadow 0.2s;
+  /* Prevent size changes during loading */
+  min-width: 130px;
+  min-height: 200px;
+  max-width: 130px;
+  max-height: 200px;
+  /* Ensure images don't cause layout shifts */
+  background-color: var(--card-bg);
+  /* Prevent aspect ratio issues */
+  object-position: center;
+  /* Prevent layout shifts during loading */
+  display: block;
+  flex-shrink: 0;
+  /* Improve loading performance */
+  will-change: transform;
+  /* Better image rendering */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
 }
 
 /* Desktop hover effects for clickable carousel posters */
@@ -1237,6 +1256,17 @@ a:hover {
     scroll-behavior: smooth;
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE and Edge */
+    /* Improved touch scrolling */
+    touch-action: pan-x;
+    /* Prevent momentum scrolling issues */
+    overscroll-behavior-x: contain;
+    /* Smooth scrolling improvements */
+    scroll-snap-type: x proximity;
+    scroll-snap-align: start;
+    /* Better mobile performance */
+    will-change: scroll-position;
+    /* Prevent layout shifts */
+    contain: layout style paint;
   }
   
   .poster-carousel-container::-webkit-scrollbar {
@@ -1252,11 +1282,31 @@ a:hover {
     /* Ensure proper width for scrolling */
     width: max-content;
     min-width: 100%;
+    /* Prevent flex shrinking */
+    flex-shrink: 0;
+    /* Better performance for transforms */
+    will-change: transform;
+    /* Prevent layout shifts */
+    contain: layout style paint;
   }
   
   /* Ensure images don't shrink on mobile */
   .carousel-img {
     flex-shrink: 0;
+    /* Mobile-specific sizing - more book-like aspect ratio */
+    width: 180px;
+    height: 280px;
+    min-width: 180px;
+    min-height: 280px;
+    max-width: 180px;
+    max-height: 280px;
+    /* Smooth scrolling snap points */
+    scroll-snap-align: start;
+    /* Improve mobile performance */
+    will-change: transform;
+    /* Better image rendering for mobile */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
   }
   
   /* Visual feedback during scrolling */
@@ -1352,13 +1402,29 @@ a:hover {
   
   /* Improved mobile carousel sizing */
   .poster-carousel-container {
-    height: 320px;
+    height: 300px;
+    /* Ensure proper spacing for mobile images */
+    padding: 10px 0;
+    box-sizing: border-box;
   }
   
   .carousel-img {
     height: 280px;
-    width: 200px;
+    width: 180px;
     border-radius: 0.75rem;
+    /* Ensure consistent sizing */
+    min-width: 180px;
+    min-height: 280px;
+    max-width: 180px;
+    max-height: 280px;
+    /* Prevent layout shifts during loading */
+    display: block;
+    flex-shrink: 0;
+    /* Improve mobile performance */
+    will-change: transform;
+    /* Better image rendering for mobile */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
   }
   
   .poster-carousel {
@@ -1416,8 +1482,8 @@ a:hover {
   }
   
   .library-tab {
-    padding: 0.6em 1em;
-    font-size: 0.85em;
+    padding: 0.8em 1.2em;
+    font-size: 1em;
     border-radius: 25px;
   }
   
@@ -2161,8 +2227,8 @@ details.letter-details {
   }
   
   .library-tab {
-    padding: 0.4em 0.8em;
-    font-size: 0.8em;
+    padding: 0.7em 1.1em;
+    font-size: 0.95em;
   }
   
 

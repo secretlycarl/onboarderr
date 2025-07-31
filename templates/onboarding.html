@@ -550,16 +550,34 @@
             let imgElement;
             if (lastfmUrl) {
               // If it's a music artist, link to Last.fm
-              imgElement = `<a href="${lastfmUrl}" target="_blank" class="accent" title="${title}"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>`;
+              imgElement = `<a href="${lastfmUrl}" target="_blank" class="accent" title="${title}"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy" style="opacity: 0; transition: opacity 0.3s ease;"></a>`;
             } else if (imdbId) {
               // If it has IMDB ID, link to IMDB
-              imgElement = `<a href="https://www.imdb.com/title/${imdbId}" target="_blank" class="accent" title="${title}"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>`;
+              imgElement = `<a href="https://www.imdb.com/title/${imdbId}" target="_blank" class="accent" title="${title}"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy" style="opacity: 0; transition: opacity 0.3s ease;"></a>`;
             } else {
               // No link - add hover tooltip with title
-              imgElement = `<img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy" title="${title}">`;
+              imgElement = `<img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy" title="${title}" style="opacity: 0; transition: opacity 0.3s ease;">`;
             }
             
             carousel.insertAdjacentHTML('beforeend', imgElement);
+          });
+          
+          // Set up image loading handlers for opacity transitions
+          const imgs = carousel.querySelectorAll('img');
+          imgs.forEach(img => {
+            if (img.complete) {
+              // Image is already loaded
+              img.style.opacity = '1';
+            } else {
+              // Image is still loading
+              img.addEventListener('load', () => {
+                img.style.opacity = '1';
+              });
+              img.addEventListener('error', () => {
+                // Handle failed image loads
+                console.log('Image failed to load:', img.src);
+              });
+            }
           });
           
           console.log(`Added ${posters.length} new posters for ${library}`);
@@ -580,16 +598,34 @@
             let imgElement;
             if (lastfmUrl) {
               // If it's a music artist, link to Last.fm
-              imgElement = `<a href="${lastfmUrl}" target="_blank" class="accent" title="${title}"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>`;
+              imgElement = `<a href="${lastfmUrl}" target="_blank" class="accent" title="${title}"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy" style="opacity: 0; transition: opacity 0.3s ease;"></a>`;
             } else if (imdbId) {
               // If it has IMDB ID, link to IMDB
-              imgElement = `<a href="https://www.imdb.com/title/${imdbId}" target="_blank" class="accent" title="${title}"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>`;
+              imgElement = `<a href="https://www.imdb.com/title/${imdbId}" target="_blank" class="accent" title="${title}"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy" style="opacity: 0; transition: opacity 0.3s ease;"></a>`;
             } else {
               // No link - add hover tooltip with title
-              imgElement = `<img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy" title="${title}">`;
+              imgElement = `<img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy" title="${title}" style="opacity: 0; transition: opacity 0.3s ease;">`;
             }
             
             carousel.insertAdjacentHTML('beforeend', imgElement);
+          });
+          
+          // Set up image loading handlers for opacity transitions
+          const imgs = carousel.querySelectorAll('img');
+          imgs.forEach(img => {
+            if (img.complete) {
+              // Image is already loaded
+              img.style.opacity = '1';
+            } else {
+              // Image is still loading
+              img.addEventListener('load', () => {
+                img.style.opacity = '1';
+              });
+              img.addEventListener('error', () => {
+                // Handle failed image loads
+                console.log('Image failed to load:', img.src);
+              });
+            }
           });
           
           // Update carousel width after adding new posters
@@ -979,16 +1015,28 @@
         
         if (isTouchDevice) {
           // Touch event handling for manual scrolling (touch devices only)
+          let touchStartTime = 0;
+          let lastTouchMoveTime = 0;
+          
           container.addEventListener('touchstart', function(e) {
             isUserInteracting = true;
             isManualScrolling = true;
             manualScrollStartX = e.touches[0].clientX;
             manualScrollStartOffset = offset;
+            touchStartTime = Date.now();
             console.log('Manual scroll started - auto-scroll paused');
           }, { passive: true });
           
           container.addEventListener('touchmove', function(e) {
             if (isManualScrolling) {
+              const now = Date.now();
+              // Throttle touch move events to reduce jumpiness
+              if (now - lastTouchMoveTime < 16) { // ~60fps
+                return;
+              }
+              lastTouchMoveTime = now;
+              
+              // Don't prevent default - let browser handle momentum scrolling
               const deltaX = e.touches[0].clientX - manualScrollStartX;
               // Natural scrolling direction - swipe left moves content left
               let newOffset = manualScrollStartOffset + deltaX;
@@ -1004,14 +1052,18 @@
               offset = newOffset;
               carousel.style.transform = `translateX(${offset}px)`;
             }
-          }, { passive: true });
+          }, { passive: true }); // Changed back to true for smoother scrolling
           
           container.addEventListener('touchend', function(e) {
             isManualScrolling = false;
+            const touchDuration = Date.now() - touchStartTime;
+            
+            // Reset interaction flag with appropriate delay based on touch duration
+            const resetDelay = touchDuration < 100 ? 50 : 150;
             setTimeout(() => {
               isUserInteracting = false;
               console.log('Manual scroll ended - auto-scroll resumed');
-            }, 300);
+            }, resetDelay);
           }, { passive: true });
         }
         
