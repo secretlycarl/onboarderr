@@ -357,13 +357,15 @@
         const container = document.getElementById('audiobook-carousel');
         const posters = data.posters || [];
         const goodreadsLinks = data.goodreads_links || [];
+        const titles = data.titles || [];
         
         container.innerHTML = posters.map((path, index) => {
           const goodreadsLink = goodreadsLinks[index];
+          const title = titles[index] || `Audiobook ${index + 1}`;
           if (goodreadsLink) {
-            return `<a href="${goodreadsLink}" target="_blank" class="accent"><img src="${path}" class="carousel-img" alt="Audiobook cover" loading="lazy"></a>`;
+            return `<a href="${goodreadsLink}" target="_blank" class="accent" title="${title}"><img src="${path}" class="carousel-img" alt="Audiobook cover" loading="lazy"></a>`;
           } else {
-            return `<img src="${path}" class="carousel-img" alt="Audiobook cover" loading="lazy">`;
+            return `<img src="${path}" class="carousel-img" alt="Audiobook cover" loading="lazy" title="${title}">`;
           }
         }).join('');
         setupInfiniteCarousel(container);

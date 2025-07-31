@@ -550,10 +550,10 @@
             let imgElement;
             if (lastfmUrl) {
               // If it's a music artist, link to Last.fm
-              imgElement = `<a href="${lastfmUrl}" target="_blank" class="accent"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>`;
+              imgElement = `<a href="${lastfmUrl}" target="_blank" class="accent" title="${title}"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>`;
             } else if (imdbId) {
               // If it has IMDB ID, link to IMDB
-              imgElement = `<a href="https://www.imdb.com/title/${imdbId}" target="_blank" class="accent"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>`;
+              imgElement = `<a href="https://www.imdb.com/title/${imdbId}" target="_blank" class="accent" title="${title}"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>`;
             } else {
               // No link - add hover tooltip with title
               imgElement = `<img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy" title="${title}">`;
@@ -580,10 +580,10 @@
             let imgElement;
             if (lastfmUrl) {
               // If it's a music artist, link to Last.fm
-              imgElement = `<a href="${lastfmUrl}" target="_blank" class="accent"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>`;
+              imgElement = `<a href="${lastfmUrl}" target="_blank" class="accent" title="${title}"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>`;
             } else if (imdbId) {
               // If it has IMDB ID, link to IMDB
-              imgElement = `<a href="https://www.imdb.com/title/${imdbId}" target="_blank" class="accent"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>`;
+              imgElement = `<a href="https://www.imdb.com/title/${imdbId}" target="_blank" class="accent" title="${title}"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>`;
             } else {
               // No link - add hover tooltip with title
               imgElement = `<img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy" title="${title}">`;

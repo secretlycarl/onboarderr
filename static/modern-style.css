@@ -110,7 +110,7 @@
   z-index: 2;
 }
 
-.login-btn {
+.complete-card .login-btn {
   display: none;
   margin-top: 1.5rem;
   padding: 0.75rem 1.5rem;
@@ -124,7 +124,7 @@
   box-shadow: var(--shadow);
 }
 
-.login-btn:hover {
+.complete-card .login-btn:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
@@ -1188,6 +1188,7 @@ a:hover {
   height: 220px;
   border-radius: 0.5rem;
   position: relative;
+  padding: 10px 0;
 }
 
 .poster-carousel {
@@ -1207,6 +1208,20 @@ a:hover {
   border-radius: 0.5rem;
   box-shadow: var(--shadow-lg);
   transition: transform 0.2s ease, box-shadow 0.2s;
+}
+
+/* Desktop hover effects for clickable carousel posters */
+@media (pointer: fine) {
+  .poster-carousel a {
+    cursor: pointer;
+    display: inline-block;
+    position: relative;
+  }
+  
+  .poster-carousel a:hover .carousel-img {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-xl);
+  }
 }
 
 .carousel-row {
