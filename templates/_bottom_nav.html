@@ -2,13 +2,13 @@
 
 <!-- Desktop Navigation -->
 <nav class="nav-desktop">
-  <a href="/onboarding">Join Plex</a>
+  <a href="/onboarding" class="{% if request.endpoint == 'onboarding' %}active{% endif %}">Join Plex</a>
   {% if ABS_ENABLED == 'yes' %}
-  <a href="/audiobookshelf">Join Audiobookshelf</a>
+  <a href="/audiobookshelf" class="{% if request.endpoint == 'audiobookshelf' %}active{% endif %}">Join Audiobookshelf</a>
   {% endif %}
-  <a href="/medialists">Media Lists</a>
+  <a href="/medialists" class="{% if request.endpoint == 'medialists' %}active{% endif %}">Media Lists</a>
   {% if is_admin %}
-  <a href="/services">Admin</a>
+  <a href="/services" class="{% if request.endpoint == 'services' %}active{% endif %}">Admin</a>
   {% else %}
   <a href="/logout">Log Out</a>
   {% endif %}

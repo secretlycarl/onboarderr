@@ -35,11 +35,11 @@
 }
 
 .complete-card {
-  max-width: 500px;
+  max-width: 400px;
   width: 100%;
   background: var(--container-bg);
   border-radius: 1rem;
-  padding: 2.5rem 2rem;
+  padding: 2rem 2rem;
   text-align: center;
   box-shadow: var(--shadow-xl);
   border: 1px solid var(--border);
@@ -64,10 +64,12 @@
 }
 
 .complete-message {
-  font-size: 1.1rem;
-  color: var(--success);
-  margin: 1.5rem 0;
+  max-width: 100%;
+  font-size: 1rem;
+  color: var(--text);
   line-height: 1.4;
+  margin: 0.5rem auto;
+  display: block;
 }
 
 .complete-message strong {
@@ -75,19 +77,22 @@
 }
 
 .countdown-container {
-  margin: 2rem 0;
+  margin-top: 2rem;
+  margin-bottom: 0rem;
 }
 
 .countdown-bar-container {
-  width: 100%;
+  width: 80%;
   background: var(--input-bg);
-  border-radius: 0.75rem;
-  margin: 1rem 0;
-  height: 1.5rem;
+  border-radius: 1rem;
+  height: 2rem;
   box-shadow: var(--shadow);
   overflow: hidden;
   position: relative;
   border: 1px solid var(--input-border);
+  padding: 0; /* Removed excessive padding */
+  margin: 0 auto;
+  display: block;
 }
 
 .countdown-bar {
@@ -95,19 +100,21 @@
   width: 0%;
   background: linear-gradient(90deg, var(--accent), var(--accent-hover));
   border-radius: 0.75rem 0 0 0.75rem;
-  transition: width 0.2s linear;
+  transition: width 0.5s ease-out;
 }
 
 .countdown-label {
   position: absolute;
   left: 50%;
-  top: 0;
-  transform: translateX(-50%);
+  top: 50%;
+  transform: translate(-50%, -50%);
   color: var(--text);
   font-weight: 600;
   font-size: 0.9rem;
   line-height: 1.5rem;
   z-index: 2;
+  white-space: nowrap;
+  min-width: max-content;
 }
 
 .complete-card .login-btn {
@@ -116,7 +123,7 @@
   padding: 0.75rem 1.5rem;
   background: linear-gradient(135deg, var(--accent), var(--accent-hover));
   color: white;
-  border-radius: 0.5rem;
+  border-radius: 1rem;
   text-decoration: none;
   font-weight: 600;
   font-size: 1rem;
@@ -220,12 +227,14 @@
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
   font-weight: 600;
-  border-radius: 0.5rem;
+  border-radius: 1rem;
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: var(--shadow);
-  width: 100%;
+  width: 66%;
+  margin: 0 auto;
+  display: block;
 }
 
 .login-btn:hover {
@@ -1784,13 +1793,21 @@ a:hover {
   font-weight: 600;
   text-decoration: none;
   padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
+  border-radius: 1.5rem;
   transition: all 0.2s ease;
 }
 
 .nav-desktop a:hover {
   background: rgba(255, 255, 255, 0.1);
   transform: translateY(-1px);
+}
+
+.nav-desktop a.active {
+  background: var(--accent-10);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: var(--shadow-md);
 }
 
 /* Mobile Navigation */

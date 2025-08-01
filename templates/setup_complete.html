@@ -18,14 +18,14 @@
             <img src="{{ url_for('static', filename=logo_filename) }}" alt="Logo" class="complete-logo">
             <h1 class="complete-title">Changes Saved!</h1>
             <p class="complete-message">
-                <strong>The server will restart automatically to apply changes.<br><br>
-                If you don't see the login page, please check the logs for errors.</strong>
+                <strong>The server will restart automatically to apply changes.<br></strong><br>
+                If you don't see the login page, please check the logs for errors.
             </p>
 
             <div class="countdown-container">
                 <div class="countdown-bar-container">
                     <div class="countdown-bar" id="countdownBar"></div>
-                    <span class="countdown-label" id="countdownLabel">Reloading in 20 seconds...</span>
+                    <span class="countdown-label" id="countdownLabel">Reloading in 15 seconds...</span>
                 </div>
             </div>
 
@@ -66,13 +66,13 @@
 
             function updateBar() {
                 if (waiting) return;
-                elapsed += 0.2;
+                elapsed += 0.1; // Changed from 0.5 to 0.1 for smoother animation
                 var percent = Math.min(100, (elapsed / totalSeconds) * 100);
                 bar.style.width = percent + '%';
                 var remaining = Math.ceil(totalSeconds - elapsed);
                 label.textContent = 'Reloading in ' + remaining + ' second' + (remaining !== 1 ? 's' : '') + '...';
                 if (elapsed < totalSeconds) {
-                    setTimeout(updateBar, 200);
+                    setTimeout(updateBar, 100); // Changed from 500ms to 100ms for smoother animation
                 } else {
                     waiting = true;
                     document.getElementById('loginBtn').style.display = 'inline-block';

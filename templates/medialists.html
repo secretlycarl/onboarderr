@@ -49,7 +49,6 @@
 
   <div class="onboarding-content medialists-page">
     <div class="onboarding-section">
-      <h1 class="onboarding-title" style="color: white !important; -webkit-text-fill-color: white !important; background: none !important;">Media Lists</h1>
       
       <!-- Hidden CSRF token field -->
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -69,7 +68,7 @@
       {% for lib_name, media_groups in library_media.items() %}
       {% set library_index = loop.index0 %}
       <div class="medialist-section" id="plex-{{ library_index }}" style="display:none;">
-        <div style="display: flex; align-items: center; gap: 1em; margin-bottom: 1rem;">
+        <div style="display: flex; align-items: center; gap: 1em;">
           <img src="/static/plex.webp" alt="Plex Logo" style="height: 32px; display: block;" />
           <span class="service-libraries-label">Plex - {{ lib_name }}</span>
         </div>
@@ -106,7 +105,7 @@
       </script>
       
       <div class="medialist-section" id="abs" style="display:none;">
-        <div style="display: flex; align-items: center; gap: 1em; margin-bottom: 1rem;">
+        <div style="display: flex; align-items: center; gap: 1em;"">
           <img src="/static/abs.webp" alt="ABS Logo" style="height: 32px; display: block;" />
           <span class="service-libraries-label">Audiobookshelf</span>
         </div>
@@ -169,8 +168,11 @@
         
         if (!postersContainer) return;
         
-        // Always load content, even if previously loaded
+        // Check if already loaded
         const libraryKey = `${libraryIndex}-${letter}`;
+        if (loadedLetters.has(libraryKey)) {
+          return; // Already loaded
+        }
         
         // Show loading indicator
         postersContainer.innerHTML = '<div style="color:#666; text-align:center; padding:1em;">Loading posters...</div>';
