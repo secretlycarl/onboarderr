@@ -442,7 +442,7 @@
                     {% if library_notes[lib_id.strip()] and library_notes[lib_id.strip()]['title'] %}{{ library_notes[lib_id.strip()]['title'] }}{% else %}Unknown{% endif %} ({{ lib_id.strip() }})
                   </strong>
                   {% if library_notes[lib_id.strip()] and library_notes[lib_id.strip()]['description'] %}
-                    <span class="library-description">— {{ library_notes[lib_id.strip()]['description'] }}</span>
+                    <span class="library-description"> {{ library_notes[lib_id.strip()]['description'] }}</span>
                   {% endif %}
                 </div>
               {% endif %}
@@ -894,7 +894,7 @@
                   html += '<div style="margin-bottom: 0.5em;">';
                   html += '<strong>' + title + ' (' + libId + ')</strong>';
                   if (description) {
-                      html += '<span style="color: #888; font-size: 0.9em;">— ' + description + '</span>';
+                      html += '<span style="color: #888; font-size: 0.9em;">' + description + '</span>';
                   }
                   html += '</div>';
               });

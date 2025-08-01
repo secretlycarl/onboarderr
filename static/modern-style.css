@@ -3,7 +3,7 @@
   --bg: #111111;
   --container-bg: #1e1e1e;
   --card-bg: #1a1a1a;
-  --accent: var(--accent-color, #d33fbc);
+  --accent: var(--accent-color);
   --accent-hover: color-mix(in srgb, var(--accent) 85%, black);
   --accent-dark: color-mix(in srgb, var(--accent) 70%, black);
   --accent-10: color-mix(in srgb, var(--accent) 10%, transparent);
@@ -251,7 +251,7 @@
 }
 
 body {
-  background: linear-gradient(180deg, var(--bg) 0%, var(--bg) 33%, color-mix(in srgb, var(--accent-dark) 25%, var(--bg) 75%) 100%);
+  background: linear-gradient(180deg, var(--bg, #1a1a1a) 0%, var(--bg, #1a1a1a) 33%, color-mix(in srgb, var(--accent-dark, #2a2a2a) 25%, var(--bg, #1a1a1a) 75%) 100%);
   color: var(--text);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.4;
@@ -265,8 +265,9 @@ p {
   margin-bottom: 1.25rem;
 }
 
-p:last-child {
-  margin-bottom: 0;
+/* Override collapsible section margin reset for last-child paragraphs */
+details.collapsible-section p:last-child {
+  margin-bottom: 1rem !important;
 }
 
 ul {
@@ -295,7 +296,7 @@ details.collapsible-section ul.max-800 {
 }
 
 ul:last-child {
-  margin-bottom: 0;
+  margin-bottom: 1rem;
 }
 
 li {
@@ -303,7 +304,7 @@ li {
 }
 
 li:last-child {
-  margin-bottom: 0;
+  margin-bottom: 1rem;
 }
 
 /* Link Styles */
@@ -372,8 +373,8 @@ a:hover {
 }
 
 .service-icon {
-  width: 48px !important;
-  height: 48px !important;
+  width: 36px !important;
+  height: 36px !important;
   object-fit: contain;
   filter: brightness(0.9);
   transition: filter 0.2s ease;
@@ -408,14 +409,14 @@ a:hover {
   }
   
   .service-icon-container {
-    width: 48px;
-    height: 48px;
+    width: 36px;
+    height: 36px;
     margin-bottom: 0.5rem;
   }
   
   .service-icon {
-    width: 48px !important;
-    height: 48px !important;
+    width: 36px !important;
+    height: 36px !important;
   }
   
   .service-name {
@@ -441,8 +442,8 @@ a:hover {
   }
   
   .service-icon {
-    width: 48px !important;
-    height: 48px !important;
+    width: 36px !important;
+    height: 36px !important;
   }
   
   .service-name {
@@ -1066,6 +1067,7 @@ a:hover {
   border-radius: 0.5rem;
   border: 1px solid var(--input-border);
   transition: all 0.2s ease;
+  flex-wrap: wrap;
 }
 
 .library-item:hover {
@@ -1078,23 +1080,40 @@ a:hover {
   height: 1.25rem;
   accent-color: var(--accent);
   flex-shrink: 0;
+  margin-top: 0.125rem;
 }
 
 .library-title {
   font-weight: 500;
   color: var(--text);
-  flex: 1;
+  flex: 0 0 30%;
   margin-bottom: 0;
   line-height: 1.4;
   display: flex;
   align-items: center;
   min-height: 1.5rem;
+  min-width: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .library-id {
   color: var(--text-secondary);
   font-size: 0.875rem;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  text-align: left;
+  flex: 0 0 60%;
+  min-width: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.library-description {
+  color: var(--text-muted);
+  font-size: 0.9em;
+  text-align: left;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 /* Description Fields */
@@ -1186,10 +1205,30 @@ a:hover {
   }
   
   .library-item {
-    flex-direction: row;
+    flex-direction: column;
     align-items: flex-start;
-    gap: 0.75rem;
-    flex-wrap: nowrap;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  
+  .library-checkbox {
+    margin-top: 0;
+  }
+  
+  .library-title {
+    width: 100%;
+    flex: none;
+  }
+  
+  .library-id {
+    width: 100%;
+    text-align: left;
+    flex: none;
+  }
+  
+  .library-description {
+    width: 100%;
+    text-align: left;
   }
   
   .submit-btn {
@@ -1629,6 +1668,32 @@ a:hover {
   .library-item {
     padding: 1rem;
     margin-bottom: 0.75rem;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  
+  .library-checkbox {
+    margin-top: 0;
+  }
+  
+  .library-title {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .library-id {
+    width: 100%;
+    text-align: left;
+    flex: none;
+    margin-top: 0.5rem;
+  }
+  
+  .library-description {
+    width: 100%;
+    text-align: left;
+    margin-top: 0.5rem;
   }
   
   .library-title {
@@ -1703,7 +1768,8 @@ a:hover {
   justify-content: center;
   gap: 2rem;
   font-size: 1.2rem;
-  margin: 2rem 0 0;
+  margin-top: 1.5em;
+  margin-bottom: 0.5rem;
   flex-wrap: wrap;
 }
 
@@ -2110,7 +2176,7 @@ details.collapsible-section > summary::-webkit-details-marker {
 
 /* Content styling - simplified */
 details.collapsible-section > *:not(summary) {
-  padding: 1.75rem;
+  padding: 1rem 1.75rem;
   margin: 0;
 }
 
@@ -2670,8 +2736,8 @@ details.collapsible-section > .info-box {
 }
 
 .service-icon {
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
   border-radius: 8px;
   object-fit: contain;
 }
@@ -2697,6 +2763,12 @@ details.collapsible-section > .info-box {
   background: var(--input-bg);
 }
 
+/* Discord icons in notification options should be smaller */
+.notification-options .checkbox-option .service-icon {
+  width: 24px !important;
+  height: 24px !important;
+}
+
 /* Library Selection Styles */
 .current-library-selection {
   padding: 1rem;
@@ -2718,11 +2790,20 @@ details.collapsible-section > .info-box {
   background: var(--input-bg);
   border-radius: 0.25rem;
   border: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .library-description {
   color: var(--text-muted);
   font-size: 0.9em;
+  text-align: right;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  flex: 1;
+  min-width: 0;
 }
 
 /* Color Picker Group */
@@ -2810,9 +2891,37 @@ details.collapsible-section > .info-box {
   }
   
   .library-header {
-    flex-direction: column;
+    margin-bottom: 1rem;
+  }
+  
+  .library-item {
+    flex-direction: row;
     align-items: flex-start;
     gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  
+  .library-checkbox {
+    margin-top: 0;
+  }
+  
+  .library-title {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .library-id {
+    width: 100%;
+    text-align: left;
+    flex: none;
+    margin-top: 0.5rem;
+  }
+  
+  .library-description {
+    width: 100%;
+    text-align: left;
+    flex: none;
+    margin-top: 0.5rem;
   }
   
   .color-picker-group {

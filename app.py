@@ -3559,12 +3559,21 @@ def get_random_posters_all():
     try:
         # Get all libraries
         libraries = get_plex_libraries()
+        
+        # Filter libraries based on carousel settings (same logic as onboarding route)
+        library_carousels = os.getenv("LIBRARY_CAROUSELS", "")
+        if library_carousels:
+            # Only include libraries that have carousels enabled
+            carousel_ids = [str(id).strip() for id in library_carousels.split(",") if str(id).strip()]
+            libraries = [lib for lib in libraries if str(lib["key"]) in carousel_ids]
+            print(f"Filtered to {len(libraries)} libraries with carousels enabled")
+        
         all_posters = []
         all_imdb_ids = []
         all_lastfm_urls = []
         all_titles = []
         
-        # Collect posters from all libraries (excluding music unless explicitly requested)
+        # Collect posters from libraries with carousels enabled (excluding music unless explicitly requested)
         for lib in libraries:
             section_id = lib["key"]
             media_type = lib.get("media_type", "")
@@ -3632,7 +3641,7 @@ def get_random_posters_all():
             selected_lastfm_urls = all_lastfm_urls
             selected_titles = all_titles
         
-        print(f"Returning {len(selected_posters)} posters from all libraries")
+        print(f"Returning {len(selected_posters)} posters from libraries with carousels enabled")
         return jsonify({
             "posters": selected_posters,
             "imdb_ids": selected_imdb_ids,
