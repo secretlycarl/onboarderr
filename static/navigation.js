@@ -6,13 +6,15 @@ document.addEventListener('DOMContentLoaded', function() {
   
   const navToggle = document.getElementById('nav-toggle');
   const navMenu = document.getElementById('nav-menu');
+  const navHeader = document.querySelector('.nav-mobile-header');
   console.log('Navigation elements found:', {
     navToggle: !!navToggle,
-    navMenu: !!navMenu
+    navMenu: !!navMenu,
+    navHeader: !!navHeader
   });
   
   // Mobile navigation toggle
-  if (navToggle && navMenu) {
+  if (navToggle && navMenu && navHeader) {
     console.log('Setting up mobile navigation toggle');
     
     // Function to handle toggle
@@ -40,10 +42,23 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
     
-    // Add event listeners for both desktop and mobile
-    navToggle.addEventListener('click', handleToggle);
+    // Add event listeners for the entire header (mobile-friendly)
+    navHeader.addEventListener('click', handleToggle);
     
-    // Add touchstart for mobile devices
+    // Add touchstart for mobile devices on the header
+    navHeader.addEventListener('touchstart', function(e) {
+      console.log('Touch event on nav header');
+      e.preventDefault();
+      e.stopPropagation();
+      handleToggle(e);
+    });
+    
+    // Keep the original toggle button listeners for accessibility
+    navToggle.addEventListener('click', function(e) {
+      e.stopPropagation(); // Prevent double-triggering
+      handleToggle(e);
+    });
+    
     navToggle.addEventListener('touchstart', function(e) {
       console.log('Touch event on nav toggle');
       e.preventDefault();
@@ -52,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     function closeMenuOnOutside(e) {
-      if (!navToggle.contains(e.target) && !navMenu.contains(e.target)) {
+      if (!navHeader.contains(e.target) && !navMenu.contains(e.target)) {
         navMenu.classList.remove('open');
         navToggle.classList.remove('active');
         document.removeEventListener('click', closeMenuOnOutside);
@@ -62,7 +77,8 @@ document.addEventListener('DOMContentLoaded', function() {
   } else {
     console.error('Missing navigation elements:', {
       navToggle: !!navToggle,
-      navMenu: !!navMenu
+      navMenu: !!navMenu,
+      navHeader: !!navHeader
     });
   }
   

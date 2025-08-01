@@ -258,6 +258,7 @@ body {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: calc(100vh + 25px);
 }
 
 /* Paragraph and List Styling */
@@ -569,8 +570,8 @@ a:hover {
 
 .onboarding-intro {
   margin-bottom: 1rem;
-  font-size: 1.1rem;
-  line-height: 1.4;
+  font-size: 1rem;
+  line-height: 1.3;
 }
 
 .carousel-section {
@@ -580,7 +581,7 @@ a:hover {
 .carousel-note {
   text-align: center;
   color: var(--text-muted);
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .screenshot-section {
@@ -597,7 +598,7 @@ a:hover {
 
 .screenshot-caption {
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: 1rem;
   text-align: center;
   margin-top: 0.25rem;
   margin-bottom: 0.5rem;
@@ -1153,7 +1154,7 @@ a:hover {
   padding: 1rem 2rem;
   font-size: 1.1rem;
   font-weight: 600;
-  border-radius: 0.75rem;
+  border-radius: 1rem;
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1503,7 +1504,7 @@ a:hover {
 /* Caption Styles */
 .caption {
   color: var(--text) !important;
-  font-size: 1.2rem;
+  font-size: 1rem;
   text-align: center;
   margin-top: 0.25rem;
   margin-bottom: 1rem;
@@ -1576,7 +1577,7 @@ a:hover {
   .caption {
     font-size: 1.4rem;
     margin-top: 0.5rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.5rem;
   }
   
   /* Better spacing for mobile */
@@ -1596,7 +1597,7 @@ a:hover {
   .onboarding-section {
     margin: 0 0 1rem 0;
     padding: 1.25rem;
-    border-radius: 0.75rem;
+    border-radius: 1rem;
   }
   
   .form-section {
@@ -1790,19 +1791,19 @@ a:hover {
 /* Mobile Navigation */
 .nav-mobile {
   display: none;
-  margin: 1rem 0;
-  padding: 0 1rem;
+  margin: 1rem auto;
+  max-width: 800px;
 }
 
 .nav-mobile-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem;
+  padding: 1.75rem;
   background: var(--container-bg);
-  border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xl);
 }
 
 .nav-mobile-title {
@@ -1829,6 +1830,22 @@ a:hover {
   -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
   z-index: 1000; /* Ensure it's above other elements */
   position: relative;
+}
+
+/* Make entire mobile nav header clickable */
+.nav-mobile-header {
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.2s ease;
+}
+
+.nav-mobile-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-mobile-header:active {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .nav-mobile-toggle:hover {
@@ -1865,9 +1882,9 @@ a:hover {
   transition: all 0.3s ease;
   background: var(--container-bg);
   margin-top: 0.5rem;
-  border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-xl);
   opacity: 0;
   transform: translateY(-10px);
 }
@@ -2061,11 +2078,11 @@ a:hover {
   
   .nav-mobile {
     display: block;
-    padding: 0 1rem;
+    padding: 0 0.5rem;
   }
   
   .nav-mobile-header {
-    padding: 0.75rem;
+    padding: 1.25rem;
   }
   
   .nav-mobile-title {
@@ -2095,13 +2112,21 @@ a:hover {
 
 @media (min-width: 640px) {
   .nav-mobile {
-    padding: 0 1.5rem;
+    padding: 0 0.5rem;
+  }
+  
+  .nav-mobile-header {
+    padding: 1.5rem;
   }
 }
 
 @media (min-width: 1024px) {
   .nav-mobile {
     padding: 0 2rem;
+  }
+  
+  .nav-mobile-header {
+    padding: 1.75rem;
   }
 }
 
@@ -3098,6 +3123,179 @@ details.collapsible-section > .info-box {
   .form-section .warning-box {
     margin-left: 0;
     margin-right: 0;
+  }
+}
+
+/* Letter Navigation Styles */
+.letter-navigation {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  padding: 1rem 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
+}
+
+.letter-navigation::-webkit-scrollbar {
+  height: 4px;
+}
+
+.letter-navigation::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.letter-navigation::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+.letter-button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--accent);
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  font-weight: 700;
+  font-size: 1rem;
+  min-width: 3rem;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.letter-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: var(--accent);
+}
+
+.letter-button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.letter-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.initial-message {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+  padding: 3rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 0.5rem;
+  margin: 2rem 0;
+}
+
+.posters-container {
+  min-height: 200px;
+}
+
+.posters-container ul {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* Fixed 4 columns for desktop */
+  gap: 1.5rem;
+  list-style: none;
+  padding: 0 !important; /* Override the 10% padding from .onboarding-content ul */
+  margin: 0;
+  justify-content: center;
+  max-width: 100%;
+}
+
+.posters-container li {
+  background: var(--card-bg);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.posters-container li:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent);
+}
+
+.posters-container img {
+  width: 100%;
+  aspect-ratio: 2/3;
+  object-fit: cover;
+  border-radius: 0.25rem;
+  margin-bottom: 0.75rem;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.posters-container a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.posters-container a:hover {
+  text-decoration: underline;
+}
+
+/* Larger screens get more columns */
+@media (min-width: 1200px) {
+  .posters-container ul {
+    grid-template-columns: repeat(5, 1fr); /* 5 columns for large screens */
+  }
+}
+
+@media (min-width: 1600px) {
+  .posters-container ul {
+    grid-template-columns: repeat(5, 1fr); /* 6 columns for very large screens */
+  }
+}
+
+@media (max-width: 768px) {
+  .letter-navigation {
+    gap: 0.5rem;
+    padding: 0.75rem 0;
+  }
+  
+  .letter-button {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    min-width: 2.5rem;
+  }
+  
+  .posters-container ul {
+    grid-template-columns: repeat(3, 1fr); /* Fixed 3 columns for tablet */
+    gap: 1rem;
+    justify-content: center;
+  }
+  
+  .posters-container img {
+    aspect-ratio: 2/3;
+  }
+}
+
+@media (max-width: 480px) {
+  .letter-button {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.85rem;
+    min-width: 2.25rem;
+  }
+  
+  .posters-container ul {
+    grid-template-columns: repeat(2, 1fr); /* Fixed 2 columns for mobile */
+    gap: 0.75rem;
+    justify-content: center;
+  }
+  
+  .posters-container img {
+    aspect-ratio: 2/3;
   }
 }
 

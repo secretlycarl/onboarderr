@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ SERVER_NAME }} — Media Lists</title>
+  <title>{{ SERVER_NAME }} - Media Lists</title>
   <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}" />
   <link rel="stylesheet" href="/static/modern-style.css" />
   <script>
@@ -13,6 +13,7 @@
       document.documentElement.style.setProperty('--accent-color', accentColor);
     });
   </script>
+
 </head>
 <body>
   {% include "_bottom_nav.html" %}
@@ -73,56 +74,65 @@
           <span class="service-libraries-label">Plex - {{ lib_name }}</span>
         </div>
         
-        {% set all_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|list + ['0-9', 'Other'] %}
-        {% for letter in all_letters %}
-          {% set titles = media_groups.get(letter, []) %}
-          {% if titles %}
-            <details class="collapsible-section" data-library-index="{{ library_index }}" data-letter="{{ letter }}">
-              <summary class="collapsible-heading">{{ letter }}</summary>
-              <div class="letter-content" id="content-{{ library_index }}-{{ letter }}">
-                <!-- Content will be loaded on-demand when details is opened -->
-                <div style="color:#666; text-align:center; padding:1em;">
-                  Click to load posters for {{ letter }}
-                </div>
-              </div>
-            </details>
-          {% endif %}
-        {% endfor %}
+        <!-- Letter Navigation -->
+        <div class="letter-navigation" data-library-index="{{ library_index }}">
+          {% set all_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|list + ['0-9', 'Other'] %}
+          {% for letter in all_letters %}
+            {% set titles = media_groups.get(letter, []) %}
+            {% if titles %}
+              <button class="letter-button" data-letter="{{ letter }}" data-library-index="{{ library_index }}">
+                {{ letter }}
+              </button>
+            {% endif %}
+          {% endfor %}
+        </div>
+        
+        <!-- Initial Message -->
+        <div class="initial-message" id="initial-message-{{ library_index }}">
+          Choose a letter to get started
+        </div>
+        
+        <!-- Posters Container -->
+        <div class="posters-container" id="posters-container-{{ library_index }}" style="display:none;">
+          <!-- Posters will be loaded here -->
+        </div>
       </div>
       {% endfor %}
       
       {% if abs_book_groups %}
+      <!-- Hidden ABS data for JavaScript -->
+      <script>
+        window.absBookGroups = {{ abs_book_groups|tojson }};
+      </script>
+      
       <div class="medialist-section" id="abs" style="display:none;">
         <div style="display: flex; align-items: center; gap: 1em; margin-bottom: 1rem;">
           <img src="/static/abs.webp" alt="ABS Logo" style="height: 32px; display: block;" />
           <span class="service-libraries-label">Audiobookshelf</span>
         </div>
         
-        {% set all_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|list + ['0-9', 'Other'] %}
-        {% for letter in all_letters %}
-          {% set books = abs_book_groups.get(letter, []) %}
-          {% if books %}
-            <details class="collapsible-section" data-library-index="abs" data-letter="{{ letter }}">
-              <summary class="collapsible-heading">{{ letter }}</summary>
-              <div class="letter-content" id="content-abs-{{ letter }}">
-                <ul>
-                  {% for book in books %}
-                    <li>
-                      <img src="{{ book.cover if book.cover else url_for('static', filename=logo_filename) }}"
-                           alt="{{ book.title }} cover"
-                           onerror="this.onerror=null;this.src='{{ url_for('static', filename=logo_filename) }}';" />
-                      <div style="font-weight: bold; margin-bottom: 0.25rem;">{{ book.title }}</div>
-                      {% if book.author %}
-                        <div style="font-size: 0.9em; color: #aaa; margin-bottom: 0.25rem;">by {{ book.author }}</div>
-                      {% endif %}
-                      <a href="https://www.goodreads.com/search?q={{ (book.title ~ ' ' ~ (book.author or '')) | urlencode }}" target="_blank" class="accent">Goodreads</a>
-                    </li>
-                  {% endfor %}
-                </ul>
-              </div>
-            </details>
-          {% endif %}
-        {% endfor %}
+        <!-- Letter Navigation for ABS -->
+        <div class="letter-navigation" data-library-index="abs">
+          {% set all_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|list + ['0-9', 'Other'] %}
+          {% for letter in all_letters %}
+            {% set books = abs_book_groups.get(letter, []) %}
+            {% if books %}
+              <button class="letter-button" data-letter="{{ letter }}" data-library-index="abs">
+                {{ letter }}
+              </button>
+            {% endif %}
+          {% endfor %}
+        </div>
+        
+        <!-- Initial Message for ABS -->
+        <div class="initial-message" id="initial-message-abs">
+          Choose a letter to get started
+        </div>
+        
+        <!-- Posters Container for ABS -->
+        <div class="posters-container" id="posters-container-abs" style="display:none;">
+          <!-- Books will be loaded here -->
+        </div>
       </div>
       {% endif %}
     </div>
@@ -138,28 +148,63 @@
         sections.forEach(sec => sec.style.display = "none");
         const el = document.getElementById(id);
         if (el) el.style.display = "block";
+        
+        // Reset active states when switching sections
+        document.querySelectorAll('.letter-button.active').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        
+        // Show initial message and hide posters container
+        const libraryIndex = id === 'abs' ? 'abs' : id.replace('plex-', '');
+        const initialMessage = document.getElementById(`initial-message-${libraryIndex}`);
+        const postersContainer = document.getElementById(`posters-container-${libraryIndex}`);
+        
+        if (initialMessage) initialMessage.style.display = 'block';
+        if (postersContainer) postersContainer.style.display = 'none';
       }
       
       function loadPostersForLetter(libraryIndex, letter) {
-        const contentDiv = document.getElementById(`content-${libraryIndex}-${letter}`);
-        if (!contentDiv) return;
+        const postersContainer = document.getElementById(`posters-container-${libraryIndex}`);
+        const initialMessage = document.getElementById(`initial-message-${libraryIndex}`);
         
-        // Check if already loaded
+        if (!postersContainer) return;
+        
+        // Always load content, even if previously loaded
         const libraryKey = `${libraryIndex}-${letter}`;
-        if (loadedLetters.has(libraryKey)) {
-          return; // Already loaded
-        }
         
-        // For ABS section, content is already loaded, just mark as loaded
+        // Show loading indicator
+        postersContainer.innerHTML = '<div style="color:#666; text-align:center; padding:1em;">Loading posters...</div>';
+        postersContainer.style.display = 'block';
+        if (initialMessage) initialMessage.style.display = 'none';
+        
+        // For ABS section, load content directly
         if (libraryIndex === 'abs') {
+          const books = window.absBookGroups || {};
+          const letterBooks = books[letter] || [];
+          
+          let html = '<ul>';
+          for (const book of letterBooks) {
+            html += '<li>';
+            html += `<img src="${book.cover || '{{ url_for("static", filename=logo_filename) }}'}" alt="${book.title} cover" onerror="this.onerror=null;this.src='{{ url_for("static", filename=logo_filename) }}';" />`;
+            html += `<div style="font-weight: bold; margin-bottom: 0.25rem;">${book.title}</div>`;
+            if (book.author) {
+              html += `<div style="font-size: 0.9em; color: #aaa; margin-bottom: 0.25rem;">by ${book.author}</div>`;
+            }
+            html += `<a href="https://www.goodreads.com/search?q=${encodeURIComponent(book.title + ' ' + (book.author || ''))}" target="_blank" class="accent">Goodreads</a>`;
+            html += '</li>';
+          }
+          html += '</ul>';
+          
+          if (letterBooks.length === 0) {
+            html = '<div style="color:#666; text-align:center; padding:1em;">No books found for this letter</div>';
+          }
+          
+          postersContainer.innerHTML = html;
           loadedLetters.set(libraryKey, true);
           return;
         }
         
-        // Show loading indicator
-        contentDiv.innerHTML = '<div style="color:#666; text-align:center; padding:1em;">Loading posters...</div>';
-        
-        // Load posters via AJAX
+        // Load posters via AJAX for Plex
         fetch('/ajax/load-posters-by-letter', {
           method: 'POST',
           headers: {
@@ -206,30 +251,35 @@
               html = '<div style="color:#666; text-align:center; padding:1em;">No items found for this letter</div>';
             }
             
-            contentDiv.innerHTML = html;
+            postersContainer.innerHTML = html;
             loadedLetters.set(libraryKey, true);
           } else {
-            contentDiv.innerHTML = '<div style="color:#cc0000; text-align:center; padding:1em;">Error loading posters</div>';
+            postersContainer.innerHTML = '<div style="color:#cc0000; text-align:center; padding:1em;">Error loading posters</div>';
           }
         })
         .catch(error => {
           console.error('Error loading posters:', error);
-          contentDiv.innerHTML = '<div style="color:#cc0000; text-align:center; padding:1em;">Error loading posters</div>';
+          postersContainer.innerHTML = '<div style="color:#cc0000; text-align:center; padding:1em;">Error loading posters</div>';
         });
       }
       
-      // Handle details toggle events
+      // Handle letter button clicks
       document.addEventListener('click', function(e) {
-        if (e.target.matches('.collapsible-section summary')) {
-          const details = e.target.closest('.collapsible-section');
-          const libraryIndex = details.dataset.libraryIndex;
-          const letter = details.dataset.letter;
+        if (e.target.matches('.letter-button')) {
+          const letter = e.target.dataset.letter;
+          const libraryIndex = e.target.dataset.libraryIndex;
           
-          // Check if details is being opened
-          if (!details.hasAttribute('open')) {
-            // Load posters when opening
-            loadPostersForLetter(libraryIndex, letter);
-          }
+          // Remove active class from all buttons in this navigation
+          const navigation = e.target.closest('.letter-navigation');
+          navigation.querySelectorAll('.letter-button').forEach(btn => {
+            btn.classList.remove('active');
+          });
+          
+          // Add active class to clicked button
+          e.target.classList.add('active');
+          
+          // Load posters for this letter
+          loadPostersForLetter(libraryIndex, letter);
         }
       });
       
