@@ -11,28 +11,6 @@
     document.addEventListener('DOMContentLoaded', function() {
       const accentColor = '{{ ACCENT_COLOR or "#d33fbc" }}';
       document.documentElement.style.setProperty('--accent-color', accentColor);
-      
-      // Enhanced collapsible section animations - simplified to prevent margin issues
-      const collapsibleSections = document.querySelectorAll('details.collapsible-section');
-      
-      collapsibleSections.forEach(details => {
-        const summary = details.querySelector('summary');
-        
-        if (!summary) return;
-        
-        // Let CSS handle the animations naturally
-        summary.addEventListener('click', function(e) {
-          // Allow default behavior but add smooth transitions
-          const isOpen = details.hasAttribute('open');
-          
-          if (!isOpen) {
-            // Add a small delay to ensure smooth opening
-            setTimeout(() => {
-              details.style.transition = 'all 0.3s ease';
-            }, 10);
-          }
-        });
-      });
     });
   </script>
 </head>
@@ -514,6 +492,9 @@
 
   <!-- Navigation Script -->
   <script src="{{ url_for('static', filename='navigation.js') }}"></script>
+  
+  <!-- Collapsible Animations Script -->
+  <script src="{{ url_for('static', filename='collapsible-animations.js') }}"></script>
 
 </body>
 </html>

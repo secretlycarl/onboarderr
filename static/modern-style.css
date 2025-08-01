@@ -67,7 +67,7 @@
   font-size: 1.1rem;
   color: var(--success);
   margin: 1.5rem 0;
-  line-height: 1.6;
+  line-height: 1.4;
 }
 
 .complete-message strong {
@@ -254,7 +254,7 @@ body {
   background: linear-gradient(180deg, var(--bg) 0%, var(--bg) 33%, color-mix(in srgb, var(--accent-dark) 25%, var(--bg) 75%) 100%);
   color: var(--text);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  line-height: 1.6;
+  line-height: 1.4;
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -567,17 +567,16 @@ a:hover {
 }
 
 .onboarding-intro {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   font-size: 1.1rem;
-  line-height: 1.7;
+  line-height: 1.4;
 }
 
 .carousel-section {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .carousel-note {
-  margin-top: 1em;
   text-align: center;
   color: var(--text-muted);
   font-size: 0.95rem;
@@ -599,8 +598,8 @@ a:hover {
   color: var(--text-muted);
   font-size: 0.9rem;
   text-align: center;
-  margin-top: 0.5rem;
-  margin-bottom: 1rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.5rem;
 }
 
 .music-note {
@@ -880,6 +879,12 @@ a:hover {
   margin-right: 0 !important;
 }
 
+/* Content disclaimer box should have proper margins like other warning boxes */
+.onboarding-section .warning-box.content-disclaimer {
+  margin-left: 1rem !important;
+  margin-right: 1rem !important;
+}
+
 /* Error-boxes inside onboarding-sections */
 .onboarding-section .error-box {
   width: 100%;
@@ -1072,6 +1077,7 @@ a:hover {
   width: 1.25rem;
   height: 1.25rem;
   accent-color: var(--accent);
+  flex-shrink: 0;
 }
 
 .library-title {
@@ -1180,9 +1186,10 @@ a:hover {
   }
   
   .library-item {
-    flex-direction: column;
+    flex-direction: row;
     align-items: flex-start;
-    gap: 0.5rem;
+    gap: 0.75rem;
+    flex-wrap: nowrap;
   }
   
   .submit-btn {
@@ -1192,7 +1199,7 @@ a:hover {
   
   /* Small mobile adjustments for paragraphs and lists */
   p {
-    margin-bottom: 1.75rem;
+    margin-bottom: 1.25rem;
   }
   
   ul {
@@ -1277,6 +1284,11 @@ a:hover {
   padding: 10px 0;
   /* Ensure proper box-sizing for accurate height calculation */
   box-sizing: border-box;
+}
+
+/* Add spacing between poster-carousel-container and library-selector */
+.carousel-section .poster-carousel-container + .library-selector {
+  margin-top: 1em;
 }
 
 .poster-carousel {
@@ -1423,7 +1435,7 @@ a:hover {
   display: flex;
   justify-content: center;
   gap: 1rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   flex-wrap: wrap;
 }
 
@@ -1543,7 +1555,7 @@ a:hover {
   }
   
   .onboarding-section {
-    margin: 0 0 0.75rem 0;
+    margin: 0 0 1rem 0;
     padding: 1.25rem;
     border-radius: 0.75rem;
   }
@@ -1564,7 +1576,7 @@ a:hover {
   /* Improved library selector for mobile */
   .library-selector {
     gap: 0.75rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.5rem;
   }
   
   .library-tab {
@@ -1626,6 +1638,10 @@ a:hover {
     display: flex;
     align-items: center;
     min-height: 1.5rem;
+    flex: 1;
+    min-width: 0;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
   
   .library-id {
@@ -1635,7 +1651,7 @@ a:hover {
   /* Better onboarding intro text */
   .onboarding-intro {
     font-size: 1.2rem;
-    line-height: 1.8;
+    line-height: 1.4;
   }
   
   /* Improved screenshot sections */
@@ -1653,21 +1669,20 @@ a:hover {
   
   .screenshot-caption {
     font-size: 1.1rem;
-    margin-top: 0.75rem;
-    margin-bottom: 1.5rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
   }
   
   /* Better music note styling */
   .music-note {
     padding: 1rem;
     font-size: 1.1rem;
-    line-height: 1.6;
+    line-height: 1.4;
   }
   
   /* Improved carousel note */
   .carousel-note {
     font-size: 1.1rem;
-    margin-top: 1.5rem;
   }
 }
 
@@ -2040,21 +2055,20 @@ a:hover {
   position: relative;
 }
 
-/* Animated Details Elements - Fixed Animation Issues */
+/* Collapsible Sections - Simplified and Fixed */
 details.collapsible-section {
   background: var(--container-bg);
   border-radius: 1rem;
   margin-bottom: 1rem;
   box-shadow: var(--shadow-xl);
   border: 1px solid var(--border);
-  overflow: visible; /* Changed from hidden to visible to prevent content cutoff */
-  transition: all 0.3s ease;
+  overflow: hidden;
 }
 
 details.collapsible-section > summary {
   list-style: none;
   cursor: pointer;
-  padding: 0.75rem 1.25rem;
+  padding: 1.75rem 1.25rem;
   background: var(--container-bg);
   border-radius: 1rem;
   transition: all 0.2s ease;
@@ -2072,7 +2086,6 @@ details.collapsible-section > summary {
 
 details.collapsible-section > summary:hover {
   background: color-mix(in srgb, var(--container-bg) 95%, var(--accent));
-  border-color: var(--accent);
 }
 
 details.collapsible-section > summary::before {
@@ -2095,143 +2108,29 @@ details.collapsible-section > summary::-webkit-details-marker {
   display: none;
 }
 
-/* Fixed animation that works on every open/close */
+/* Content styling - simplified */
 details.collapsible-section > *:not(summary) {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease, opacity 0.3s ease, transform 0.3s ease, padding 0.3s ease;
-  opacity: 0;
-  transform: translateY(-10px);
-  padding: 0 1.75rem 0 1.75rem;
+  padding: 1.75rem;
   margin: 0;
 }
 
-details.collapsible-section[open] > *:not(summary) {
-  max-height: 2000px; /* Increased to prevent content cutoff */
-  opacity: 1;
-  transform: translateY(0);
-  padding: 1.75rem 1.75rem 1.75rem 1.75rem !important;
-  margin: 0;
-}
-
-/* Consistent spacing for collapsible section content */
-details.collapsible-section > *:not(summary) {
-  margin-top: 0;
-  margin-bottom: 0.75rem;
-}
-
-details.collapsible-section > *:not(summary):last-child {
-  margin-bottom: 0;
-}
-
-/* Specific element spacing */
-details.collapsible-section > form {
-  margin-bottom: 1rem;
-}
-
-details.collapsible-section > button {
-  margin-bottom: 0.75rem;
-}
-
+/* Preserve margins for warning-box and info-box inside collapsible sections */
 details.collapsible-section > .warning-box,
-details.collapsible-section > .info-box,
-details.collapsible-section > .error-box {
-  margin-bottom: 0.75rem;
+details.collapsible-section > .info-box {
+  margin-left: 1.5rem !important;
+  margin-right: 1.5rem !important;
+  margin-bottom: 1.5rem !important;
 }
 
-details.collapsible-section > .caption {
-  margin-bottom: 0.75rem;
-}
-
-details.collapsible-section > img {
-  margin-bottom: 0.75rem;
-}
-
-details.collapsible-section > button,
-details.letter-details > button {
-  margin-bottom: 0.75rem !important;
-}
-
-details.collapsible-section > .warning-box,
-details.collapsible-section > .info-box,
-details.collapsible-section > .error-box,
-details.letter-details > .warning-box,
-details.letter-details > .info-box,
-details.letter-details > .error-box {
-  margin-bottom: 0.75rem !important;
-}
-
-details.collapsible-section > .caption,
-details.letter-details > .caption {
-  margin-bottom: 0.75rem !important;
-}
-
-details.collapsible-section > img,
-details.letter-details > img {
-  margin-bottom: 0.75rem !important;
-}
-
-details.collapsible-section > div,
-details.letter-details > div {
-  margin-bottom: 0.75rem !important;
-}
-
-details.collapsible-section > div:last-child,
-details.letter-details > div:last-child {
-  margin-bottom: 0 !important;
-}
-
-/* Force consistent spacing for all dropdown types */
-details > *:not(summary) {
-  margin-top: 0 !important;
-  margin-bottom: 0.75rem !important;
-}
-
-details > *:not(summary):last-child {
-  margin-bottom: 0 !important;
-}
-
-/* Override any global margin rules for dropdown content */
-details.collapsible-section *,
-details.letter-details * {
-  margin-top: 0;
-}
-
-details.collapsible-section *:not(:last-child),
-details.letter-details *:not(:last-child) {
-  margin-bottom: 0.75rem;
-}
-
-details.collapsible-section *:last-child,
-details.letter-details *:last-child {
-  margin-bottom: 0;
-}
-
-/* Preserve left and right margins for warning-box, info-box, and error-box */
-details.collapsible-section > .warning-box,
-details.collapsible-section > .info-box,
-details.collapsible-section > .error-box,
-details.letter-details > .warning-box,
-details.letter-details > .info-box,
-details.letter-details > .error-box {
-  margin-left: 1rem;
-  margin-right: 1rem;
-}
-
-/* Prevent margin growth during transitions */
-details.collapsible-section,
-details.letter-details {
-  /* Ensure stable layout during animations */
-  contain: layout style;
-}
+/* Removed animation styles - using simple native details behavior */
 
 
 
-/* Mobile responsive adjustments for details animation */
+/* Mobile responsive adjustments for details */
 @media (pointer: coarse) and (max-width: 1800px) {
   details.collapsible-section > summary {
-    padding: 0.75rem 1.5rem;
-    font-size: 1.2em;
+    padding: 2.25rem 1.5rem;
+    font-size: 1.5em;
     line-height: 1.2;
     min-height: 2.5rem;
     display: flex;
@@ -2239,58 +2138,23 @@ details.letter-details {
     justify-content: flex-start;
   }
   
-  details.collapsible-section[open] > *:not(summary) {
-    padding: 1.25rem 1.5rem 1.25rem 1.5rem !important;
-    max-height: 2000px; /* Ensure mobile dropdowns don't get cut off */
+  details.collapsible-section > *:not(summary) {
+    padding: 0.5rem 1.5rem;
   }
   
-  /* Reduce vertical spacing within dropdowns on mobile */
-  details.collapsible-section > p {
-    margin-bottom: 0.75rem;
-  }
-  
-  details.collapsible-section > ul {
-    margin-bottom: 0.75rem;
-  }
-  
-  details.collapsible-section > li {
-    margin-bottom: 0.2rem;
-  }
-  
-  details.collapsible-section > h1,
-  details.collapsible-section > h2,
-  details.collapsible-section > h3,
-  details.collapsible-section > h4,
-  details.collapsible-section > h5,
-  details.collapsible-section > h6 {
-    margin-bottom: 0.75rem;
-  }
-  
-  /* Ensure all elements in dropdowns have consistent spacing */
-  details.collapsible-section > * {
-    margin-bottom: 0.75rem;
-  }
-  
-  details.collapsible-section > *:last-child {
-    margin-bottom: 0;
-  }
-  
-  /* Mobile margins for warning-box, info-box, and error-box */
+  /* Preserve margins for warning-box and info-box inside collapsible sections on mobile */
   details.collapsible-section > .warning-box,
-  details.collapsible-section > .info-box,
-  details.collapsible-section > .error-box,
-  details.letter-details > .warning-box,
-  details.letter-details > .info-box,
-  details.letter-details > .error-box {
-    margin-left: 1.5rem;
-    margin-right: 1.5rem;
+  details.collapsible-section > .info-box {
+    margin-left: 1.5rem !important;
+    margin-right: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
   }
 }
 
 @media (max-width: 768px) {
   details.collapsible-section > summary {
-    padding: 0.625rem 1.25rem;
-    font-size: 1.1em;
+    padding: 2.25rem 1.25rem;
+    font-size: 1.5em;
     line-height: 1.2;
     min-height: 2.5rem;
     display: flex;
@@ -2298,9 +2162,23 @@ details.letter-details {
     justify-content: flex-start;
   }
   
-  details.collapsible-section[open] > *:not(summary) {
-    padding: 1rem 1.25rem 1rem 1.25rem !important;
-    max-height: 2000px; /* Ensure mobile dropdowns don't get cut off */
+  details.collapsible-section > *:not(summary) {
+    padding: 0.75rem 1.5rem;
+  }
+  
+  /* Preserve margins for warning-box and info-box inside collapsible sections on mobile */
+  details.collapsible-section > .warning-box,
+  details.collapsible-section > .info-box {
+    margin-left: 1.5rem !important;
+    margin-right: 1.5rem !important;
+    margin-bottom: 1.5rem !important;
+  }
+}
+
+/* Specific adjustment for medialists page mobile collapsible sections */
+@media (max-width: 768px) {
+  .medialists-page details.collapsible-section > summary {
+    padding: 1.25rem 1.25rem;
   }
 }
 
@@ -2343,22 +2221,9 @@ details.letter-details {
   overflow: visible; /* Ensure content is not cut off */
 }
 
-/* Ensure letter-details have the same animation behavior as collapsible sections */
+/* Letter details styling */
 .letter-details > *:not(summary) {
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease, opacity 0.3s ease, transform 0.3s ease, padding 0.3s ease;
-  opacity: 0;
-  transform: translateY(-10px);
-  padding: 0 1.75rem;
-  margin: 0;
-}
-
-.letter-details[open] > *:not(summary) {
-  max-height: 2000px; /* Increased from 'none' to prevent content cutoff */
-  opacity: 1;
-  transform: translateY(0);
-  padding: 0 1.75rem 1.75rem 1.75rem;
+  padding: 1.75rem;
   margin: 0;
 }
 
@@ -2530,7 +2395,7 @@ details.letter-details {
   
   /* Mobile adjustments for paragraphs and lists */
   p {
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.5rem;
   }
   
   ul {
@@ -2924,9 +2789,20 @@ details.letter-details {
 /* Mobile Responsive for Services Modern Styling - IMPROVED */
 @media (pointer: coarse) and (max-width: 1800px) {
   .service-url-input {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
     gap: 0.5rem;
+  }
+  
+  .service-url-input .service-icon {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+  }
+  
+  .service-url-input .form-input {
+    flex: 1;
+    min-width: 0;
   }
   
   .notification-options .checkbox-option {
