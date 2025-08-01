@@ -9,7 +9,7 @@
   <script>
     // Set accent color from environment variable
     document.addEventListener('DOMContentLoaded', function() {
-      const accentColor = '{{ ACCENT_COLOR or "#d33fbc" }}';
+      const accentColor = '{{ ACCENT_COLOR }}';
       document.documentElement.style.setProperty('--accent-color', accentColor);
     });
   </script>
