@@ -1696,9 +1696,6 @@ def download_abs_audiobook_posters():
                             if books_response.status_code == 200:
                                 books_data = books_response.json()
                                 for book in books_data.get("results", []):
-                                    if poster_count >= 25:  # Limit to 25 posters
-                                        break
-                                    
                                     # Get book details from the nested media structure
                                     media = book.get("media", {})
                                     cover_path = media.get("coverPath")
@@ -1730,8 +1727,6 @@ def download_abs_audiobook_posters():
                                                 json.dump(meta_data, f, ensure_ascii=False, indent=2)
                                             
                                             poster_count += 1
-                                if poster_count >= 25:
-                                    break
                             else:
                                 if debug_mode:
                                     print(f"[WARN] Failed to get books from library {library_id}: {books_response.status_code}")
@@ -3652,6 +3647,99 @@ def get_random_posters_all():
     except Exception as e:
         print(f"Error getting random posters from all libraries: {e}")
         return jsonify({"error": "Failed to get posters"}), 500
+
+@app.route("/ajax/get-random-audiobook-posters", methods=["POST"])
+@csrf.exempt
+def get_random_audiobook_posters():
+    """Get random audiobook posters for dynamic loading"""
+    if not session.get("authenticated"):
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    data = request.get_json()
+    if not data:
+        print("No JSON data received for audiobook posters")
+        return jsonify({"error": "No JSON data"}), 400
+    
+    count = data.get('count', 5)
+    
+    print(f"Requested audiobook posters, count: {count}")
+    
+    # Check which audiobook poster files actually exist
+    audiobook_dir = os.path.join("static", "posters", "audiobooks")
+    existing_paths = []
+    goodreads_links = []
+    titles = []
+    
+    try:
+        if os.path.exists(audiobook_dir):
+            # Get all image files
+            all_files = [f for f in os.listdir(audiobook_dir) if f.lower().endswith(('.webp', '.jpg', '.jpeg', '.png'))]
+            
+            print(f"Found {len(all_files)} audiobook poster files")
+            
+            if not all_files:
+                print(f"No audiobook poster files found in {audiobook_dir}")
+                return jsonify({"posters": [], "goodreads_links": [], "titles": []})
+            
+            # Get random posters
+            if len(all_files) > count:
+                selected_files = random.sample(all_files, count)
+            else:
+                selected_files = all_files
+            
+            for fname in selected_files:
+                poster_url = f"/static/posters/audiobooks/{fname}"
+                existing_paths.append(poster_url)
+                
+                # Try to get actual title and author from metadata if available
+                json_path = os.path.join(audiobook_dir, fname.rsplit('.', 1)[0] + '.json')
+                search_query = ""
+                title = ""
+                
+                try:
+                    if os.path.exists(json_path):
+                        with open(json_path, 'r', encoding='utf-8') as f:
+                            meta = json.load(f)
+                            title = meta.get('title', '')
+                            author = meta.get('author', '')
+                            
+                            if title and author:
+                                search_query = f"{title} {author}"
+                            elif title:
+                                search_query = title
+                            else:
+                                # Fallback to generic filename if no metadata
+                                title = fname.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ').title()
+                                search_query = title
+                    else:
+                        # Fallback to generic filename if no JSON file
+                        title = fname.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ').title()
+                        search_query = title
+                except (IOError, json.JSONDecodeError):
+                    # Fallback to generic filename if JSON read fails
+                    title = fname.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ').title()
+                    search_query = title
+                
+                # Create Goodreads search URL with proper URL encoding
+                import urllib.parse
+                encoded_query = urllib.parse.quote(search_query)
+                goodreads_url = f"https://www.goodreads.com/search?q={encoded_query}"
+                goodreads_links.append(goodreads_url)
+                titles.append(title)
+            
+            print(f"Returning {len(existing_paths)} audiobook posters")
+            return jsonify({
+                "posters": existing_paths,
+                "goodreads_links": goodreads_links,
+                "titles": titles
+            })
+        else:
+            print(f"Audiobook poster directory does not exist: {audiobook_dir}")
+            return jsonify({"posters": [], "goodreads_links": [], "titles": []})
+            
+    except Exception as e:
+        print(f"Error getting random audiobook posters: {e}")
+        return jsonify({"error": "Failed to get audiobook posters"}), 500
 
 if __name__ == "__main__":
     # --- Dynamic configuration for section IDs ---

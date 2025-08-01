@@ -1390,14 +1390,17 @@ a:hover {
   .poster-carousel-container {
     overflow-x: auto;
     overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
+    /* Completely disable momentum scrolling to prevent bounce-back */
+    -webkit-overflow-scrolling: auto;
+    scroll-behavior: auto;
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE and Edge */
     /* Improved touch scrolling */
     touch-action: pan-x;
-    /* Prevent momentum scrolling issues */
-    overscroll-behavior-x: contain;
+    /* Prevent momentum scrolling issues and bounce-back */
+    overscroll-behavior: none;
+    overscroll-behavior-x: none;
+    overscroll-behavior-y: none;
     /* Smooth scrolling improvements */
     scroll-snap-type: x proximity;
     scroll-snap-align: start;
@@ -1468,6 +1471,8 @@ a:hover {
       display: inline;
     }
   }
+  
+
 }
 
 /* Library Selector Styles */

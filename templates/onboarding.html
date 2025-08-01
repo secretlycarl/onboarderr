@@ -1045,20 +1045,64 @@
             }
           }, { passive: true }); // Changed back to true for smoother scrolling
           
-          container.addEventListener('touchend', function(e) {
-            isManualScrolling = false;
-            const touchDuration = Date.now() - touchStartTime;
-            
-            // Reset interaction flag with appropriate delay based on touch duration
-            const resetDelay = touchDuration < 100 ? 50 : 150;
-            setTimeout(() => {
-              isUserInteracting = false;
-              console.log('Manual scroll ended - auto-scroll resumed');
-            }, resetDelay);
-          }, { passive: true });
-        }
+                          container.addEventListener('touchend', function(e) {
+          isManualScrolling = false;
+          const touchDuration = Date.now() - touchStartTime;
+          
+          // Don't prevent default - let momentum scrolling happen naturally
+          // The scroll event listener will handle detecting when momentum ends
+          
+          // Reset interaction flag after a short delay to allow momentum to settle
+          setTimeout(() => {
+            isUserInteracting = false;
+            console.log('Manual scroll ended - auto-scroll resumed');
+            // Force immediate animation frame to resume scrolling
+            if (carousel.rafId) {
+              cancelAnimationFrame(carousel.rafId);
+            }
+            carousel.rafId = requestAnimationFrame(animate);
+          }, 300); // Increased delay to allow momentum to settle
+        }, { passive: true });
         
-        // Quick poster loading when near the end (for auto-scroll)
+        // Add scroll event listener to detect momentum scrolling end
+        let scrollTimeout;
+        let lastScrollLeft = 0;
+        let scrollStableCount = 0;
+        
+        container.addEventListener('scroll', function(e) {
+          const currentScrollLeft = container.scrollLeft;
+          
+          // Clear any existing timeout
+          if (scrollTimeout) {
+            clearTimeout(scrollTimeout);
+          }
+          
+          // Check if scroll position has stabilized
+          if (Math.abs(currentScrollLeft - lastScrollLeft) < 1) {
+            scrollStableCount++;
+          } else {
+            scrollStableCount = 0;
+          }
+          
+          lastScrollLeft = currentScrollLeft;
+          
+          // Set a timeout to detect when scrolling has completely stopped
+          scrollTimeout = setTimeout(() => {
+            // Only resume auto-scroll if scroll has been stable for multiple checks
+            if (scrollStableCount >= 3) {
+              isUserInteracting = false;
+              console.log('Momentum scrolling ended - auto-scroll resumed');
+              // Force immediate animation frame to resume scrolling
+              if (carousel.rafId) {
+                cancelAnimationFrame(carousel.rafId);
+              }
+              carousel.rafId = requestAnimationFrame(animate);
+            }
+          }, 100); // Shorter timeout for more responsive detection
+        }, { passive: true });
+      }
+      
+      // Quick poster loading when near the end (for auto-scroll)
         function checkForMorePosters() {
           if (onLoadMore && !isLoading) {
             const remainingImages = carousel.children.length;
@@ -1067,6 +1111,7 @@
               isLoading = true;
               onLoadMore().then(() => {
                 isLoading = false;
+                console.log('Poster loading completed successfully');
               }).catch(error => {
                 console.error('Error loading more posters:', error);
                 isLoading = false;
@@ -1211,6 +1256,11 @@
                 return;
               }
               
+              // Debug: log when animation resumes after manual scroll
+              if (Math.random() < 0.01) { // Log occasionally when animation is running
+                console.log('Animation active - offset:', offset, 'children:', carousel.children.length, 'isLoading:', isLoading);
+              }
+              
               offset -= scrollSpeed;
               carousel.style.transform = `translateX(${offset}px)`;
               // Debug: log animation state occasionally
@@ -1233,9 +1283,9 @@
                 }
               }
               
-              // Fallback: Check if we need to load more posters (every 5 seconds as backup)
+              // Fallback: Check if we need to load more posters (every 2 seconds as backup)
               const now = Date.now();
-              if (now - lastLoadCheck > 5000) {
+              if (now - lastLoadCheck > 2000) {
                 lastLoadCheck = now;
                 checkForMorePosters();
               }
@@ -1278,7 +1328,7 @@
             console.log('Carousel running low on posters, adding more...');
             ensureMinimumPosters();
           }
-        }, 5000); // Check every 5 seconds
+        }, 3000); // Check every 3 seconds (reduced from 5)
       }
     });
   </script>
