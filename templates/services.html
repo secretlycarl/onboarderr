@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ SERVER_NAME }}</title>
+  <title>{{ SERVER_NAME }} — Admin</title>
   <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}">
   <link rel="stylesheet" href="/static/modern-style.css">
   <script>
@@ -451,19 +451,18 @@
         </div>
         {% endif %}
         
-        <div id="libraries-section-admin" class="form-section" style="display:none;">
+        <div id="libraries-section-admin" class="library-section" style="display:none;">
           <h3 class="form-section-title">
             <span class="form-section-icon">📚</span>
             Select Libraries
           </h3>
           <div class="form-group">
             <label class="form-label">Select Libraries to make available:</label>
-            <p class="muted">Title (ID)</p>
-            <div id="libraries-list-admin"></div>
+            <div id="libraries-list-admin" class="library-list"></div>
           </div>
         </div>
         
-        <div id="library-descriptions-section-admin" class="form-section" style="display:none;">
+        <div id="library-descriptions-section-admin" class="description-section" style="display:none;">
           <h3 class="form-section-title">
             <span class="form-section-icon">📝</span>
             Library Descriptions
@@ -742,6 +741,7 @@
                   checkbox.name = 'library_ids';
                   checkbox.value = lib.key;
                   checkbox.id = 'admin_lib_' + lib.key;
+                  checkbox.className = 'library-checkbox';
                   
                   // Check if this library is currently active
                   if (currentLibraryIds.includes(lib.key)) {
@@ -750,26 +750,36 @@
                   
                   var label = document.createElement('label');
                   label.htmlFor = checkbox.id;
-                  label.innerText = lib.title + ' (' + lib.key + ')';
-                  label.style.marginRight = '1em';
-                  list.appendChild(checkbox);
+                  label.className = 'library-item';
+                  
+                  var titleSpan = document.createElement('span');
+                  titleSpan.className = 'library-title';
+                  titleSpan.innerText = lib.title;
+                  
+                  var idSpan = document.createElement('span');
+                  idSpan.className = 'library-id';
+                  idSpan.innerText = '(' + lib.key + ')';
+                  
+                  label.appendChild(checkbox);
+                  label.appendChild(titleSpan);
+                  label.appendChild(idSpan);
                   list.appendChild(label);
-                  list.appendChild(document.createElement('br'));
                   
                   var descDiv = document.createElement('div');
                   descDiv.id = 'admindescdiv_' + lib.key;
                   descDiv.style.display = checkbox.checked ? 'block' : 'none';
-                  descDiv.style.marginLeft = '2em';
-                  descDiv.style.marginBottom = '1em';
+                  descDiv.className = 'description-item';
+                  
                   var descLabel = document.createElement('label');
+                  descLabel.className = 'description-label';
                   descLabel.innerText = 'Description for ' + lib.title + ':';
+                  
                   var descInput = document.createElement('input');
                   descInput.type = 'text';
                   descInput.name = 'library_desc_' + lib.key;
-                  descInput.style.width = '60%';
-                  descInput.style.marginTop = '0.3em';
+                  descInput.className = 'form-input';
+                  
                   descDiv.appendChild(descLabel);
-                  descDiv.appendChild(document.createElement('br'));
                   descDiv.appendChild(descInput);
                   descList.appendChild(descDiv);
                   

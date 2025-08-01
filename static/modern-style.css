@@ -646,14 +646,14 @@ a:hover {
 
 .setup-header {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 0.5rem;
   padding: 2rem 0;
 }
 
 .setup-logo {
-  max-width: 200px;
+  max-width: 175px;
   height: auto;
-  margin: 0 auto 1.5rem;
+  margin: 0 auto 1rem;
   display: block;
 }
 
@@ -723,7 +723,7 @@ a:hover {
 
 /* Form Groups */
 .form-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
 }
 
 .form-label {
@@ -819,6 +819,15 @@ a:hover {
   line-height: 1.4;
 }
 
+.file-help + .info-box {
+  margin-top: 1em;
+}
+
+/* Add margin-bottom to file-help when followed by info-box */
+.file-help:has(+ .info-box) {
+  margin-bottom: 1em;
+}
+
 /* Info Boxes */
 .info-box {
   background: rgba(59, 130, 246, 0.1);
@@ -831,6 +840,82 @@ a:hover {
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
+  width: 100%;
+}
+
+/* Info-box width adjustments based on context */
+/* Info-boxes outside form-sections (direct children of form) */
+.setup-form > .info-box {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Info-boxes inside form-sections */
+.form-section .info-box {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  /* Account for form-section padding to match form-input width */
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Info-boxes inside onboarding-sections */
+.onboarding-section .info-box {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  /* Account for onboarding-section padding to match form-input width */
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Warning-boxes inside onboarding-sections */
+.onboarding-section .warning-box {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  /* Account for onboarding-section padding to match form-input width */
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Error-boxes inside onboarding-sections */
+.onboarding-section .error-box {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  /* Account for onboarding-section padding to match form-input width */
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Mobile overrides for info-box margins */
+@media (pointer: coarse) and (max-width: 1800px) {
+  .setup-form > .info-box {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  .form-section .info-box {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  .onboarding-section .info-box {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  .onboarding-section .warning-box {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  .onboarding-section .error-box {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
 }
 
 .warning-box {
@@ -1016,7 +1101,7 @@ a:hover {
 .description-item {
   margin-bottom: 1rem;
   padding: 1rem;
-  background: var(--input-bg);
+  background: var(--card-bg);
   border-radius: 0.5rem;
   border: 1px solid var(--input-border);
 }
@@ -1074,8 +1159,9 @@ a:hover {
   }
   
   .color-picker-group {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
   }
   
   .radio-group {
@@ -2699,8 +2785,8 @@ details.letter-details {
   border-radius: 0 4px 4px 0;
   cursor: pointer;
   font-size: 0.9em;
-  width: 2.5em;
-  height: 2.5em;
+  width: 3.25em;
+  height: 3.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2854,8 +2940,8 @@ details.letter-details {
   }
   
   .color-picker-group {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
     gap: 0.5rem;
   }
 }
@@ -2998,6 +3084,35 @@ details.letter-details {
   .toggle-grow:hover {
     transform: none;
     box-shadow: none;
+  }
+}
+
+/* Warning-box width adjustments based on context */
+/* Warning-boxes outside form-sections (direct children of form) */
+.setup-form > .warning-box {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Warning-boxes inside form-sections */
+.form-section .warning-box {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* Mobile overrides for warning-box margins */
+@media (pointer: coarse) and (max-width: 1800px) {
+  .setup-form > .warning-box {
+    margin-left: 0;
+    margin-right: 0;
+  }
+  
+  .form-section .warning-box {
+    margin-left: 0;
+    margin-right: 0;
   }
 }
 
