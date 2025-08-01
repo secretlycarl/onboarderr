@@ -1,0 +1,99 @@
+onboarding:
+  title: Welcome to Plex!
+  intro_pre_link: Plex Media Server (or just
+  intro_link_text: Plex
+  intro_post_link: ) lets me share my collection of movies and shows with you, just like Netflix, but you don't have to pay. You can watch on your TV, computer, phone, or tablet!
+  lib_random: 🎲 Random All
+  lib_pre_link: Random selection of posters from each library. Go
+  lib_link_text: here
+  lib_post_link: for the full list.
+  zoom: Click to enlarge (Zoom on mobile)
+quick_access:
+  title: Quick Access
+  plex: Media
+  audiobookshelf: Books
+  tautulli: Stats
+  overseerr: Request
+section_1:
+  title: "1. Get Access"
+  text_1: "To get started, enter your email below and select what you want access to. Let me know when you're done, and you'll recieve an email or invite link."
+  text_2: "Note: Please don't share the account you create with others. If you know someone who you think would enjoy having access, let me know. In most cases I'll be happy to add them with their own account."
+  email_placeholder: Enter email for Plex
+  audio_cat: If you picked any audio category, check out Plex's audio app for phones and tablets, Plexamp. You can find a link in "Logging In" below.
+  submit_button: Submit
+  disclaimer: ⚠️ Content Disclaimer
+  disclaimer_text: Some content in this media library may not be suitable for all ages. The server owner is not responsible for the content available through this service. Users are responsible for their own viewing choices and should exercise appropriate discretion.
+  request_submitted: Thanks! Your request has been submitted.
+section_2:
+  title: "2. Logging In"
+  text_1: Once you get the invite, go ahead and make a Plex account, and download the app on your device.
+  comp_device_link: Here
+  post_link: is a link to a list of compatible devices with download links.
+  pre_web_link: You can also access it via web browser on desktop at
+  web_link: app.plex.tv
+  post_web_link: to try it out, but I'd prefer if you use the standalone Windows or Mac app
+section_3:
+  title: "3. First Time Setup"
+  text_1: While Plex is generally easy to use, there are some important settings to change the first time you use it.
+  text_2: First is the removal of Live TV content provided by Plex. This content has ads and clutters the home page on some devices.
+  text_3: To change this setting, use the web or desktop app versions of Plex.
+  text_4: Go to "Online Media Sources"
+  text_5: Disable Live TV, Movies & Shows, and Other Streaming Availability. The others can stay as-is.
+  text_6: You can poke around in the account settings and change things in the other tabs too.
+  pre_guide_link: Next is to increase streaming quality. Check out
+  guide_link: this
+  post_guide_link: handy guide for getting the best quality stream.
+  text_7: "If you don't want to read all that, here's the general flow (must be done on every device):"
+  text_8: Open Plex settings
+  text_9: Find Video or Quality settings
+  text_10: Disable any Automatic adjustments
+  text_11: Change streaming quality to Maximum
+  text_12: Enable Direct Play/Direct Stream
+  text_13: "Note: If you're a nerd and want the best possible Plex experience on your TV, I reccomend one of these:"
+  text_14: "Nvidia Shield Pro (2019) – plays nearly everything flawlessly, best overall."
+  text_15: "Apple TV 4K (3rd Gen) – nearly as good, faster UI, only lacks full TRUEHD passthrough."
+  text_16: "FireTV Cube (3rd Gen) – smooth UI, but has DTS playback issues."
+  text_17: Not required unless you notice problems on your current TV device or want the best playback quality.
+section_4:
+  title: "4. Pinning/Favoriting Libraries"
+  desktop_title: Desktop
+  desktop_text_1: Once those settings have been changed, click the home button in the top left (on desktop) and you'll be taken to the page where all the magic happens.
+  desktop_text_2: Click "More" at the bottom.
+  desktop_text_3: Unpin Playlists, Live TV, Movies & Shows, and Rentals. Make sure my sections at the top are pinned.
+  mobile_title: "Mobile/Tablet"
+  mobile_text_1: Press and hold "Libraries", go to the all libraries menu, and favorite everything there.
+  mobile_text_2: And you're all set! Browse through my libraries, check out my movie collections (separate tab in Movies library), or put on a comfort show and go to sleep. If you ever want a show or movie that I don't have, see "Requests" below.
+section_5:
+  title: 5. Requests
+  watchlist_title: Plex Watchlist Requests
+  watchlist_text_1: Through some technomancy, requesting movies and shows you want is pretty easy.
+  watchlist_text_2: We have to be "friends" on Plex (different than adding you to my server) for this feature to work so tell me to do that first before you request anything.
+  watchlist_text_3: "Note: This feature does not work for new movies currently in theaters. Anything older or already on streaming services should be available."
+  watchlist_text_4: Go to the search bar or search menu
+  watchlist_text_5: Enable "More Ways to Watch" if not already enabled
+  watchlist_text_6: Search for the media you want
+  watchlist_text_7: Click the "Add to watchlist" icon
+  watchlist_text_8: Desktop Example
+  watchlist_text_9: Movies should show up in less than 30 minutes. Shows can take longer. The first season will show up to start, and others as you watch. If it's a show that's airing now and you want a more recent season, let me know.
+  watchlist_text_10: Be nice to my hard drives, don't request too much!
+  notifications_title: Notifications
+  notifications_text_1: If I added you as a friend, you can receive notifications on phones and tablets when your Watchlisted media is available. For shows, this only applies when it is added for the first time.
+  notifications_text_2: For per-episode notifications about currently airing shows, ask me about my Discord.
+  notifications_text_3: Make sure notifications are enabled for Plex on your phone (Settings app)
+  notifications_text_4: Go to settings in Plex > Notifications
+  notifications_text_5: Turn off anything you'd like in Plex News, Friends, Discover, Live TV
+  notifications_text_6: Scroll down to Personal Media > New Content Added to Library
+  notifications_text_7: Set the toggles to how they look below (all off except for top one)
+  overseerr_title: Overseerr Requests
+  overseerr_text_1: "You can request movies and shows directly using Overseerr. Click the link below to open the request page:"
+  overseerr_link: Open Overseerr
+  overseerr_text_2: Requests made here will be sent to the admin for approval and processing.
+section_issue:
+  title: Issue
+  issue_overseerr_enabled_num: "6"
+  issue_overseerr_disabled_num: "5"
+  issue_text_1: If you have issues playing a specific piece of media, or it has bad subs, you can report it through Plex or just tell me.
+section_end:
+  title: The End
+  end_overseerr_enabled_num: "7"
+  end_overseerr_disabled_num: "6"

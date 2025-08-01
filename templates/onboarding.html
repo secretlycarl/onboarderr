@@ -19,7 +19,7 @@
   <!-- Fixed bottom-left service icons -->
   {% if services %}
     <div style="position: fixed; bottom: 20px; left: 20px; z-index: 1000; background: rgba(0, 0, 0, 0.9); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); min-width: 200px;">
-      <div style="margin-bottom: 8px; color: #aaa; font-size: 0.8em; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Quick Access</div>
+      <div style="margin-bottom: 8px; color: #aaa; font-size: 0.8em; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">{{ t["quick_access"]["title"] }}</div>
       <div style="display: flex; gap: 0.8em; align-items: center; flex-wrap: wrap;">
         {% for service in services %}
           <div style="display: flex; flex-direction: column; align-items: center; text-align: center;">
@@ -28,13 +28,13 @@
             </a>
             <div style="color: #ccc; font-size: 0.7em; font-weight: 500; max-width: 60px; line-height: 1.2;">
               {% if service.name == "Plex" %}
-                Media
+                {{ t["quick_access"]["plex"] }}
               {% elif service.name == "Audiobookshelf" %}
-                Books
+                {{ t["quick_access"]["audiobookshelf"] }}
               {% elif service.name == "Tautulli" %}
-                Stats
+                {{ t["quick_access"]["tautulli"] }}
               {% elif service.name == "Overseerr" %}
-                Request
+                {{ t["quick_access"]["overseerr"] }}
               {% else %}
                 {{ service.name }}
               {% endif %}
@@ -44,10 +44,21 @@
       </div>
     </div>
   {% endif %}
+
+  <div style="position: absolute; top: 1rem; right: 1rem;">
+    <form method="get" onchange="this.submit()" style="margin: 0;">
+      <select name="lang">
+        <option value="en" {% if lang == "en" %}selected{% endif %}>English</option>
+        <option value="it" {% if lang == "it" %}selected{% endif %}>Italiano</option>
+        <!-- add more language here -->
+      </select>
+    </form>
+  </div>
   
+
   <div class="container">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1em;">
-      <h1 style="margin: 0;">Welcome to Plex!</h1>
+      <h1 style="margin: 0;">{{ t["onboarding"]["title"] }}</h1>
       {% if services %}
         <div style="display: flex; gap: 0.5em; align-items: center;">
           {% for service in services %}
@@ -59,9 +70,12 @@
       {% endif %}
     </div>
 
-    <p class="max-850">
-      Plex Media Server (or just <a href="https://support.plex.tv/articles/200288286-what-is-plex/" target="_blank">Plex</a>) lets me share my collection of movies and shows with you, just like Netflix, but you don't have to pay. You can watch on your TV, computer, phone, or tablet!
-    </p>
+  <p class="max-850">
+    {{ t["onboarding"]["intro_pre_link"] }}
+    <a href="https://support.plex.tv/articles/200288286-what-is-plex/" target="_blank">{{ t["onboarding"]["intro_link_text"] }}</a>
+    {{ t["onboarding"]["intro_post_link"] }}
+  </p>
+
 
     {% set library_list = library_posters.keys()|list %}
 
@@ -72,7 +86,7 @@
       </div>
       
       <div class="library-selector">
-        <button class="library-tab {% if default_library == 'random-all' %}active{% endif %}" data-library="random-all">🎲 Random All</button>
+        <button class="library-tab {% if default_library == 'random-all' %}active{% endif %}" data-library="random-all">{{ t["onboarding"]["lib_random"] }}</button>
         {% for lib_name in library_list %}
           <button class="library-tab {% if default_library == lib_name %}active{% endif %}" data-library="{{ lib_name }}">{{ lib_name }}</button>
         {% endfor %}
@@ -80,28 +94,27 @@
     </div>
 
     <p class="muted" style="margin-top: 1em; text-align: center; color: #aaa;">
-      Random selection of posters from each library. Go <a href="/medialists" class="accent">here</a> for the full list.
+      {{ t["onboarding"]["lib_pre_link"] }} <a href="/medialists" class="accent">{{ t["onboarding"]["lib_link_text"] }}</a> {{ t["onboarding"]["lib_post_link"] }}
     </p>
 
     <img src="{{ url_for('static', filename='homepage.webp') }}" alt="Homepage Example" class="toggle-grow" />
 
     <p class="muted">
-      Click to enlarge (Zoom on mobile)
+      {{ t["onboarding"]["zoom"] }}
     </p>
   </div>
   <div class="container">
     <details {% if submitted %}open{% endif %}>
-      <summary class="collapsible-heading">1. Get Access</summary>
+      <summary class="collapsible-heading">{{ t["section_1"]["title"] }}</summary>
       <div style="margin-left: 1em;">
-        <p>To get started, enter your email below and select what you want access to. Let me know when you're done, and you'll recieve an email or invite link.</p>
-
-        <p class="muted">
-          Note: Please don't share the account you create with others. If you know someone who you think would enjoy having access, let me know. In most cases I'll be happy to add them with their own account.
+        <p>{{ t["section_1"]["text_1"] }}</p>
+	<p class="muted">
+          {{ t["section_1"]["text_2"] }}
         </p>
         <form method="POST" action="/onboarding" id="onboarding-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <label for="email">Email:</label><br>
-          <input type="email" name="email" placeholder="Enter email for Plex" required
+          <input type="email" name="email" placeholder="{{ t["section_1"]["email_placeholder"] }}" required
                  class="max-300"
                  {% if submitted %}disabled{% endif %} />
           <div class="text-left max-800" style="margin: 1em 0;">
@@ -128,7 +141,7 @@
             </div>
             {% if has_music_library %}
             <p>
-              If you picked any audio category, check out Plex's audio app for phones and tablets, Plexamp. You can find a link in "Logging In" below.
+              {{ t["section_1"]["audio_cat"] }}
             </p>
             {% endif %}
           </div>
@@ -145,19 +158,19 @@
           </div>
           -->
           
-          <button type="submit" {% if submitted %}disabled{% endif %}>Submit</button>
+          <button type="submit" {% if submitted %}disabled{% endif %}>{{ t["section_1"]["submit_button"] }}</button>
         </form>
         
         <div style="margin: 1.5em 0; padding: 1em; background: #2a2a2a; border-radius: 0.5em; border-left: 4px solid #f6b900;">
-          <p style="margin: 0; color: #f6b900; font-weight: bold;">⚠️ Content Disclaimer</p>
+          <p style="margin: 0; color: #f6b900; font-weight: bold;">{{ t["section_1"]["disclaimer"] }}</p>
           <p style="margin: 0.5em 0 0 0; color: #aaa; font-size: 0.95em;">
-            Some content in this media library may not be suitable for all ages. The server owner is not responsible for the content available through this service. Users are responsible for their own viewing choices and should exercise appropriate discretion.
+            {{ t["section_1"]["disclaimer_text"] }}
           </p>
         </div>
         
         <div id="onboarding-success" style="display:none;">
           <p class="accent" style="font-weight: bold; margin-top: 1em;">
-            Thanks! Your request has been submitted.
+            {{ t["section_1"]["request_submitted"] }}
           </p>
         </div>
       </div>
@@ -165,121 +178,121 @@
   </div>
   <div class="container">
     <details>
-      <summary class="collapsible-heading">2. Logging In</summary>
+      <summary class="collapsible-heading">{{ t["section_2"]["title"] }}</summary>
       <div style="margin-left: 1em;">
         <p>
-          Once you get the invite, go ahead and make a Plex account, and download the app on your device. 
+          {{ t["section_2"]["text_1"] }} 
         </p>
         <p>
-          <a href="https://www.plex.tv/media-server-downloads/?cat=plex+desktop&plat=windows#plex-app" target="_blank">Here</a> is a link to a list of compatible devices with download links.
+          <a href="https://www.plex.tv/media-server-downloads/?cat=plex+desktop&plat=windows#plex-app" target="_blank">{{ t["section_2"]["comp_device_link"] }}</a> {{ t["section_2"]["post_link"] }}
         </p>
         <p>
-         You can also access it via web browser on desktop at <a href="https://app.plex.tv/" target="_blank">app.plex.tv</a> to try it out, but I'd prefer if you use the standalone Windows or Mac app. 
+         {{ t["section_2"]["pre_web_link"] }} <a href="https://app.plex.tv/" target="_blank">{{ t["section_2"]["web_link"] }}</a> {{ t["section_2"]["post_web_link"] }} 
         </p>
       </div>
     </details>
   </div>
   <div class="container">
     <details>
-      <summary class="collapsible-heading">3. First Time Setup</summary>
+      <summary class="collapsible-heading">{{ t["section_3"]["title"] }}</summary>
       <div style="margin-left: 1em;">    
         <p>
-          While Plex is generally easy to use, there are some important settings to change the first time you use it.
+          {{ t["section_3"]["text_1"] }}
         </p>
 
         <p>
-          First is the removal of Live TV content provided by Plex. This content has ads and clutters the home page on some devices.
+          {{ t["section_3"]["text_2"] }}
         </p>
 
         <p>
-          To change this setting, use the web or desktop app versions of Plex.
+          {{ t["section_3"]["text_3"] }}
         </p>
 
         <figure style="width: 100%; margin: 0 0 1em 0;">
           <img src="{{ url_for('static', filename='newuser1.webp') }}" alt="New User Screenshot" class="toggle-grow" />
           <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
-            Go to "Online Media Sources"
+            {{ t["section_3"]["text_4"] }}
           </figcaption>
         </figure>
         
         <figure style="width: 100%; margin: 0 0 1em 0;">
           <img src="{{ url_for('static', filename='onlinemedia.webp') }}" alt="Online Media Setting" class="toggle-grow" />
           <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
-            Disable Live TV, Movies & Shows, and Other Streaming Availability. The others can stay as-is.
+            {{ t["section_3"]["text_5"] }}
           </figcaption>
         </figure>
         
        
         <p>
-          You can poke around in the account settings and change things in the other tabs too.	
+          {{ t["section_3"]["text_6"] }}	
         </p>
 
         <p>
-          Next is to increase streaming quality. Check out <a href="https://mediaclients.wiki/Plex" target="_blank">this</a> handy guide for getting the best quality stream.
-    </p>
+          {{ t["section_3"]["pre_guide_link"] }} <a href="https://mediaclients.wiki/Plex" target="_blank">{{ t["section_3"]["guide_link"] }}</a> {{ t["section_3"]["post_guide_link"] }}
+    	</p>
 
         <p>
-          If you don't want to read all that, here's the general flow (must be done on every device):
+          {{ t["section_3"]["text_7"] }}
         </p>
         <ul class="text-left max-800" style="margin: 1em 0;">
-          <li>Open Plex settings</li>
-          <li>Find Video or Quality settings</li>
-          <li>Disable any Automatic adjustments</li>
-          <li>Change streaming quality to Maximum</li>
-          <li>Enable Direct Play/Direct Stream</li>
+          <li>{{ t["section_3"]["text_8"] }}</li>
+          <li>{{ t["section_3"]["text_9"] }}</li>
+          <li>{{ t["section_3"]["text_10"] }}</li>
+          <li>{{ t["section_3"]["text_11"] }}</li>
+          <li>{{ t["section_3"]["text_12"] }}</li>
         </ul>
 
         <p>
-          Note: If you're a nerd and want the best possible Plex experience on your TV, I reccomend one of these: 
+          {{ t["section_3"]["text_13"] }}
         </p>
         <ul class="text-left max-800" style="margin: 1em 0;">
-          <li>Nvidia Shield Pro (2019) – plays nearly everything flawlessly, best overall.</li>
-          <li>Apple TV 4K (3rd Gen) – nearly as good, faster UI, only lacks full TRUEHD passthrough.</li>
-          <li>FireTV Cube (3rd Gen) – smooth UI, but has DTS playback issues.</li>
+          <li>{{ t["section_3"]["text_14"] }}</li>
+          <li>{{ t["section_3"]["text_15"] }}</li>
+          <li>{{ t["section_3"]["text_16"] }}</li>
         </ul>
         <p>
-        Not required unless you notice problems on your current TV device or want the best playback quality.
+        {{ t["section_3"]["text_17"] }}
         </p>
       </div>
     </details>
   </div>
   <div class="container">
     <details>
-      <summary class="collapsible-heading">4. Pinning/Favoriting Libraries</summary>
+      <summary class="collapsible-heading">{{ t["section_4"]["title"] }}</summary>
       <div style="margin-left: 1em;">
     
-        <h3>Desktop</h3>
+        <h3>{{ t["section_4"]["desktop_title"] }}</h3>
         <p>
-          Once those settings have been changed, click the home button in the top left (on desktop) and you'll be taken to the page where all the magic happens.
+          {{ t["section_4"]["desktop_text_1"] }}
         </p>
     
         <figure style="width: 100%; margin: 0 0 1em 0;">
           <img src="{{ url_for('static', filename='sidemore.webp') }}" alt="Sidebar" class="toggle-grow" />
           <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
-            Click "More" at the bottom.
+            {{ t["section_4"]["desktop_text_2"] }}
           </figcaption>
         </figure>
     
              <figure style="width: 100%; margin: 0 0 1em 0;">
               <img src="{{ url_for('static', filename='unpin.webp') }}" alt="Unpinning" class="toggle-grow" />
               <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
-                Unpin Playlists, Live TV, Movies & Shows, and Rentals. Make sure my sections at the top are pinned.
+                {{ t["section_4"]["desktop_text_3"] }}
               </figcaption>
             </figure>
             
     
-        <h3>Mobile/Tablet</h3>
+        <h3>{{ t["section_4"]["mobile_title"] }}</h3>
     
         <figure style="width: 100%; margin: 0 0 1em 0;">
           <img src="{{ url_for('static', filename='mobilehome.webp') }}" alt="Mobile Home Screen" class="toggle-grow" />
           <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
-            Press and hold "Libraries", go to the all libraries menu, and favorite everything there.
+            {{ t["section_4"]["mobile_text_1"] }}
           </figcaption>
         </figure>
         
     
         <p>
-          And you're all set! Browse through my libraries, check out my movie collections (separate tab in Movies library), or put on a comfort show and go to sleep. If you ever want a show or movie that I don't have, see "Requests" below.
+          {{ t["section_4"]["mobile_text_2"] }}
         </p>
 
         <img src="{{ url_for('static', filename='screens.webp') }}"
@@ -292,62 +305,62 @@
   {% if pulsarr_enabled or overseerr_enabled %}
   <div class="container">
     <details>
-      <summary class="collapsible-heading">5. Requests</summary>
+      <summary class="collapsible-heading">{{ t["section_5"]["title"] }}</summary>
       <div style="margin-left: 1em;">
         {% if pulsarr_enabled %}
-        <h3>Plex Watchlist Requests</h3>
+        <h3>{{ t["section_5"]["wathclist_title"] }}</h3>
         <p>
-          Through some technomancy, requesting movies and shows you want is pretty easy.
+          {{ t["section_5"]["watchlist_text_1"] }}
         </p>
         <p>
-          We have to be "friends" on Plex (different than adding you to my server) for this feature to work so tell me to do that first before you request anything.
+          {{ t["section_5"]["watchlist_text_2"] }}
         </p>
         <p class="accent">
-          Note: This feature does not work for new movies currently in theaters. Anything older or already on streaming services should be available.
+          {{ t["section_5"]["watchlist_text_3"] }}
         </p>
         <ul class="text-left max-800" style="margin: 1em 0;">
-          <li>Go to the search bar or search menu</li>
-          <li>Enable "More Ways to Watch" if not already enabled</li>
-          <li>Search for the media you want</li>
-          <li>Click the "Add to watchlist" icon</li>
+          <li>{{ t["section_5"]["watchlist_text_4"] }}</li>
+          <li>{{ t["section_5"]["watchlist_text_5"] }}</li>
+          <li>{{ t["section_5"]["watchlist_text_6"] }}</li>
+          <li>{{ t["section_5"]["watchlist_text_7"] }}</li>
         </ul>
         <figure style="width: 100%; margin: 0 0 1em 0;">
           <img src="{{ url_for('static', filename='watchlist.webp') }}" alt="Watchlist" class="toggle-grow" />
           <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
-            Desktop Example
+            {{ t["section_5"]["watchlist_text_8"] }}
           </figcaption>
         </figure>
         <p>
-          Movies should show up in less than 30 minutes. Shows can take longer. The first season will show up to start, and others as you watch. If it's a show that's airing now and you want a more recent season, let me know.
+          {{ t["section_5"]["watchlist_text_9"] }}
         </p>
         <p class="accent">
-          Be nice to my hard drives, don't request too much!
+          {{ t["section_5"]["watchlist_text_10"] }}
         </p>
-        <h3>Notifications</h3>
+        <h3>{{ t["section_5"]["notifications_title"] }}</h3>
         <p>
-          If I added you as a friend, you can receive notifications on phones and tablets when your Watchlisted media is available. For shows, this only applies when it is added for the first time.{% if tautulli_enabled %} For per-episode notifications about currently airing shows, ask me about my Discord.{% endif %}
+          {{ t["section_5"]["notifications_text_1"] }}{% if tautulli_enabled %} {{ t["section_5"]["notifications_text_2"] }}{% endif %}
         </p>
         <ul class="text-left max-800" style="margin: 1em 0;">
-          <li>Make sure notifications are enabled for Plex on your phone (Settings app)</li>
-          <li>Go to settings in Plex > Notifications</li>
-          <li>Turn off anything you'd like in Plex News, Friends, Discover, Live TV</li>
-          <li>Scroll down to Personal Media > New Content Added to Library</li>
-          <li>Set the toggles to how they look below (all off except for top one)</li>
+          <li>{{ t["section_5"]["notifications_text_3"] }}</li>
+          <li>{{ t["section_5"]["notifications_text_4"] }}</li>
+          <li>{{ t["section_5"]["notifications_text_5"] }}</li>
+          <li>{{ t["section_5"]["notifications_text_6"] }}</li>
+          <li>{{ t["section_5"]["notifications_text_7"] }}</li>
         </ul>
         <img src="{{ url_for('static', filename='notifs.webp') }}"
              alt="Notification Settings"
              class="toggle-grow" />
         {% endif %}
         {% if overseerr_enabled %}
-        <h3>Overseerr Requests</h3>
+        <h3>{{ t["section_5"]["overseerr_title"] }}</h3>
         <p>
-          You can request movies and shows directly using Overseerr. Click the link below to open the request page:
+          {{ t["section_5"]["overseerr_text_1"] }}
         </p>
         <p>
-          <a href="{{ overseerr_url }}" target="_blank" class="accent">Open Overseerr</a>
+          <a href="{{ overseerr_url }}" target="_blank" class="accent">{{ t["section_5"]["overseerr_link"] }}</a>
         </p>
         <p class="muted">
-          Requests made here will be sent to the admin for approval and processing.
+          {{ t["section_5"]["overseerr_text_2"] }}
         </p>
         {% endif %}
       </div>
@@ -356,11 +369,11 @@
   {% endif %}
   <div class="container">
     <details>
-      <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled %}6{% else %}5{% endif %}. Issues</summary>
+      <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled %}{{ t["section_issue"]["issue_overseerr_enabled_num"] }}{% else %}{{ t["section_issue"]["issue_overseerr_disabled_num"] }}{% endif %}. {{ t["section_issue"]["title"] }}</summary>
       <div style="margin-left: 1em;">
     
         <p>
-          If you have issues playing a specific piece of media, or it has bad subs, you can report it through Plex or just tell me.
+          {{ t["section_issue"]["issue_text_1"] }}
         </p>
     
         <img src="{{ url_for('static', filename='issue.webp') }}"
@@ -372,7 +385,7 @@
   </div>
   <div class="container">
     <details>
-      <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled %}7{% else %}6{% endif %}. The End</summary>
+      <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled %}{{ t["section_end"]["end_overseerr_enabled_num"] }}{% else %}{{ t["section_end"]["end_overseerr_disabled_num"] }}{% endif %}. {{ t["section_end"]["title"] }}</summary>
       <div style="margin-left: 1em;">
         {% include "onboarding_section7.html" %}
       </div>

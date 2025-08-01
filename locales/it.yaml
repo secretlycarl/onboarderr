@@ -1,0 +1,99 @@
+onboarding:
+  title: Benvenuto su Plex!
+  intro_pre_link: Plex Media Server (o solo
+  intro_link_text: Plex
+  intro_post_link: ) mi permette di condividere con voi la mia collezione di film e serie tv, proprio come netflix ma gratuitamente. Puoi guardalo sulla TV, sul computer, sul telefono o sul tablet!
+  lib_random: 🎲 Casuale
+  lib_pre_link: Selezione casuale di poster da ogni libreria. Vai
+  lib_link_text: qua
+  lib_post_link: per la lista completa.
+  zoom: Premi l'immagine per ingrandire (Zoom con il telefono)
+quick_access:
+  title: Accesso rapido
+  plex: Media
+  audiobookshelf: Libri
+  tautulli: Statistiche
+  overseerr: Richieste
+section_1:
+  title: "1. Ottieni l'Accesso"
+  text_1: "Per iniziare, inserisci la tua mail qui sotto e seleziona le librerie a cui desidere accedere. Fammi sapere quando hai finito e riceverai un'e-mail o un link di invito."
+  text_2: "Nota: Si prega di non condividere il proprio account con altri. Se conosci qualcuno che pensi avrebbe piacere ad avere accesso, fammelo sapere. Nella maggior parte dei casi sarei felice di aggiungerli con il loro account."
+  email_placeholder: Inserisci una mail per Plex
+  audio_cat: Se hai selezionato una categoria audio, dai un'occhiata a Plexamp, l'app musicale di Plex per smartphone e tablet. Trovi il link nella sezione "Accesso" qui sotto.
+  submit_button: Invia
+  disclaimer: ⚠️ Avvertenza sui contenuti
+  disclaimer_text: Alcuni contenuti presenti in questa libreria multimediale potrebbero non essere adatti a tutte le età. Il proprietario del server non è responsabile per i contenuti accessibili tramite questo servizio. Gli utenti sono responsabili delle proprie scelte di visione e dovrebbero usare la dovuta discrezione.
+  request_submitted: Grazie! La tua richiesta è stata inviata.
+section_2:
+  title: "2. Accedere"
+  text_1: Una volta ricevuto l'invito, vai avanti e crea un account Plex e scarica l'applicazione sui tuoi device.
+  comp_device_link: Questo
+  post_link: è un link a una lista dei dispositivi compatibili con i link per il download dell'applicazione.
+  pre_web_link: Puoi anche accedere tramite browser web al link
+  web_link: app.plex.tv
+  post_web_link: Per provarlo, ma preferirei se usassi l'applicazione.
+section_3:
+  title: "3. Configurazione iniziale"
+  text_1: Plex generalmente è facile da usare, ma ci sono alcune importanti impostazioni da modificare la prima volta che lo usi.
+  text_2: Per prima cosa la rimozione dei contenuti Live TV forniti da Plex. Questo contenuto contiene pubblicità e ingombra la home page su alcuni dispositivi.
+  text_3: Per modificare questa impostazione, usa l'app web o desktop di Plex.
+  text_4: Vai su "Risorse multimediali online" ("Online Media Sources")
+  text_5: Disattiva "Live TV", "Movies & Shows", e "Mostra Disponibilità dagli altri servizi di Streaming nelle pagine dei dettagli". Il resto può rimanere così com'è.
+  text_6: Puoi curiosare nelle impostazioni dell'account e applicare modifiche anche nelle altre schede.
+  pre_guide_link: il prossimo passo è aumentare la qualità dello streaming. Dai un'occhiata a
+  guide_link: questa
+  post_guide_link: utile guida per ottenere la miglior qualità dello streaming.
+  text_7: "Se non vuoi leggere l'intera guida, ecco una procedura generale da seguire (deve essere fatta per ogni dispositivo):"
+  text_8: Apri le impostazioni di Plex
+  text_9: Trova le impostazioni Video/Qualità (Video/Quality settings)
+  text_10: Disattiva tutte le regolazioni automatiche
+  text_11: Modifica la qualità dello streaming a Massimo (Maximum)
+  text_12: Abilità Riproduzione Dirette e Streaming Diretto (Direct Play/Direct Stream)
+  text_13: "Nota: Se sei un nerd e vuoi la migliore esperienza Plex possibile sulla tua TV, ti consiglio uno di questi dispositivi:"
+  text_14: "Nvidia Shield Pro (2019) – riproduce quasi tutto senza problemi, la migliore in assoluto."
+  text_15: "Apple TV 4K (3ª generazione) – quasi altrettanto valida, interfaccia veloce, manca solo il passthrough completo del TRUEHD."
+  text_16: "FireTV Cube (3ª generazione) – interfaccia fluida, ma ha problemi con la riproduzione dei DTS."
+  text_17: Non è necessario cambiarlo, a meno che non noti problemi sul dispositivo TV attuale o desideri la massima qualità di riproduzione.
+section_4:
+  title: "4. Pinnare le Librerie"
+  desktop_title: Desktop
+  desktop_text_1: Una volta modificate queste impostazioni, clicca sul pulsante Home in alto a sinistra (su desktop) e verrai portato alla pagina dove avviene tutta la magia.
+  desktop_text_2: Clicca su "Altro" ("More") in fondo.
+  desktop_text_3: Sblocca (Unpin) "Playlists", "Live TV", "Movies & Shows", and "Rentals". Controlla che le mie librerie in altro a sinistra siano fissate in alto.
+  mobile_title: "Mobile/Tablet"
+  mobile_text_1: Tieni premuto su "Elenco Librerie" ("Libraries"), premi su "Vedi tutte le librerie" ("See all libraries") e poi clicca sul cuore per ogni libreria così da metterla nei preferiti.
+  mobile_text_2: E il gioco è fatto! Esplora le mie librerie, dai un’occhiata alle collezioni di film (scheda separata nella libreria Film), oppure metti su una serie rilassante e vai a dormire. Se vuoi vedere una serie o un film che non ho, guarda la sezione “Richieste” qui sotto.
+section_5:
+  title: 5. Richieste
+  watchlist_title: Richieste tramite Watchlist di Plex
+  watchlist_text_1: Tramite un pizzico di tecnomanzia, richiedere film e serie è piuttosto semplice.
+  watchlist_text_2: Dobbiamo essere "amici" su Plex (è diverso dall’essere aggiunti al mio server) affinché questa funzione funzioni, quindi dimmelo prima di fare richieste.
+  watchlist_text_3: "Nota: questa funzione non funziona per i film attualmente al cinema. Qualsiasi contenuto più vecchio o già disponibile in streaming dovrebbe funzionare."
+  watchlist_text_4: Vai nella barra o nel menu di ricerca
+  watchlist_text_5: Abilita “Altri modi per guardare” se non è già attivo
+  watchlist_text_6: Cerca il contenuto che desideri
+  watchlist_text_7: Clicca sull’icona “Aggiungi alla lista da Guardare”
+  watchlist_text_8: Esempio su desktop
+  watchlist_text_9: I film dovrebbero comparire in meno di 30 minuti. Le serie possono richiedere più tempo. Verrà aggiunta la prima stagione per iniziare, e le successive mentre guardi. Se si tratta di una serie attualmente in onda e vuoi una stagione più recente, fammelo sapere.
+  watchlist_text_10: Sii gentile con i miei hard disk, non fare troppe richieste!
+  notifications_title: Notifiche
+  notifications_text_1: Se ti ho aggiunto come amico, puoi ricevere notifiche su telefono o tablet quando un contenuto richiesto tramite Watchlist è disponibile. Per le serie, questo vale solo al primo inserimento.
+  notifications_text_2: Per notifiche episodio-per-episodio sulle serie in corso, chiedimi del mio Discord.
+  notifications_text_3: Assicurati che le notifiche siano attivate per Plex sul tuo telefono (tramite l’app Impostazioni)
+  notifications_text_4: "Vai su Impostazioni in Plex > Notifiche"
+  notifications_text_5: Disattiva tutto ciò che vuoi in Plex News, Amici, Discover, Live TV
+  notifications_text_6: "Scorri fino a Media Personali > Nuovi contenuti aggiunti alla libreria"
+  notifications_text_7: Imposta gli interruttori come nell’immagine sotto (tutti disattivati tranne il primo in alto)
+  overseerr_title: Richieste tramite Overseerr
+  overseerr_text_1: "Puoi richiedere film e serie direttamente tramite Overseerr. Clicca sul link qui sotto per aprire la pagina delle richieste:"
+  overseerr_link: "Apri Overseerr"
+  overseerr_text_2: Le richieste fatte qui verranno inviate all’amministratore per l’approvazione e l’elaborazione.
+section_issue:
+  title: Problemi
+  issue_overseerr_enabled_num: "6"
+  issue_overseerr_disabled_num: "5"
+  issue_text_1: Se hai problemi con la riproduzione di un contenuto specifico o i sottotitoli sono errati, puoi segnalarlo tramite Plex oppure semplicemente farmelo sapere.
+section_end:
+  title: Conclusione
+  end_overseerr_enabled_num: "7"
+  end_overseerr_disabled_num: "6"
