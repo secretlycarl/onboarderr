@@ -1330,11 +1330,6 @@ a:hover {
   box-sizing: border-box;
 }
 
-/* Add spacing between poster-carousel-container and library-selector */
-.carousel-section .poster-carousel-container + .library-selector {
-  margin-top:0.5em;
-}
-
 .poster-carousel {
   display: flex;
   gap: 1rem;

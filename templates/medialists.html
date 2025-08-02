@@ -142,6 +142,7 @@
       const select = document.getElementById("list-select");
       const sections = document.querySelectorAll(".medialist-section");
       const loadedLetters = new Map(); // Track which letters have been loaded per library
+      const loadedContent = new Map(); // Store the actual content for each letter
       
       function showSection(id) {
         sections.forEach(sec => sec.style.display = "none");
@@ -170,12 +171,20 @@
         
         // Check if already loaded
         const libraryKey = `${libraryIndex}-${letter}`;
-        if (loadedLetters.has(libraryKey)) {
-          return; // Already loaded
+        const isAlreadyLoaded = loadedLetters.has(libraryKey);
+        
+        // If already loaded, just display the stored content
+        if (isAlreadyLoaded && loadedContent.has(libraryKey)) {
+          postersContainer.innerHTML = loadedContent.get(libraryKey);
+          postersContainer.style.display = 'block';
+          if (initialMessage) initialMessage.style.display = 'none';
+          return;
         }
         
-        // Show loading indicator
-        postersContainer.innerHTML = '<div style="color:#666; text-align:center; padding:1em;">Loading posters...</div>';
+        // Show loading indicator only if not already loaded
+        if (!isAlreadyLoaded) {
+          postersContainer.innerHTML = '<div style="color:#666; text-align:center; padding:1em;">Loading posters...</div>';
+        }
         postersContainer.style.display = 'block';
         if (initialMessage) initialMessage.style.display = 'none';
         
@@ -203,6 +212,7 @@
           
           postersContainer.innerHTML = html;
           loadedLetters.set(libraryKey, true);
+          loadedContent.set(libraryKey, html);
           return;
         }
         
@@ -255,13 +265,20 @@
             
             postersContainer.innerHTML = html;
             loadedLetters.set(libraryKey, true);
+            loadedContent.set(libraryKey, html);
           } else {
-            postersContainer.innerHTML = '<div style="color:#cc0000; text-align:center; padding:1em;">Error loading posters</div>';
+            const errorHtml = '<div style="color:#cc0000; text-align:center; padding:1em;">Error loading posters</div>';
+            postersContainer.innerHTML = errorHtml;
+            loadedLetters.set(libraryKey, true);
+            loadedContent.set(libraryKey, errorHtml);
           }
         })
         .catch(error => {
           console.error('Error loading posters:', error);
-          postersContainer.innerHTML = '<div style="color:#cc0000; text-align:center; padding:1em;">Error loading posters</div>';
+          const errorHtml = '<div style="color:#cc0000; text-align:center; padding:1em;">Error loading posters</div>';
+          postersContainer.innerHTML = errorHtml;
+          loadedLetters.set(libraryKey, true);
+          loadedContent.set(libraryKey, errorHtml);
         });
       }
       
