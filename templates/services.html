@@ -100,12 +100,14 @@
             </div>
             {% for submission in submissions %}
               <div class="user-selection-item">
-                <input type="checkbox" name="invite_users" value="{{ loop.index0 }}" id="invite_user_{{ loop.index0 }}" class="plex-user-checkbox">
-                <label for="invite_user_{{ loop.index0 }}">
-                  <strong>{{ submission.email }}</strong>
-                  <div class="user-details">
-                    Libraries: {{ submission.libraries_titles | join(', ') }} | 
-                    Submitted: {{ submission.submitted_at[:10] }}
+                <label class="checkbox-option">
+                  <input type="checkbox" name="invite_users" value="{{ loop.index0 }}" id="invite_user_{{ loop.index0 }}" class="plex-user-checkbox">
+                  <div class="user-info">
+                    <strong>{{ submission.email }}</strong>
+                    <div class="user-details">
+                      Libraries: {{ submission.libraries_titles | join(', ') }} | 
+                      Submitted: {{ submission.submitted_at[:10] }}
+                    </div>
                   </div>
                 </label>
               </div>
@@ -196,11 +198,13 @@
               </div>
               {% for submission in audiobookshelf_submissions %}
                 <div class="user-selection-item">
-                  <input type="checkbox" name="create_users" value="{{ loop.index0 }}" id="create_user_{{ loop.index0 }}" class="user-checkbox">
-                  <label for="create_user_{{ loop.index0 }}">
-                    <strong>{{ submission.username }}</strong> ({{ submission.email }})
-                    <div class="user-details">
-                      Password: •••••••• | Submitted: {{ submission.submitted_at[:10] }}
+                  <label class="checkbox-option">
+                    <input type="checkbox" name="create_users" value="{{ loop.index0 }}" id="create_user_{{ loop.index0 }}" class="user-checkbox">
+                    <div class="user-info">
+                      <strong>{{ submission.username }}</strong> ({{ submission.email }})
+                      <div class="user-details">
+                        Password: •••••••• | Submitted: {{ submission.submitted_at[:10] }}
+                      </div>
                     </div>
                   </label>
                 </div>
@@ -591,7 +595,8 @@
               </label>
             </div>
              <div class="file-help">
-              Quick access links appear as a floating panel on desktop and in the mobile navigation menu. They provide direct access to your media services.
+              Quick access links appear as a floating panel on desktop and in the mobile navigation menu. They provide direct access to your media services.<br>
+              This feature is in progress.
              </div>
            </div>
          </div>
@@ -635,6 +640,52 @@
   <script src="{{ url_for('static', filename='navigation.js') }}"></script>
 
   <script>
+    // Select All functionality for Plex users
+    document.addEventListener('DOMContentLoaded', function() {
+      const selectAllPlex = document.getElementById('select_all_plex_users');
+      const plexCheckboxes = document.querySelectorAll('.plex-user-checkbox');
+      
+      if (selectAllPlex) {
+        selectAllPlex.addEventListener('change', function() {
+          plexCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+          });
+        });
+        
+        // Update Select All when individual checkboxes change
+        plexCheckboxes.forEach(checkbox => {
+          checkbox.addEventListener('change', function() {
+            const allChecked = Array.from(plexCheckboxes).every(cb => cb.checked);
+            const anyChecked = Array.from(plexCheckboxes).some(cb => cb.checked);
+            selectAllPlex.checked = allChecked;
+            selectAllPlex.indeterminate = anyChecked && !allChecked;
+          });
+        });
+      }
+      
+      // Select All functionality for ABS users
+      const selectAllAbs = document.getElementById('select_all_users');
+      const absCheckboxes = document.querySelectorAll('.user-checkbox');
+      
+      if (selectAllAbs) {
+        selectAllAbs.addEventListener('change', function() {
+          absCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+          });
+        });
+        
+        // Update Select All when individual checkboxes change
+        absCheckboxes.forEach(checkbox => {
+          checkbox.addEventListener('change', function() {
+            const allChecked = Array.from(absCheckboxes).every(cb => cb.checked);
+            const anyChecked = Array.from(absCheckboxes).some(cb => cb.checked);
+            selectAllAbs.checked = allChecked;
+            selectAllAbs.indeterminate = anyChecked && !allChecked;
+          });
+        });
+      }
+    });
+    
     // Password visibility toggle function
     function togglePasswordVisibility(inputId) {
       const input = document.getElementById(inputId);
@@ -979,6 +1030,22 @@
           if (row) {
             row.remove();
           }
+          
+          // Update the invite section by removing the corresponding checkbox
+          const inviteCheckbox = document.getElementById(`invite_user_${index}`);
+          if (inviteCheckbox) {
+            const userSelectionItem = inviteCheckbox.closest('.user-selection-item');
+            if (userSelectionItem) {
+              userSelectionItem.remove();
+            }
+          }
+          
+          // Update all remaining checkboxes to have correct indices
+          updatePlexCheckboxIndices();
+          
+          // Update table row indices
+          updatePlexTableIndices();
+          
           // If no more submissions, reload the page to show "No Plex requests found"
           const tbody = document.querySelector('table tbody');
           if (tbody && tbody.children.length === 0) {
@@ -1016,6 +1083,22 @@
           if (row) {
             row.remove();
           }
+          
+          // Update the invite section by removing the corresponding checkbox
+          const inviteCheckbox = document.getElementById(`create_user_${index}`);
+          if (inviteCheckbox) {
+            const userSelectionItem = inviteCheckbox.closest('.user-selection-item');
+            if (userSelectionItem) {
+              userSelectionItem.remove();
+            }
+          }
+          
+          // Update all remaining checkboxes to have correct indices
+          updateAbsCheckboxIndices();
+          
+          // Update table row indices
+          updateAbsTableIndices();
+          
           // If no more submissions, reload the page to show "No Audiobookshelf requests found"
           const tbody = document.querySelector('.scrollable-table-container table tbody');
           if (tbody && tbody.children.length === 0) {
@@ -1038,7 +1121,25 @@
         return;
       }
       
-      const selectedIndices = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+      // Get the actual backend indices by mapping from frontend indices to table rows
+      const selectedIndices = Array.from(selectedCheckboxes).map(cb => {
+        const frontendIndex = parseInt(cb.value);
+        const tableRow = document.querySelector(`tr[data-plex-index="${frontendIndex}"]`);
+        if (tableRow) {
+          // Find the actual index in the table by counting previous rows
+          let actualIndex = 0;
+          let currentRow = tableRow.previousElementSibling;
+          while (currentRow) {
+            if (currentRow.hasAttribute('data-plex-index')) {
+              actualIndex++;
+            }
+            currentRow = currentRow.previousElementSibling;
+          }
+          return actualIndex;
+        }
+        return frontendIndex;
+      });
+      
       const button = event.target;
       const originalText = button.textContent;
       button.textContent = 'Inviting...';
@@ -1083,7 +1184,25 @@
         return;
       }
       
-      const selectedIndices = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+      // Get the actual backend indices by mapping from frontend indices to table rows
+      const selectedIndices = Array.from(selectedCheckboxes).map(cb => {
+        const frontendIndex = parseInt(cb.value);
+        const tableRow = document.querySelector(`tr[data-abs-index="${frontendIndex}"]`);
+        if (tableRow) {
+          // Find the actual index in the table by counting previous rows
+          let actualIndex = 0;
+          let currentRow = tableRow.previousElementSibling;
+          while (currentRow) {
+            if (currentRow.hasAttribute('data-abs-index')) {
+              actualIndex++;
+            }
+            currentRow = currentRow.previousElementSibling;
+          }
+          return actualIndex;
+        }
+        return frontendIndex;
+      });
+      
       const userType = document.getElementById('abs_user_type').value;
       const selectedPermissions = Array.from(document.querySelectorAll('input[name="permissions"]:checked')).map(cb => cb.value);
       
@@ -1201,6 +1320,52 @@
       });
       
       form.appendChild(resultsDiv);
+    }
+    
+    // Helper function to update Plex checkbox indices after deletion
+    function updatePlexCheckboxIndices() {
+      const plexCheckboxes = document.querySelectorAll('.plex-user-checkbox');
+      plexCheckboxes.forEach((checkbox, newIndex) => {
+        checkbox.value = newIndex;
+        checkbox.id = `invite_user_${newIndex}`;
+        checkbox.name = 'invite_users';
+      });
+    }
+    
+    // Helper function to update ABS checkbox indices after deletion
+    function updateAbsCheckboxIndices() {
+      const absCheckboxes = document.querySelectorAll('.user-checkbox');
+      absCheckboxes.forEach((checkbox, newIndex) => {
+        checkbox.value = newIndex;
+        checkbox.id = `create_user_${newIndex}`;
+        checkbox.name = 'create_users';
+      });
+    }
+    
+    // Helper function to update Plex table row indices after deletion
+    function updatePlexTableIndices() {
+      const plexRows = document.querySelectorAll('tr[data-plex-index]');
+      plexRows.forEach((row, newIndex) => {
+        row.setAttribute('data-plex-index', newIndex);
+        // Update the delete button onclick to use the new index
+        const deleteButton = row.querySelector('button[onclick^="deletePlexRequest"]');
+        if (deleteButton) {
+          deleteButton.setAttribute('onclick', `deletePlexRequest(${newIndex})`);
+        }
+      });
+    }
+    
+    // Helper function to update ABS table row indices after deletion
+    function updateAbsTableIndices() {
+      const absRows = document.querySelectorAll('tr[data-abs-index]');
+      absRows.forEach((row, newIndex) => {
+        row.setAttribute('data-abs-index', newIndex);
+        // Update the delete button onclick to use the new index
+        const deleteButton = row.querySelector('button[onclick^="deleteAbsRequest"]');
+        if (deleteButton) {
+          deleteButton.setAttribute('onclick', `deleteAbsRequest(${newIndex})`);
+        }
+      });
     }
   </script>
 
