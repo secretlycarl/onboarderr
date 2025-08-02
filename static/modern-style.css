@@ -1812,7 +1812,7 @@ a:hover {
 /* Mobile Navigation */
 .nav-mobile {
   display: none;
-  margin: 1rem auto;
+  margin: 1rem auto 0.5rem;
   max-width: 800px;
 }
 
@@ -2759,7 +2759,7 @@ details.collapsible-section > .info-box {
   max-width: 400px;
   min-width: 120px;
   display: block;
-  margin: 2rem auto 1rem;
+  margin: 2rem auto 2rem;
   height: auto;
 }
 
@@ -2767,7 +2767,7 @@ details.collapsible-section > .info-box {
 @media (pointer: coarse) and (max-width: 1800px) {
   .wordmark {
     max-width: 70%;
-    margin: 1.5rem auto 1rem;
+    margin: 3rem auto 2rem;
   }
 }
 
@@ -3066,14 +3066,7 @@ details.collapsible-section > .info-box {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
   transition: opacity 0.3s ease;
   transform-origin: center center;
-  will-change: transform;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  image-rendering: pixelated;
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
+  image-rendering: auto;
 }
 
 .image-modal-close {
@@ -3147,6 +3140,8 @@ details.collapsible-section > .info-box {
     transform: none;
     box-shadow: none;
   }
+  
+
 }
 
 /* Warning-box width adjustments based on context */
@@ -3316,12 +3311,6 @@ details.collapsible-section > .info-box {
     padding: 0.75rem 0;
   }
   
-  .letter-button {
-    padding: 0.6rem 1rem;
-    font-size: 0.9rem;
-    min-width: 2.5rem;
-  }
-  
   .posters-container ul {
     grid-template-columns: repeat(3, 1fr); /* Fixed 3 columns for tablet */
     gap: 1rem;
@@ -3332,13 +3321,6 @@ details.collapsible-section > .info-box {
     aspect-ratio: 2/3;
   }
 }
-
-@media (max-width: 480px) {
-  .letter-button {
-    padding: 0.5rem 0.8rem;
-    font-size: 0.85rem;
-    min-width: 2.25rem;
-  }
   
   .posters-container ul {
     grid-template-columns: repeat(2, 1fr); /* Fixed 2 columns for mobile */

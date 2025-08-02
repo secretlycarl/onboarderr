@@ -329,7 +329,10 @@ class ImageModal {
     this.resetZoom();
     
     // Set image source and alt text - use the original source for highest quality
-    modalImg.src = imageElement.src;
+    // Force fresh load to ensure highest quality
+    const originalSrc = imageElement.src;
+    modalImg.src = '';
+    modalImg.src = originalSrc;
     modalImg.alt = imageElement.alt || 'Enlarged image';
     
     // Update modal aria-label with image description
@@ -348,8 +351,6 @@ class ImageModal {
     modalImg.style.opacity = '0';
     modalImg.onload = () => {
       modalImg.style.opacity = '1';
-      // Ensure the image renders at full quality
-      modalImg.style.imageRendering = 'auto';
     };
   }
 
