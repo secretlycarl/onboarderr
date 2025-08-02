@@ -67,12 +67,14 @@
       
       {% for lib_name, media_groups in library_media.items() %}
       {% set library_index = loop.index0 %}
+      {% set library_count = library_counts.get(lib_name, 0) %}
       <div class="medialist-section" id="plex-{{ library_index }}" style="display:none;">
         <div style="display: flex; align-items: center; gap: 1em;">
           <img src="/static/plex.webp" alt="Plex Logo" style="height: 32px; display: block;" />
           <span class="service-libraries-label">Plex - {{ lib_name }}</span>
         </div>
         
+        {% if library_count >= 75 %}
         <!-- Letter Navigation -->
         <div class="letter-navigation" data-library-index="{{ library_index }}">
           {% set all_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|list + ['0-9', 'Other'] %}
@@ -95,6 +97,12 @@
         <div class="posters-container" id="posters-container-{{ library_index }}" style="display:none;">
           <!-- Posters will be loaded here -->
         </div>
+        {% else %}
+        <!-- All Items Container for Small Libraries -->
+        <div class="posters-container" id="posters-container-{{ library_index }}" style="display:block;" data-small-library="true">
+          <!-- All items will be loaded here -->
+        </div>
+        {% endif %}
       </div>
       {% endfor %}
       
@@ -102,14 +110,16 @@
       <!-- Hidden ABS data for JavaScript -->
       <script>
         window.absBookGroups = {{ abs_book_groups|tojson }};
+        window.absBookCount = {{ abs_book_count }};
       </script>
       
       <div class="medialist-section" id="abs" style="display:none;">
-        <div style="display: flex; align-items: center; gap: 1em;"">
+        <div style="display: flex; align-items: center; gap: 1em;">
           <img src="/static/abs.webp" alt="ABS Logo" style="height: 32px; display: block;" />
           <span class="service-libraries-label">Audiobookshelf</span>
         </div>
         
+        {% if abs_book_count >= 75 %}
         <!-- Letter Navigation for ABS -->
         <div class="letter-navigation" data-library-index="abs">
           {% set all_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|list + ['0-9', 'Other'] %}
@@ -132,6 +142,12 @@
         <div class="posters-container" id="posters-container-abs" style="display:none;">
           <!-- Books will be loaded here -->
         </div>
+        {% else %}
+        <!-- All Books Container for Small ABS Libraries -->
+        <div class="posters-container" id="posters-container-abs" style="display:block;" data-small-library="true">
+          <!-- All books will be loaded here -->
+        </div>
+        {% endif %}
       </div>
       {% endif %}
     </div>
@@ -161,6 +177,123 @@
         
         if (initialMessage) initialMessage.style.display = 'block';
         if (postersContainer) postersContainer.style.display = 'none';
+        
+        // Auto-load all items for small libraries (less than 75 items)
+        if (id === 'abs') {
+          const absCount = window.absBookCount || 0;
+          if (absCount < 75) {
+            loadAllAbsBooks();
+          }
+        } else {
+          // For Plex libraries, check if this is a small library
+          const postersContainer = document.getElementById(`posters-container-${libraryIndex}`);
+          if (postersContainer && postersContainer.hasAttribute('data-small-library')) {
+            loadAllItemsForLibrary(libraryIndex);
+          }
+        }
+      }
+      
+      function loadAllAbsBooks() {
+        const postersContainer = document.getElementById('posters-container-abs');
+        if (!postersContainer) return;
+        
+        const books = window.absBookGroups || {};
+        let allBooks = [];
+        
+        // Collect all books from all letters
+        for (const letter in books) {
+          allBooks = allBooks.concat(books[letter] || []);
+        }
+        
+        // Sort all books alphabetically by title
+        allBooks.sort((a, b) => a.title.localeCompare(b.title));
+        
+        let html = '<ul>';
+        for (const book of allBooks) {
+          html += '<li>';
+          html += `<img src="${book.cover || '{{ url_for("static", filename=logo_filename) }}'}" alt="${book.title} cover" onerror="this.onerror=null;this.src='{{ url_for("static", filename=logo_filename) }}';" />`;
+          html += `<div style="font-weight: bold; margin-bottom: 0.25rem;">${book.title}</div>`;
+          if (book.author) {
+            html += `<div style="font-size: 0.9em; color: #aaa; margin-bottom: 0.25rem;">by ${book.author}</div>`;
+          }
+          html += `<a href="https://www.goodreads.com/search?q=${encodeURIComponent(book.title + ' ' + (book.author || ''))}" target="_blank" class="accent">Goodreads</a>`;
+          html += '</li>';
+        }
+        html += '</ul>';
+        
+        if (allBooks.length === 0) {
+          html = '<div style="color:#666; text-align:center; padding:1em;">No books found</div>';
+        }
+        
+        postersContainer.innerHTML = html;
+        postersContainer.style.display = 'block';
+      }
+      
+      function loadAllItemsForLibrary(libraryIndex) {
+        const postersContainer = document.getElementById(`posters-container-${libraryIndex}`);
+        if (!postersContainer) return;
+        
+        // Show loading indicator
+        postersContainer.innerHTML = '<div style="color:#666; text-align:center; padding:1em;">Loading all items...</div>';
+        postersContainer.style.display = 'block';
+        
+        // Load all items via AJAX
+        fetch('/ajax/load-all-items', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+          },
+          body: JSON.stringify({ 
+            library_index: libraryIndex
+          })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            // Build HTML for items with posters in grid layout
+            let html = '<ul>';
+            
+            for (const item of data.items) {
+              html += '<li>';
+              if (item.poster) {
+                html += `<img src="${item.poster}" alt="${item.title} poster" />`;
+              }
+              html += `<div style="font-weight: bold; margin-bottom: 0.25rem;">${item.title}</div>`;
+              
+              // Add external links
+              const links = [];
+              if (item.imdb) {
+                links.push(`<a href="https://www.imdb.com/title/${item.imdb}" target="_blank" class="accent">IMDB</a>`);
+              }
+              if (item.lastfm_url && item.is_artist === true && !item.imdb) {
+                links.push(`<a href="${item.lastfm_url}" target="_blank" class="accent">Last.fm</a>`);
+              }
+              
+              if (links.length > 0) {
+                html += links.join(' | ');
+              }
+              
+              html += '</li>';
+            }
+            
+            html += '</ul>';
+            
+            if (data.items.length === 0) {
+              html = '<div style="color:#666; text-align:center; padding:1em;">No items found</div>';
+            }
+            
+            postersContainer.innerHTML = html;
+          } else {
+            const errorHtml = '<div style="color:#cc0000; text-align:center; padding:1em;">Error loading items</div>';
+            postersContainer.innerHTML = errorHtml;
+          }
+        })
+        .catch(error => {
+          console.error('Error loading all items:', error);
+          const errorHtml = '<div style="color:#cc0000; text-align:center; padding:1em;">Error loading items</div>';
+          postersContainer.innerHTML = errorHtml;
+        });
       }
       
       function loadPostersForLetter(libraryIndex, letter) {
@@ -213,6 +346,14 @@
           postersContainer.innerHTML = html;
           loadedLetters.set(libraryKey, true);
           loadedContent.set(libraryKey, html);
+          return;
+        }
+        
+        // Check if this is a small library that should show all items
+        const isSmallLibrary = postersContainer.hasAttribute('data-small-library');
+        if (isSmallLibrary) {
+          // Load all items for small libraries
+          loadAllItemsForLibrary(libraryIndex);
           return;
         }
         

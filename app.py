@@ -2211,6 +2211,7 @@ def medialists():
     filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
 
     library_media = {}
+    library_counts = {}  # Track total counts for each library
     # Only load titles for libraries (posters will be loaded on-demand via AJAX)
     for lib in filtered_libraries:
         section_id = lib["key"]
@@ -2219,6 +2220,7 @@ def medialists():
         
         grouped_titles = group_titles_by_letter(titles)
         library_media[name] = grouped_titles
+        library_counts[name] = len(titles)  # Store total count
 
     abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
     audiobooks = {}
@@ -2231,6 +2233,7 @@ def medialists():
 
     abs_books = fetch_abs_books() if abs_enabled else []
     abs_book_groups = group_books_by_letter(abs_books) if abs_books else {}
+    abs_book_count = len(abs_books) if abs_books else 0
 
     # Get public services data for icons (end user services only)
     services = build_public_services_data()
@@ -2238,12 +2241,14 @@ def medialists():
     return render_template(
         "medialists.html",
         library_media=library_media,
+        library_counts=library_counts,  # Pass library counts
         audiobooks=audiobooks,
         abs_enabled=abs_enabled,
         library_posters={},  # Empty - will be loaded on-demand
         library_poster_groups={},  # Empty - will be loaded on-demand
         abs_books=abs_books,
         abs_book_groups=abs_book_groups,
+        abs_book_count=abs_book_count,
         filtered_libraries=filtered_libraries,  # Pass library info for AJAX
         logo_filename=get_logo_filename(),
         services=services,
@@ -2848,7 +2853,7 @@ def is_music_artist(poster_data, library_info=None):
         return False
     
     # If library info is provided, check if it's actually a music library
-    if library_info and library_info.get("media_type") == "artist":
+    if library_info and library_info.get("type") == "artist":
         title = poster_data.get("title")
         year = poster_data.get("year")
         
@@ -3014,6 +3019,186 @@ def ajax_load_library_posters():
     except Exception as e:
         if debug_mode:
             print(f"Error loading library posters: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/ajax/load-all-items", methods=["POST"])
+def ajax_load_all_items():
+    if not session.get("authenticated"):
+        return jsonify({"success": False, "error": "Not authenticated"})
+    
+    try:
+        data = request.get_json()
+        library_index = data.get("library_index")
+        
+        if library_index is None:
+            return jsonify({"success": False, "error": "Library index required"})
+        
+        # Convert library_index to integer
+        try:
+            library_index = int(library_index)
+            if debug_mode:
+                print(f"DEBUG: library_index = {library_index} (type: {type(library_index)})")
+        except (ValueError, TypeError):
+            return jsonify({"success": False, "error": "Invalid library index format"})
+        
+        # Get all libraries
+        libraries = get_plex_libraries()
+        selected_ids = os.getenv("LIBRARY_IDS", "")
+        selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
+        filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
+        
+        if debug_mode:
+            print(f"DEBUG: len(filtered_libraries) = {len(filtered_libraries)}")
+        
+        if library_index >= len(filtered_libraries):
+            return jsonify({"success": False, "error": "Invalid library index"})
+        
+        library = filtered_libraries[library_index]
+        section_id = library["key"]
+        
+        # Get titles and metadata for this library
+        all_items = []
+        headers = {"X-Plex-Token": PLEX_TOKEN}
+        url = f"{PLEX_URL}/library/sections/{section_id}/all"
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            root = ET.fromstring(response.content)
+            for el in root.findall(".//Video"):
+                title = el.attrib.get("title")
+                rating_key = el.attrib.get("ratingKey")
+                year = el.attrib.get("year")
+                if title:
+                    all_items.append({
+                        "title": title,
+                        "ratingKey": rating_key,
+                        "year": year
+                    })
+            for el in root.findall(".//Directory"):
+                title = el.attrib.get("title")
+                rating_key = el.attrib.get("ratingKey")
+                year = el.attrib.get("year")
+                if title:
+                    # Check if this title already exists (avoid duplicates)
+                    existing = next((item for item in all_items if item["title"] == title), None)
+                    if not existing:
+                        all_items.append({
+                            "title": title,
+                            "ratingKey": rating_key,
+                            "year": year
+                        })
+        except Exception as e:
+            if debug_mode:
+                print(f"Error fetching titles for section {section_id}: {e}")
+        
+        # Create a dictionary to map items to their poster data
+        # Use a combination of title and year for better matching
+        item_to_poster = {}
+        
+        # Load poster metadata for this specific library
+        poster_dir = os.path.join("static", "posters", section_id)
+        if os.path.exists(poster_dir):
+            # Get all JSON files (both old format and new format)
+            json_files = [f for f in os.listdir(poster_dir) if f.endswith(".json")]
+            
+            for fname in json_files:
+                meta_path = os.path.join(poster_dir, fname)
+                try:
+                    with open(meta_path, "r", encoding="utf-8") as f:
+                        meta = json.load(f)
+                    meta_title = meta.get("title")
+                    meta_rating_key = meta.get("ratingKey")
+                    meta_year = meta.get("year")
+                    
+                    if meta_title:
+                        poster_file = meta.get("poster")
+                        poster_url = f"/static/posters/{section_id}/{poster_file}" if poster_file else None
+                        
+                        # Create a unique key for this item
+                        item_key = f"{meta_title}_{meta_year}" if meta_year else meta_title
+                        
+                        # Check if this is a music artist and add Last.fm URL
+                        is_artist = is_music_artist(meta, library)
+                        lastfm_url = get_lastfm_url(meta_title) if is_artist else None
+                        
+                        item_to_poster[item_key] = {
+                            "poster": poster_url,
+                            "title": meta_title,
+                            "ratingKey": meta_rating_key,
+                            "year": meta_year,
+                            "imdb": meta.get("imdb"),
+                            "tmdb": meta.get("tmdb"),
+                            "tvdb": meta.get("tvdb"),
+                            "lastfm_url": lastfm_url,
+                            "is_artist": is_artist,
+                        }
+                except Exception as e:
+                    if debug_mode:
+                        print(f"Error loading poster metadata from {meta_path}: {e}")
+                    continue
+        
+        # Match items with their poster data
+        items_with_posters = []
+        for item in all_items:
+            title = item["title"]
+            year = item["year"]
+            rating_key = item["ratingKey"]
+            
+            # Create the same key used in item_to_poster
+            item_key = f"{title}_{year}" if year else title
+            
+            # Try to find matching poster data
+            poster_data = item_to_poster.get(item_key)
+            if poster_data:
+                # Use the poster data from cache
+                items_with_posters.append({
+                    "title": title,
+                    "poster": poster_data["poster"],
+                    "imdb": poster_data.get("imdb"),
+                    "lastfm_url": poster_data.get("lastfm_url"),
+                    "is_artist": poster_data.get("is_artist", False)
+                })
+            else:
+                # Fallback: try to get poster from Plex API
+                item_with_fallback = {"title": title}
+                
+                # Get poster URL from Plex API as fallback
+                for el in root.findall(".//Video"):
+                    if el.attrib.get("title") == title:
+                        art = el.attrib.get("art")
+                        if art:
+                            item_with_fallback["poster"] = f"{PLEX_URL}{art}?X-Plex-Token={PLEX_TOKEN}"
+                        break
+                
+                for el in root.findall(".//Directory"):
+                    if el.attrib.get("title") == title:
+                        art = el.attrib.get("art")
+                        if art:
+                            item_with_fallback["poster"] = f"{PLEX_URL}{art}?X-Plex-Token={PLEX_TOKEN}"
+                        break
+                
+                # Check if this is a music artist
+                library_type = library.get("type", "")
+                if library_type == "artist":
+                    item_with_fallback["is_artist"] = True
+                    item_with_fallback["lastfm_url"] = get_lastfm_url(title)
+                
+                items_with_posters.append(item_with_fallback)
+        
+        # Sort items alphabetically by title
+        items_with_posters.sort(key=lambda x: x["title"].lower())
+        
+        if debug_mode:
+            print(f"DEBUG: Returning {len(items_with_posters)} items with posters")
+            print(f"DEBUG: Items with posters: {[item.get('title', 'Unknown') for item in items_with_posters[:5]]}")
+        
+        return jsonify({"success": True, "items": items_with_posters})
+        
+    except Exception as e:
+        if debug_mode:
+            print(f"Error loading all items: {e}")
+            import traceback
+            traceback.print_exc()
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/ajax/load-posters-by-letter", methods=["POST"])

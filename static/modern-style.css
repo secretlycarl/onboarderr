@@ -2407,6 +2407,11 @@ details.collapsible-section > .info-box {
   letter-spacing: 0.02em;
 }
 
+/* Add margin below title when there's no letter navigation (small libraries) */
+.medialist-section .posters-container[data-small-library="true"] {
+  margin-top: 1rem;
+}
+
 /* Mobile Responsive for Medialists - IMPROVED */
 @media (pointer: coarse) and (max-width: 1800px) {
   .letter-content {
