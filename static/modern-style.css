@@ -790,7 +790,7 @@ a:hover {
 
 .color-help {
   color: var(--text-muted);
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   margin-top: 0.25rem;
 }
 
@@ -824,7 +824,7 @@ a:hover {
 
 .file-help {
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   margin-top: 0.5rem;
   line-height: 1.4;
 }
@@ -1109,9 +1109,8 @@ a:hover {
 
 .library-id {
   color: var(--text-secondary);
-  font-size: 0.875rem;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  text-align: left;
+  font-size: 0.9rem;
+  text-align: right;
   flex: 0 0 60%;
   min-width: 0;
   word-wrap: break-word;
@@ -1589,7 +1588,7 @@ a:hover {
   
   /* Consistent text sizing for mobile */
   .caption {
-    font-size: 1.4rem;
+    font-size: 1rem;
     margin-top: 0.5rem;
     margin-bottom: 0.5rem;
   }
@@ -1649,7 +1648,7 @@ a:hover {
   }
   
   .setup-subtitle {
-    font-size: 1.1rem;
+    font-size: 1rem;
   }
   
   .collapsible-heading {
@@ -1660,7 +1659,7 @@ a:hover {
   /* Improved form elements for mobile */
   .form-input {
     padding: 0.875rem 1rem;
-    font-size: 1.1rem;
+    font-size: 1rem;
   }
   
   .submit-btn {
@@ -1712,7 +1711,7 @@ a:hover {
   }
   
   .library-title {
-    font-size: 1.1rem;
+    font-size: 1rem;
     margin-bottom: 0;
     line-height: 1.4;
     display: flex;
@@ -1730,7 +1729,7 @@ a:hover {
   
   /* Better onboarding intro text */
   .onboarding-intro {
-    font-size: 1.2rem;
+    font-size: 1rem;
     line-height: 1.4;
   }
   
@@ -1748,7 +1747,7 @@ a:hover {
   }
   
   .screenshot-caption {
-    font-size: 1.1rem;
+    font-size: 1rem;
     margin-top: 0.5rem;
     margin-bottom: 0.5rem;
   }
@@ -1756,14 +1755,10 @@ a:hover {
   /* Better music note styling */
   .music-note {
     padding: 1rem;
-    font-size: 1.1rem;
+    font-size: 1rem;
     line-height: 1.4;
   }
   
-  /* Improved carousel note */
-  .carousel-note {
-    font-size: 1.1rem;
-  }
 }
 
 /* Collapsible Styles */
@@ -1829,7 +1824,7 @@ a:hover {
 }
 
 .nav-mobile-title {
-  font-size: 1.1rem;
+  font-size: 1.2rem;
   font-weight: 600;
   color: var(--text);
 }
@@ -2699,7 +2694,7 @@ details.collapsible-section > .info-box {
 /* Mobile Responsive for Services - IMPROVED */
 @media (pointer: coarse) and (max-width: 1800px) {
   .admin-table {
-    font-size: 1.3rem;
+    font-size: 1rem;
   }
   
   .admin-table th,
@@ -3209,7 +3204,7 @@ details.collapsible-section > .info-box {
 .initial-message {
   text-align: center;
   color: var(--text-muted);
-  font-size: 1.1rem;
+  font-size: 1rem;
   padding: 3rem 1rem;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 0.5rem;
