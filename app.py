@@ -60,7 +60,7 @@ def is_running_in_docker():
         return any(var in os.environ for var in ['DOCKER_CONTAINER', 'KUBERNETES_SERVICE_HOST'])
 
 # Application configuration
-APP_PORT = 10000
+# APP_PORT will be set after load_dotenv() is called
 
 def get_app_url():
     """Determine the correct URL to open in browser"""
@@ -109,6 +109,8 @@ def ensure_secret_key():
 
 ensure_secret_key()
 load_dotenv()
+# Set APP_PORT after loading environment variables
+APP_PORT = int(os.getenv("APP_PORT"))
 debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
 
 app = Flask(__name__)
@@ -126,7 +128,10 @@ def inject_server_name():
         SERVER_NAME=os.getenv("SERVER_NAME", "DefaultName"),
         ABS_ENABLED=os.getenv("ABS_ENABLED", "yes"),
         AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", ""),
-        ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc")
+        ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc"),
+        QUICK_ACCESS_ENABLED=os.getenv("QUICK_ACCESS_ENABLED", "yes"),
+        MOBILE_SCROLL_MODE=os.getenv("MOBILE_SCROLL_MODE", "auto"),
+        LIBRARY_CAROUSELS=os.getenv("LIBRARY_CAROUSELS", "")
     )
 
 @app.context_processor
@@ -659,7 +664,7 @@ def onboarding():
 
     submitted = False
     library_notes = load_library_notes()
-    selected_ids = os.getenv("LIBRARY_IDS", "").split(",") if os.getenv("LIBRARY_IDS") else []
+    selected_ids = [id.strip() for id in os.getenv("LIBRARY_IDS", "").split(",") if id.strip()]
 
     if request.method == "POST":
         email = request.form.get("email")
@@ -690,16 +695,35 @@ def onboarding():
             return jsonify({"success": False, "error": "Missing required fields."})
 
     try:
-        libraries = [lib for lib in get_plex_libraries() if lib["key"] in selected_ids]
+        # Get all libraries from Plex
+        all_libraries = get_plex_libraries()
+        
+        # Filter libraries for access requests (only selected ones from LIBRARY_IDS)
+        # Convert both sides to strings to ensure proper comparison
+        selected_ids_str = [str(id).strip() for id in selected_ids]
+        available_libraries = [lib for lib in all_libraries if str(lib["key"]) in selected_ids_str]
+        
+        # Get libraries for carousel display (filtered by carousel settings)
+        carousel_libraries = available_libraries.copy()
+        library_carousels = os.getenv("LIBRARY_CAROUSELS", "")
+        if library_carousels:
+            # Only show libraries that have carousels enabled for carousel display
+            carousel_ids = [str(id).strip() for id in library_carousels.split(",") if str(id).strip()]
+            carousel_libraries = [lib for lib in available_libraries if str(lib["key"]) in carousel_ids]
+        
+        # For the template, use available_libraries for access requests and carousel_libraries for carousel display
+        libraries = available_libraries  # This is used for the "get access" checkboxes
     except Exception as e:
         if debug_mode:
             print(f"Failed to get Plex libraries: {e}")
         libraries = []
+        all_libraries = []
+        carousel_libraries = []
 
     # Build static poster URLs for each library (limit to 10 per library)
     library_posters = {}
     poster_imdb_ids = {}
-    for lib in libraries:
+    for lib in carousel_libraries:
         section_id = lib["key"]
         name = lib["title"]
         poster_dir = os.path.join("static", "posters", section_id)
@@ -758,20 +782,24 @@ def onboarding():
     
     # Check if any library has media_type of "artist" (music)
     # Only check currently available libraries that are actually shown in the UI
-    has_music_library = any(lib.get("media_type") == "artist" for lib in libraries)
+    has_music_library = any(lib.get("media_type") == "artist" for lib in carousel_libraries)
     
     if debug_mode:
         print(f"[DEBUG] Music library check: {has_music_library}")
         print(f"[DEBUG] Total libraries from Plex API: {len(all_libraries)}")
-        print(f"[DEBUG] Libraries shown in UI: {len(libraries)}")
+        print(f"[DEBUG] Libraries for access requests: {len(libraries)}")
+        print(f"[DEBUG] Libraries for carousel display: {len(carousel_libraries)}")
         print(f"[DEBUG] All libraries from Plex API:")
         for lib in all_libraries:
             print(f"[DEBUG]   - {lib['title']} (ID: {lib['key']}, type: {lib.get('media_type', 'unknown')})")
-        print(f"[DEBUG] Libraries shown in UI:")
+        print(f"[DEBUG] Libraries for access requests:")
         for lib in libraries:
             print(f"[DEBUG]   - {lib['title']} (ID: {lib['key']}, type: {lib.get('media_type', 'unknown')})")
+        print(f"[DEBUG] Libraries for carousel display:")
+        for lib in carousel_libraries:
+            print(f"[DEBUG]   - {lib['title']} (ID: {lib['key']}, type: {lib.get('media_type', 'unknown')})")
             if lib.get("media_type") == "artist":
-                print(f"[DEBUG] Found music library in UI: {lib['title']} (ID: {lib['key']})")
+                print(f"[DEBUG] Found music library in carousel: {lib['title']} (ID: {lib['key']})")
         # Also check library_notes.json for comparison
         library_notes = load_library_notes()
         music_in_notes = [lib_id for lib_id, note in library_notes.items() 
@@ -802,7 +830,8 @@ def onboarding():
     
     return render_template(
         "onboarding.html",
-        libraries=libraries,
+        libraries=available_libraries,  # Use filtered libraries for access requests
+        carousel_libraries=carousel_libraries,  # Use filtered libraries for carousel display
         submitted=submitted,
         library_notes=library_notes,
         pulsarr_enabled=pulsarr_enabled,
@@ -859,11 +888,15 @@ def audiobookshelf():
 
     tautulli_enabled = bool(os.getenv("TAUTULLI"))
     
+    # Get public services data for icons (end user services only)
+    services = build_public_services_data()
+    
     return render_template(
         "audiobookshelf.html",
         submitted=submitted,
         abs_covers=abs_covers,
         tautulli_enabled=tautulli_enabled,
+        services=services
     )
 
 # Add this helper at the top (after imports)
@@ -871,6 +904,42 @@ def is_setup_complete():
     return os.getenv("SETUP_COMPLETE", "0") == "1"
 
 # Update login route to check setup status
+@app.route("/admin-login", methods=["POST"])
+def admin_login():
+    """Handle admin login via AJAX"""
+    if not is_setup_complete():
+        return jsonify({"success": False, "error": "Setup not complete"})
+    
+    entered_password = request.form.get("password")
+    if not entered_password:
+        return jsonify({"success": False, "error": "Password is required"})
+    
+    # Always reload from .env
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+    
+    # Get hashed passwords and salts
+    admin_password_hash = os.getenv("ADMIN_PASSWORD_HASH")
+    admin_password_salt = os.getenv("ADMIN_PASSWORD_SALT")
+    
+    # For backward compatibility, check plain text passwords if hashes don't exist
+    admin_password_plain = os.getenv("ADMIN_PASSWORD")
+    
+    # Check admin password
+    admin_authenticated = False
+    if admin_password_hash and admin_password_salt:
+        admin_authenticated = verify_password(entered_password, admin_password_salt, admin_password_hash)
+    elif admin_password_plain:
+        # Fallback to plain text for backward compatibility
+        admin_authenticated = (entered_password == admin_password_plain)
+    
+    if admin_authenticated:
+        session["authenticated"] = True
+        session["admin_authenticated"] = True
+        return jsonify({"success": True})
+    else:
+        return jsonify({"success": False, "error": "Incorrect admin password"})
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if not is_setup_complete():
@@ -920,6 +989,12 @@ def login():
 
     return render_template("login.html")
 
+@app.route("/logout")
+def logout():
+    """Clear session and redirect to login"""
+    session.clear()
+    return redirect(url_for("login"))
+
 @app.route("/services", methods=["GET", "POST"])
 def services():
     if not session.get("admin_authenticated"):
@@ -938,6 +1013,7 @@ def services():
         "library_ids" in request.form or
         "audiobookshelf_url" in request.form or
         "accent_color" in request.form or
+        "quick_access_enabled" in request.form or
         "logo_file" in request.files or
         "wordmark_file" in request.files
     ):
@@ -1063,6 +1139,18 @@ def services():
         if discord_notify_abs in ["1", "0"] and discord_notify_abs != current_discord_notify_abs:
             safe_set_key(env_path, "DISCORD_NOTIFY_ABS", discord_notify_abs)
 
+        # Handle Quick Access setting
+        quick_access_enabled = request.form.get("quick_access_enabled", "yes")
+        current_quick_access = os.getenv("QUICK_ACCESS_ENABLED", "yes")
+        if quick_access_enabled in ["yes", "no"] and quick_access_enabled != current_quick_access:
+            safe_set_key(env_path, "QUICK_ACCESS_ENABLED", quick_access_enabled)
+
+        # Handle Library Carousel settings
+        library_carousels = request.form.getlist("library_carousels")
+        current_carousels = os.getenv("LIBRARY_CAROUSELS", "")
+        if library_carousels and ",".join(library_carousels) != current_carousels:
+            safe_set_key(env_path, "LIBRARY_CAROUSELS", ",".join(library_carousels))
+
         # Handle password fields
         site_password = request.form.get("site_password", "").strip()
         admin_password = request.form.get("admin_password", "").strip()
@@ -1086,6 +1174,8 @@ def services():
         current_accent_color = os.getenv("ACCENT_COLOR", "")
         if accent_color and accent_color != current_accent_color:
             safe_set_key(env_path, "ACCENT_COLOR", accent_color)
+            # Reload environment variables to apply the new accent color immediately
+            load_dotenv(override=True)
 
         # Trigger background poster refresh if library settings changed
         library_ids = request.form.getlist("library_ids")
@@ -1246,6 +1336,10 @@ def fetch_libraries():
                     "key": key, 
                     "media_type": media_type
                 })
+        
+        # For configuration purposes, show all libraries so admin can select which ones should be available
+        # The filtering will be handled by the frontend based on current LIBRARY_IDS
+        
         return jsonify({"libraries": libraries})
     except Exception as e:
         return jsonify({"error": str(e)})
@@ -1602,13 +1696,12 @@ def download_abs_audiobook_posters():
                             if books_response.status_code == 200:
                                 books_data = books_response.json()
                                 for book in books_data.get("results", []):
-                                    if poster_count >= 25:  # Limit to 25 posters
-                                        break
-                                    
                                     # Get book details from the nested media structure
                                     media = book.get("media", {})
                                     cover_path = media.get("coverPath")
-                                    title = media.get("metadata", {}).get("title", "Unknown")
+                                    metadata = media.get("metadata", {})
+                                    title = metadata.get("title", "Unknown")
+                                    author = metadata.get("authorName", "")
                                     
                                     if cover_path:
                                         # Use the correct cover URL pattern
@@ -1617,11 +1710,23 @@ def download_abs_audiobook_posters():
                                         cover_response = requests.get(cover_url, headers=headers, timeout=10)
                                         if cover_response.status_code == 200:
                                             out_path = os.path.join(audiobook_dir, f"audiobook{poster_count+1}.webp")
+                                            meta_path = os.path.join(audiobook_dir, f"audiobook{poster_count+1}.json")
+                                            
+                                            # Save the poster image
                                             with open(out_path, "wb") as f:
                                                 f.write(cover_response.content)
+                                            
+                                            # Save the metadata
+                                            meta_data = {
+                                                "title": title,
+                                                "author": author,
+                                                "id": item_id,
+                                                "library_id": library_id
+                                            }
+                                            with open(meta_path, "w", encoding="utf-8") as f:
+                                                json.dump(meta_data, f, ensure_ascii=False, indent=2)
+                                            
                                             poster_count += 1
-                                if poster_count >= 25:
-                                    break
                             else:
                                 if debug_mode:
                                     print(f"[WARN] Failed to get books from library {library_id}: {books_response.status_code}")
@@ -1924,6 +2029,9 @@ def group_books_by_letter(books):
 
 @app.route("/medialists")
 def medialists():
+    # Get query parameters for pre-selecting library
+    selected_library = request.args.get('library')
+    selected_service = request.args.get('service', 'plex')  # 'plex' or 'abs'
     if not session.get("authenticated"):
         return redirect(url_for("login"))
 
@@ -2103,6 +2211,7 @@ def medialists():
     filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
 
     library_media = {}
+    library_counts = {}  # Track total counts for each library
     # Only load titles for libraries (posters will be loaded on-demand via AJAX)
     for lib in filtered_libraries:
         section_id = lib["key"]
@@ -2111,6 +2220,7 @@ def medialists():
         
         grouped_titles = group_titles_by_letter(titles)
         library_media[name] = grouped_titles
+        library_counts[name] = len(titles)  # Store total count
 
     abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
     audiobooks = {}
@@ -2123,18 +2233,27 @@ def medialists():
 
     abs_books = fetch_abs_books() if abs_enabled else []
     abs_book_groups = group_books_by_letter(abs_books) if abs_books else {}
+    abs_book_count = len(abs_books) if abs_books else 0
+
+    # Get public services data for icons (end user services only)
+    services = build_public_services_data()
 
     return render_template(
         "medialists.html",
         library_media=library_media,
+        library_counts=library_counts,  # Pass library counts
         audiobooks=audiobooks,
         abs_enabled=abs_enabled,
         library_posters={},  # Empty - will be loaded on-demand
         library_poster_groups={},  # Empty - will be loaded on-demand
         abs_books=abs_books,
         abs_book_groups=abs_book_groups,
+        abs_book_count=abs_book_count,
         filtered_libraries=filtered_libraries,  # Pass library info for AJAX
         logo_filename=get_logo_filename(),
+        services=services,
+        selected_library=selected_library,
+        selected_service=selected_service
     )
 
 @app.route("/audiobook-covers")
@@ -2152,6 +2271,70 @@ def get_random_audiobook_covers():
     
     random.shuffle(existing_paths)
     return jsonify(existing_paths)
+
+@app.route("/audiobook-covers-with-links")
+def get_random_audiobook_covers_with_links():
+    if os.getenv("ABS_ENABLED", "yes") != "yes":
+        return ("Not Found", 404)
+    
+    # Check which audiobook poster files actually exist
+    audiobook_dir = os.path.join("static", "posters", "audiobooks")
+    existing_paths = []
+    goodreads_links = []
+    titles = []
+    
+    for i in range(25):
+        poster_path = os.path.join(audiobook_dir, f"audiobook{i+1}.webp")
+        if os.path.exists(poster_path):
+            poster_url = f"/static/posters/audiobooks/audiobook{i+1}.webp"
+            existing_paths.append(poster_url)
+            
+            # Try to get actual title and author from metadata if available
+            json_path = os.path.join(audiobook_dir, f"audiobook{i+1}.json")
+            search_query = ""
+            title = ""
+            
+            try:
+                if os.path.exists(json_path):
+                    with open(json_path, 'r', encoding='utf-8') as f:
+                        meta = json.load(f)
+                        title = meta.get('title', '')
+                        author = meta.get('author', '')
+                        
+                        if title and author:
+                            search_query = f"{title} {author}"
+                        elif title:
+                            search_query = title
+                        else:
+                            # Fallback to generic filename if no metadata
+                            title = f"audiobook{i+1}".replace('_', ' ').replace('-', ' ').title()
+                            search_query = title
+                else:
+                    # Fallback to generic filename if no JSON file
+                    title = f"audiobook{i+1}".replace('_', ' ').replace('-', ' ').title()
+                    search_query = title
+            except (IOError, json.JSONDecodeError):
+                # Fallback to generic filename if JSON read fails
+                title = f"audiobook{i+1}".replace('_', ' ').replace('-', ' ').title()
+                search_query = title
+            
+            # Create Goodreads search URL with proper URL encoding
+            import urllib.parse
+            encoded_query = urllib.parse.quote(search_query)
+            goodreads_url = f"https://www.goodreads.com/search?q={encoded_query}"
+            goodreads_links.append(goodreads_url)
+            titles.append(title)
+    
+    # Shuffle all arrays in the same order
+    combined = list(zip(existing_paths, goodreads_links, titles))
+    random.shuffle(combined)
+    existing_paths, goodreads_links, titles = zip(*combined) if combined else ([], [], [])
+    
+    return jsonify({
+        "posters": existing_paths,
+        "goodreads_links": goodreads_links,
+        "titles": titles
+    })
 
 def is_setup_complete():
     return os.getenv("SETUP_COMPLETE") == "1"
@@ -2244,7 +2427,7 @@ def setup():
             prompt = True
         service_keys = [
             'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
-            'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR'
+            'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR', 'JELLYSEERR'
         ]
         service_urls = {key: os.getenv(key, "") for key in service_keys}
         return render_template(
@@ -2284,7 +2467,7 @@ def setup():
                 error_message = "SITE_PASSWORD, ADMIN_PASSWORD, and DRIVES are required."
                 service_keys = [
                     'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
-                    'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR'
+                    'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR', 'JELLYSEERR'
                 ]
                 service_urls = {key: os.getenv(key, "") for key in service_keys}
                 return render_template("setup.html", error_message=error_message, prompt_passwords=True, site_password=site_password, admin_password=admin_password, drives=drives, service_urls=service_urls)
@@ -2292,7 +2475,7 @@ def setup():
                 error_message = "SITE_PASSWORD and ADMIN_PASSWORD must be different."
                 service_keys = [
                     'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
-                    'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR'
+                    'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR', 'JELLYSEERR'
                 ]
                 service_urls = {key: os.getenv(key, "") for key in service_keys}
                 return render_template("setup.html", error_message=error_message, prompt_passwords=True, site_password=site_password, admin_password=admin_password, drives=drives, service_urls=service_urls)
@@ -2315,7 +2498,6 @@ def setup():
         abs_enabled = form.get("abs_enabled", "")
         audiobooks_id = form.get("audiobooks_id", "").strip()
         audiobookshelf_url = form.get("audiobookshelf_url", "").strip()
-        discord_enabled = form.get("discord_enabled", "")
         discord_webhook = form.get("discord_webhook", "").strip()
         discord_username = form.get("discord_username", "").strip()
         discord_avatar = form.get("discord_avatar", "").strip()
@@ -2348,6 +2530,21 @@ def setup():
                 safe_set_key(env_path, "DISCORD_AVATAR", discord_avatar)
             if discord_color:
                 safe_set_key(env_path, "DISCORD_COLOR", discord_color)
+        
+        # Save Discord notification settings
+        discord_notify_plex = form.get("discord_notify_plex")
+        if discord_notify_plex is None:
+            discord_notify_plex = "0"
+        safe_set_key(env_path, "DISCORD_NOTIFY_PLEX", discord_notify_plex)
+        
+        discord_notify_abs = form.get("discord_notify_abs")
+        if discord_notify_abs is None:
+            discord_notify_abs = "0"
+        safe_set_key(env_path, "DISCORD_NOTIFY_ABS", discord_notify_abs)
+        
+        # Save Quick Access setting
+        quick_access_enabled = form.get("quick_access_enabled", "yes")
+        safe_set_key(env_path, "QUICK_ACCESS_ENABLED", quick_access_enabled)
         # Save selected library IDs and names
         library_ids = request.form.getlist("library_ids")
         library_notes = {}
@@ -2373,13 +2570,21 @@ def setup():
                         "description": desc
                     }
                 save_library_notes(library_notes)
+                
+                # Handle Library Carousel settings
+                library_carousels = request.form.getlist("library_carousels")
+                if library_carousels:
+                    safe_set_key(env_path, "LIBRARY_CAROUSELS", ",".join(library_carousels))
+                else:
+                    # If no carousels selected, set to empty to show all
+                    safe_set_key(env_path, "LIBRARY_CAROUSELS", "")
             except Exception as e:
                 safe_set_key(env_path, "LIBRARY_IDS", ",".join(library_ids))
                 safe_set_key(env_path, "LIBRARY_NAMES", "")
         # Save service URLs
         service_keys = [
             'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
-            'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR'
+            'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR', 'JELLYSEERR'
         ]
         for key in service_keys:
             url_val = form.get(key, "").strip()
@@ -2529,6 +2734,7 @@ def get_service_definitions():
         ("Bazarr", "BAZARR", "bazarr.webp"),
         ("Pulsarr", "PULSARR", "pulsarr.webp"),
         ("Overseerr", "OVERSEERR", "overseerr.webp"),
+        ("Jellyseerr", "JELLYSEERR", "jellyseerr.webp"),
     ]
 
 def get_public_service_definitions():
@@ -2538,6 +2744,7 @@ def get_public_service_definitions():
         ("Audiobookshelf", "AUDIOBOOKSHELF", "abs.webp"),
         ("Tautulli", "TAUTULLI", "tautulli.webp"),
         ("Overseerr", "OVERSEERR", "overseerr.webp"),
+        ("Jellyseerr", "JELLYSEERR", "jellyseerr.webp"),
     ]
 
 def load_json_file(filename, default=None):
@@ -2640,22 +2847,19 @@ def get_lastfm_url(artist_name):
     
     return f"https://www.last.fm/music/{encoded_name}"
 
-def is_music_artist(poster_data):
+def is_music_artist(poster_data, library_info=None):
     """Check if a poster represents a music artist"""
     if not poster_data:
         return False
     
-    # Check if this is from a music library (artist type)
-    # We'll need to check the library context or metadata
-    # For now, we'll check if it has a title but no year (typical for artists)
-    title = poster_data.get("title")
-    year = poster_data.get("year")
-    
-    # If it has a title but no year, it's likely an artist
-    # Also check if the title doesn't look like a movie/show title
-    if title and year is None:
-        # Additional checks could be added here
-        return True
+    # If library info is provided, check if it's actually a music library
+    if library_info and library_info.get("type") == "artist":
+        title = poster_data.get("title")
+        year = poster_data.get("year")
+        
+        # For music libraries, if it has a title but no year, it's likely an artist
+        if title and year is None:
+            return True
     
     return False
 
@@ -2683,6 +2887,7 @@ def get_template_context():
         "AUDIOBOOKS_ID": os.getenv("AUDIOBOOKS_ID", ""),
         "ABS_ENABLED": os.getenv("ABS_ENABLED", "no"),
         "LIBRARY_IDS": os.getenv("LIBRARY_IDS", ""),
+        "LIBRARY_CAROUSELS": os.getenv("LIBRARY_CAROUSELS", ""),
         "DISCORD_WEBHOOK": os.getenv("DISCORD_WEBHOOK", ""),
         "DISCORD_USERNAME": os.getenv("DISCORD_USERNAME", ""),
         "DISCORD_AVATAR": os.getenv("DISCORD_AVATAR", ""),
@@ -2692,7 +2897,8 @@ def get_template_context():
         "show_services": os.getenv("SHOW_SERVICES", "yes").lower() == "yes",
         "custom_services_url": os.getenv("CUSTOM_SERVICES_URL", "").strip(),
         "DISCORD_NOTIFY_PLEX": os.getenv("DISCORD_NOTIFY_PLEX", "1"),
-        "DISCORD_NOTIFY_ABS": os.getenv("DISCORD_NOTIFY_ABS", "1")
+        "DISCORD_NOTIFY_ABS": os.getenv("DISCORD_NOTIFY_ABS", "1"),
+        "QUICK_ACCESS_ENABLED": os.getenv("QUICK_ACCESS_ENABLED", "yes")
     }
 
 @app.route("/ajax/load-library-posters", methods=["POST"])
@@ -2761,7 +2967,7 @@ def ajax_load_library_posters():
                         poster_file = meta.get("poster")
                         poster_url = f"/static/posters/{section_id}/{poster_file}" if poster_file else None
                         # Check if this is a music artist and add Last.fm URL
-                        is_artist = is_music_artist(meta)
+                        is_artist = is_music_artist(meta, library)
                         lastfm_url = get_lastfm_url(title) if is_artist else None
                         
                         title_to_poster[title] = {
@@ -2788,7 +2994,7 @@ def ajax_load_library_posters():
             else:
                 # Just the title without poster
                 # Check if this might be a music artist (no year typically indicates artist)
-                is_artist = is_music_artist({"title": title, "year": None})
+                is_artist = is_music_artist({"title": title, "year": None}, library)
                 lastfm_url = get_lastfm_url(title) if is_artist else None
                 
                 unified_items.append({
@@ -2813,6 +3019,186 @@ def ajax_load_library_posters():
     except Exception as e:
         if debug_mode:
             print(f"Error loading library posters: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/ajax/load-all-items", methods=["POST"])
+def ajax_load_all_items():
+    if not session.get("authenticated"):
+        return jsonify({"success": False, "error": "Not authenticated"})
+    
+    try:
+        data = request.get_json()
+        library_index = data.get("library_index")
+        
+        if library_index is None:
+            return jsonify({"success": False, "error": "Library index required"})
+        
+        # Convert library_index to integer
+        try:
+            library_index = int(library_index)
+            if debug_mode:
+                print(f"DEBUG: library_index = {library_index} (type: {type(library_index)})")
+        except (ValueError, TypeError):
+            return jsonify({"success": False, "error": "Invalid library index format"})
+        
+        # Get all libraries
+        libraries = get_plex_libraries()
+        selected_ids = os.getenv("LIBRARY_IDS", "")
+        selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
+        filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
+        
+        if debug_mode:
+            print(f"DEBUG: len(filtered_libraries) = {len(filtered_libraries)}")
+        
+        if library_index >= len(filtered_libraries):
+            return jsonify({"success": False, "error": "Invalid library index"})
+        
+        library = filtered_libraries[library_index]
+        section_id = library["key"]
+        
+        # Get titles and metadata for this library
+        all_items = []
+        headers = {"X-Plex-Token": PLEX_TOKEN}
+        url = f"{PLEX_URL}/library/sections/{section_id}/all"
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            root = ET.fromstring(response.content)
+            for el in root.findall(".//Video"):
+                title = el.attrib.get("title")
+                rating_key = el.attrib.get("ratingKey")
+                year = el.attrib.get("year")
+                if title:
+                    all_items.append({
+                        "title": title,
+                        "ratingKey": rating_key,
+                        "year": year
+                    })
+            for el in root.findall(".//Directory"):
+                title = el.attrib.get("title")
+                rating_key = el.attrib.get("ratingKey")
+                year = el.attrib.get("year")
+                if title:
+                    # Check if this title already exists (avoid duplicates)
+                    existing = next((item for item in all_items if item["title"] == title), None)
+                    if not existing:
+                        all_items.append({
+                            "title": title,
+                            "ratingKey": rating_key,
+                            "year": year
+                        })
+        except Exception as e:
+            if debug_mode:
+                print(f"Error fetching titles for section {section_id}: {e}")
+        
+        # Create a dictionary to map items to their poster data
+        # Use a combination of title and year for better matching
+        item_to_poster = {}
+        
+        # Load poster metadata for this specific library
+        poster_dir = os.path.join("static", "posters", section_id)
+        if os.path.exists(poster_dir):
+            # Get all JSON files (both old format and new format)
+            json_files = [f for f in os.listdir(poster_dir) if f.endswith(".json")]
+            
+            for fname in json_files:
+                meta_path = os.path.join(poster_dir, fname)
+                try:
+                    with open(meta_path, "r", encoding="utf-8") as f:
+                        meta = json.load(f)
+                    meta_title = meta.get("title")
+                    meta_rating_key = meta.get("ratingKey")
+                    meta_year = meta.get("year")
+                    
+                    if meta_title:
+                        poster_file = meta.get("poster")
+                        poster_url = f"/static/posters/{section_id}/{poster_file}" if poster_file else None
+                        
+                        # Create a unique key for this item
+                        item_key = f"{meta_title}_{meta_year}" if meta_year else meta_title
+                        
+                        # Check if this is a music artist and add Last.fm URL
+                        is_artist = is_music_artist(meta, library)
+                        lastfm_url = get_lastfm_url(meta_title) if is_artist else None
+                        
+                        item_to_poster[item_key] = {
+                            "poster": poster_url,
+                            "title": meta_title,
+                            "ratingKey": meta_rating_key,
+                            "year": meta_year,
+                            "imdb": meta.get("imdb"),
+                            "tmdb": meta.get("tmdb"),
+                            "tvdb": meta.get("tvdb"),
+                            "lastfm_url": lastfm_url,
+                            "is_artist": is_artist,
+                        }
+                except Exception as e:
+                    if debug_mode:
+                        print(f"Error loading poster metadata from {meta_path}: {e}")
+                    continue
+        
+        # Match items with their poster data
+        items_with_posters = []
+        for item in all_items:
+            title = item["title"]
+            year = item["year"]
+            rating_key = item["ratingKey"]
+            
+            # Create the same key used in item_to_poster
+            item_key = f"{title}_{year}" if year else title
+            
+            # Try to find matching poster data
+            poster_data = item_to_poster.get(item_key)
+            if poster_data:
+                # Use the poster data from cache
+                items_with_posters.append({
+                    "title": title,
+                    "poster": poster_data["poster"],
+                    "imdb": poster_data.get("imdb"),
+                    "lastfm_url": poster_data.get("lastfm_url"),
+                    "is_artist": poster_data.get("is_artist", False)
+                })
+            else:
+                # Fallback: try to get poster from Plex API
+                item_with_fallback = {"title": title}
+                
+                # Get poster URL from Plex API as fallback
+                for el in root.findall(".//Video"):
+                    if el.attrib.get("title") == title:
+                        art = el.attrib.get("art")
+                        if art:
+                            item_with_fallback["poster"] = f"{PLEX_URL}{art}?X-Plex-Token={PLEX_TOKEN}"
+                        break
+                
+                for el in root.findall(".//Directory"):
+                    if el.attrib.get("title") == title:
+                        art = el.attrib.get("art")
+                        if art:
+                            item_with_fallback["poster"] = f"{PLEX_URL}{art}?X-Plex-Token={PLEX_TOKEN}"
+                        break
+                
+                # Check if this is a music artist
+                library_type = library.get("type", "")
+                if library_type == "artist":
+                    item_with_fallback["is_artist"] = True
+                    item_with_fallback["lastfm_url"] = get_lastfm_url(title)
+                
+                items_with_posters.append(item_with_fallback)
+        
+        # Sort items alphabetically by title
+        items_with_posters.sort(key=lambda x: x["title"].lower())
+        
+        if debug_mode:
+            print(f"DEBUG: Returning {len(items_with_posters)} items with posters")
+            print(f"DEBUG: Items with posters: {[item.get('title', 'Unknown') for item in items_with_posters[:5]]}")
+        
+        return jsonify({"success": True, "items": items_with_posters})
+        
+    except Exception as e:
+        if debug_mode:
+            print(f"Error loading all items: {e}")
+            import traceback
+            traceback.print_exc()
         return jsonify({"success": False, "error": str(e)})
 
 @app.route("/ajax/load-posters-by-letter", methods=["POST"])
@@ -2923,7 +3309,7 @@ def ajax_load_posters_by_letter():
                         item_key = f"{meta_title}_{meta_year}" if meta_year else meta_title
                         
                         # Check if this is a music artist and add Last.fm URL
-                        is_artist = is_music_artist(meta)
+                        is_artist = is_music_artist(meta, library)
                         lastfm_url = get_lastfm_url(meta_title) if is_artist else None
                         
                         item_to_poster[item_key] = {
@@ -2966,7 +3352,7 @@ def ajax_load_posters_by_letter():
             if not poster_found:
                 # Just the title without poster
                 # Check if this might be a music artist (no year typically indicates artist)
-                is_artist = is_music_artist({"title": title, "year": year})
+                is_artist = is_music_artist({"title": title, "year": year}, library)
                 lastfm_url = get_lastfm_url(title) if is_artist else None
                 
                 unified_items.append({
@@ -3273,7 +3659,7 @@ def get_random_posters():
             
             if not all_files:
                 print(f"No poster files found in {poster_dir}")
-                return jsonify({"posters": [], "imdb_ids": []})
+                return jsonify({"posters": [], "imdb_ids": [], "titles": []})
             
             # Get random posters
             import random
@@ -3285,10 +3671,15 @@ def get_random_posters():
             posters = []
             imdb_ids = []
             lastfm_urls = []
+            titles = []
             
             for fname in selected_files:
                 poster_url = f"/static/posters/{section_id}/{fname}"
                 posters.append(poster_url)
+                
+                # Extract title from filename
+                title = fname.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ').title()
+                titles.append(title)
                 
                 # Load metadata
                 json_path = os.path.join(poster_dir, fname.rsplit('.', 1)[0] + '.json')
@@ -3299,8 +3690,11 @@ def get_random_posters():
                         with open(json_path, 'r', encoding='utf-8') as f:
                             meta = json.load(f)
                             imdb_id = meta.get('imdb')
+                            # Use metadata title if available
+                            if meta.get('title'):
+                                titles[-1] = meta.get('title')
                             # Check if this is a music artist
-                            is_artist = is_music_artist(meta)
+                            is_artist = is_music_artist(meta, lib)
                             if is_artist:
                                 title = meta.get('title')
                                 lastfm_url = get_lastfm_url(title) if title else None
@@ -3315,11 +3709,12 @@ def get_random_posters():
             return jsonify({
                 "posters": posters,
                 "imdb_ids": imdb_ids,
-                "lastfm_urls": lastfm_urls
+                "lastfm_urls": lastfm_urls,
+                "titles": titles
             })
         else:
             print(f"Poster directory does not exist: {poster_dir}")
-            return jsonify({"posters": [], "imdb_ids": [], "lastfm_urls": []})
+            return jsonify({"posters": [], "imdb_ids": [], "lastfm_urls": [], "titles": []})
             
     except Exception as e:
         print(f"Error getting random posters for {library_name}: {e}")
@@ -3344,11 +3739,21 @@ def get_random_posters_all():
     try:
         # Get all libraries
         libraries = get_plex_libraries()
+        
+        # Filter libraries based on carousel settings (same logic as onboarding route)
+        library_carousels = os.getenv("LIBRARY_CAROUSELS", "")
+        if library_carousels:
+            # Only include libraries that have carousels enabled
+            carousel_ids = [str(id).strip() for id in library_carousels.split(",") if str(id).strip()]
+            libraries = [lib for lib in libraries if str(lib["key"]) in carousel_ids]
+            print(f"Filtered to {len(libraries)} libraries with carousels enabled")
+        
         all_posters = []
         all_imdb_ids = []
         all_lastfm_urls = []
+        all_titles = []
         
-        # Collect posters from all libraries (excluding music unless explicitly requested)
+        # Collect posters from libraries with carousels enabled (excluding music unless explicitly requested)
         for lib in libraries:
             section_id = lib["key"]
             media_type = lib.get("media_type", "")
@@ -3369,6 +3774,10 @@ def get_random_posters_all():
                     poster_url = f"/static/posters/{section_id}/{fname}"
                     all_posters.append(poster_url)
                     
+                    # Extract title from filename
+                    title = fname.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ').title()
+                    all_titles.append(title)
+                    
                     # Load metadata
                     json_path = os.path.join(poster_dir, fname.rsplit('.', 1)[0] + '.json')
                     imdb_id = None
@@ -3378,8 +3787,11 @@ def get_random_posters_all():
                             with open(json_path, 'r', encoding='utf-8') as f:
                                 meta = json.load(f)
                                 imdb_id = meta.get('imdb')
+                                # Use metadata title if available
+                                if meta.get('title'):
+                                    all_titles[-1] = meta.get('title')
                                 # Check if this is a music artist
-                                is_artist = is_music_artist(meta)
+                                is_artist = is_music_artist(meta, lib)
                                 if is_artist:
                                     title = meta.get('title')
                                     lastfm_url = get_lastfm_url(title) if title else None
@@ -3392,7 +3804,7 @@ def get_random_posters_all():
         
         if not all_posters:
             print("No posters found in any library")
-            return jsonify({"posters": [], "imdb_ids": [], "lastfm_urls": []})
+            return jsonify({"posters": [], "imdb_ids": [], "lastfm_urls": [], "titles": []})
         
         # Get random posters from all libraries combined
         import random
@@ -3402,21 +3814,117 @@ def get_random_posters_all():
             selected_posters = [all_posters[i] for i in indices]
             selected_imdb_ids = [all_imdb_ids[i] for i in indices]
             selected_lastfm_urls = [all_lastfm_urls[i] for i in indices]
+            selected_titles = [all_titles[i] for i in indices]
         else:
             selected_posters = all_posters
             selected_imdb_ids = all_imdb_ids
             selected_lastfm_urls = all_lastfm_urls
+            selected_titles = all_titles
         
-        print(f"Returning {len(selected_posters)} posters from all libraries")
+        print(f"Returning {len(selected_posters)} posters from libraries with carousels enabled")
         return jsonify({
             "posters": selected_posters,
             "imdb_ids": selected_imdb_ids,
-            "lastfm_urls": selected_lastfm_urls
+            "lastfm_urls": selected_lastfm_urls,
+            "titles": selected_titles
         })
             
     except Exception as e:
         print(f"Error getting random posters from all libraries: {e}")
         return jsonify({"error": "Failed to get posters"}), 500
+
+@app.route("/ajax/get-random-audiobook-posters", methods=["POST"])
+@csrf.exempt
+def get_random_audiobook_posters():
+    """Get random audiobook posters for dynamic loading"""
+    if not session.get("authenticated"):
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    data = request.get_json()
+    if not data:
+        print("No JSON data received for audiobook posters")
+        return jsonify({"error": "No JSON data"}), 400
+    
+    count = data.get('count', 5)
+    
+    print(f"Requested audiobook posters, count: {count}")
+    
+    # Check which audiobook poster files actually exist
+    audiobook_dir = os.path.join("static", "posters", "audiobooks")
+    existing_paths = []
+    goodreads_links = []
+    titles = []
+    
+    try:
+        if os.path.exists(audiobook_dir):
+            # Get all image files
+            all_files = [f for f in os.listdir(audiobook_dir) if f.lower().endswith(('.webp', '.jpg', '.jpeg', '.png'))]
+            
+            print(f"Found {len(all_files)} audiobook poster files")
+            
+            if not all_files:
+                print(f"No audiobook poster files found in {audiobook_dir}")
+                return jsonify({"posters": [], "goodreads_links": [], "titles": []})
+            
+            # Get random posters
+            if len(all_files) > count:
+                selected_files = random.sample(all_files, count)
+            else:
+                selected_files = all_files
+            
+            for fname in selected_files:
+                poster_url = f"/static/posters/audiobooks/{fname}"
+                existing_paths.append(poster_url)
+                
+                # Try to get actual title and author from metadata if available
+                json_path = os.path.join(audiobook_dir, fname.rsplit('.', 1)[0] + '.json')
+                search_query = ""
+                title = ""
+                
+                try:
+                    if os.path.exists(json_path):
+                        with open(json_path, 'r', encoding='utf-8') as f:
+                            meta = json.load(f)
+                            title = meta.get('title', '')
+                            author = meta.get('author', '')
+                            
+                            if title and author:
+                                search_query = f"{title} {author}"
+                            elif title:
+                                search_query = title
+                            else:
+                                # Fallback to generic filename if no metadata
+                                title = fname.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ').title()
+                                search_query = title
+                    else:
+                        # Fallback to generic filename if no JSON file
+                        title = fname.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ').title()
+                        search_query = title
+                except (IOError, json.JSONDecodeError):
+                    # Fallback to generic filename if JSON read fails
+                    title = fname.rsplit('.', 1)[0].replace('_', ' ').replace('-', ' ').title()
+                    search_query = title
+                
+                # Create Goodreads search URL with proper URL encoding
+                import urllib.parse
+                encoded_query = urllib.parse.quote(search_query)
+                goodreads_url = f"https://www.goodreads.com/search?q={encoded_query}"
+                goodreads_links.append(goodreads_url)
+                titles.append(title)
+            
+            print(f"Returning {len(existing_paths)} audiobook posters")
+            return jsonify({
+                "posters": existing_paths,
+                "goodreads_links": goodreads_links,
+                "titles": titles
+            })
+        else:
+            print(f"Audiobook poster directory does not exist: {audiobook_dir}")
+            return jsonify({"posters": [], "goodreads_links": [], "titles": []})
+            
+    except Exception as e:
+        print(f"Error getting random audiobook posters: {e}")
+        return jsonify({"error": "Failed to get audiobook posters"}), 500
 
 if __name__ == "__main__":
     # --- Dynamic configuration for section IDs ---
