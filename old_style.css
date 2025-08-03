@@ -1411,22 +1411,25 @@ a:hover {
   margin-bottom: 2rem;
 }
 
-/* Mobile Carousel Styles - Pure CSS Scrolling */
+/* Mobile Carousel Styles - Enable Manual Scrolling */
 @media (pointer: coarse) and (max-width: 1024px) {
   .poster-carousel-container {
     overflow-x: auto;
     overflow-y: hidden;
-    /* Enable smooth momentum scrolling */
-    -webkit-overflow-scrolling: touch;
-    scroll-behavior: smooth;
+    /* Completely disable momentum scrolling to prevent bounce-back */
+    -webkit-overflow-scrolling: auto;
+    scroll-behavior: auto;
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE and Edge */
-    /* Optimize touch scrolling */
+    /* Improved touch scrolling */
     touch-action: pan-x;
-    /* Allow natural momentum scrolling */
-    overscroll-behavior: auto;
-    /* Smooth scrolling with snap points */
+    /* Prevent momentum scrolling issues and bounce-back */
+    overscroll-behavior: none;
+    overscroll-behavior-x: none;
+    overscroll-behavior-y: none;
+    /* Smooth scrolling improvements */
     scroll-snap-type: x proximity;
+    scroll-snap-align: start;
     /* Better mobile performance */
     will-change: scroll-position;
     /* Prevent layout shifts */
@@ -1439,17 +1442,17 @@ a:hover {
   
   .poster-carousel,
   #show-poster-carousel {
-    /* Use natural flex layout for scrolling */
+    /* Allow transform animations for auto-scroll */
+    /* transform: none !important; - REMOVED to allow auto-scroll */
+    /* Allow natural flex layout for scrolling */
     flex-wrap: nowrap;
     /* Ensure proper width for scrolling */
     width: max-content;
     min-width: 100%;
     /* Prevent flex shrinking */
     flex-shrink: 0;
-    /* Allow JavaScript to control scroll position */
-    transform: none;
-    /* Better performance */
-    will-change: scroll-position;
+    /* Better performance for transforms */
+    will-change: transform;
     /* Prevent layout shifts */
     contain: layout style paint;
   }
@@ -1467,7 +1470,7 @@ a:hover {
     /* Smooth scrolling snap points */
     scroll-snap-align: start;
     /* Improve mobile performance */
-    will-change: scroll-position;
+    will-change: transform;
     /* Better image rendering for mobile */
     image-rendering: -webkit-optimize-contrast;
     image-rendering: crisp-edges;

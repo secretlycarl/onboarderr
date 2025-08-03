@@ -130,7 +130,6 @@ def inject_server_name():
         AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", ""),
         ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc"),
         QUICK_ACCESS_ENABLED=os.getenv("QUICK_ACCESS_ENABLED", "yes"),
-        MOBILE_SCROLL_MODE=os.getenv("MOBILE_SCROLL_MODE", "auto"),
         LIBRARY_CAROUSELS=os.getenv("LIBRARY_CAROUSELS", "")
     )
 
@@ -3738,15 +3737,23 @@ def get_random_posters_all():
     
     try:
         # Get all libraries
-        libraries = get_plex_libraries()
+        all_libraries = get_plex_libraries()
         
-        # Filter libraries based on carousel settings (same logic as onboarding route)
+        # First filter by LIBRARY_IDS to get only available libraries (same logic as onboarding route)
+        selected_ids = [id.strip() for id in os.getenv("LIBRARY_IDS", "").split(",") if id.strip()]
+        selected_ids_str = [str(id).strip() for id in selected_ids]
+        available_libraries = [lib for lib in all_libraries if str(lib["key"]) in selected_ids_str]
+        
+        # Then filter by carousel settings to get libraries that should show carousels
+        libraries = available_libraries.copy()
         library_carousels = os.getenv("LIBRARY_CAROUSELS", "")
         if library_carousels:
             # Only include libraries that have carousels enabled
             carousel_ids = [str(id).strip() for id in library_carousels.split(",") if str(id).strip()]
-            libraries = [lib for lib in libraries if str(lib["key"]) in carousel_ids]
-            print(f"Filtered to {len(libraries)} libraries with carousels enabled")
+            libraries = [lib for lib in available_libraries if str(lib["key"]) in carousel_ids]
+            print(f"Filtered to {len(libraries)} libraries with carousels enabled (from {len(available_libraries)} available libraries)")
+        else:
+            print(f"Using all {len(available_libraries)} available libraries for carousel")
         
         all_posters = []
         all_imdb_ids = []
