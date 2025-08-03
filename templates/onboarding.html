@@ -403,6 +403,59 @@
       // Track current library
       let currentLibrary = null;
       
+      // Library selector scrollbar hiding functionality
+      const librarySelector = document.querySelector('.library-selector');
+      if (librarySelector) {
+        let hasScrolled = false;
+        let scrollTimeout;
+        
+        // Check if we're on desktop (not mobile)
+        const isDesktop = !('ontouchstart' in window) && window.innerWidth > 768;
+        
+        if (isDesktop) {
+          // Hide scrollbar initially on desktop
+          librarySelector.classList.add('hide-scrollbar');
+          
+          // Show scrollbar on hover
+          librarySelector.addEventListener('mouseenter', () => {
+            if (librarySelector.scrollWidth > librarySelector.clientWidth) {
+              librarySelector.classList.remove('hide-scrollbar');
+            }
+          });
+          
+          // Hide scrollbar when mouse leaves
+          librarySelector.addEventListener('mouseleave', () => {
+            if (hasScrolled) {
+              librarySelector.classList.add('hide-scrollbar');
+            }
+          });
+          
+          // Track scroll events
+          librarySelector.addEventListener('scroll', () => {
+            hasScrolled = true;
+            
+            // Clear existing timeout
+            if (scrollTimeout) {
+              clearTimeout(scrollTimeout);
+            }
+            
+            // Hide scrollbar after 2 seconds of no scrolling
+            scrollTimeout = setTimeout(() => {
+              if (!librarySelector.matches(':hover')) {
+                librarySelector.classList.add('hide-scrollbar');
+              }
+            }, 2000);
+          });
+          
+          // Show scrollbar when user starts scrolling
+          librarySelector.addEventListener('scroll', () => {
+            if (librarySelector.scrollWidth > librarySelector.clientWidth) {
+              librarySelector.classList.remove('hide-scrollbar');
+            }
+          });
+        }
+      }
+      
       // Helper function to extract title from poster URL
       function getTitleFromPosterUrl(posterUrl) {
         // Extract filename from URL and clean it up for display
