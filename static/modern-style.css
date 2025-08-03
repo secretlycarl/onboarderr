@@ -1496,6 +1496,14 @@ a:hover {
   .mobile-only {
     display: inline;
   }
+  
+  .carousel-note {
+    text-align: left;
+  }
+  
+  .screenshot-caption {
+    text-align: left;
+  }
 }
 
 /* Library Selector Styles */
@@ -1794,11 +1802,7 @@ a:hover {
     box-shadow: var(--shadow);
   }
   
-  .screenshot-caption {
-    font-size: 1rem;
-    margin-top: 0.5rem;
-    margin-bottom: 0.5rem;
-  }
+
   
   /* Better music note styling */
   .music-note {
