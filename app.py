@@ -2195,7 +2195,7 @@ def medialists():
                     
                     for item in items_data.get("results", []):
                         title = item.get("media", {}).get("metadata", {}).get("title")
-                        author = item.get("media", {}).get("metadata", {}).get("author")
+                        author = item.get("media", {}).get("metadata", {}).get("authorName") or item.get("media", {}).get("metadata", {}).get("author")
                         item_id = item.get("id")
                         cover_url = f"{abs_url}/api/items/{item_id}/cover" if item_id else None
                         abs_books.append({

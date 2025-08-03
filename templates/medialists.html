@@ -212,10 +212,10 @@
         for (const book of allBooks) {
           html += '<li>';
           html += `<img src="${book.cover || '{{ url_for("static", filename=logo_filename) }}'}" alt="${book.title} cover" onerror="this.onerror=null;this.src='{{ url_for("static", filename=logo_filename) }}';" />`;
-          html += `<div style="font-weight: bold; margin-bottom: 0.25rem;">${book.title}</div>`;
           if (book.author) {
-            html += `<div style="font-size: 0.9em; color: #aaa; margin-bottom: 0.25rem;">by ${book.author}</div>`;
+            html += `<div style="font-size: 0.9em; color: #aaa; margin-bottom: 0.25rem;">${book.author}</div>`;
           }
+          html += `<div style="font-weight: bold; margin-bottom: 0.25rem;">${book.title}</div>`;
           html += `<a href="https://www.goodreads.com/search?q=${encodeURIComponent(book.title + ' ' + (book.author || ''))}" target="_blank" class="accent">Goodreads</a>`;
           html += '</li>';
         }
@@ -330,10 +330,8 @@
           for (const book of letterBooks) {
             html += '<li>';
             html += `<img src="${book.cover || '{{ url_for("static", filename=logo_filename) }}'}" alt="${book.title} cover" onerror="this.onerror=null;this.src='{{ url_for("static", filename=logo_filename) }}';" />`;
+            html += `<div style="font-size: 0.9em; color: #aaa; margin-bottom: 0.25rem;">${book.author}</div>`;
             html += `<div style="font-weight: bold; margin-bottom: 0.25rem;">${book.title}</div>`;
-            if (book.author) {
-              html += `<div style="font-size: 0.9em; color: #aaa; margin-bottom: 0.25rem;">by ${book.author}</div>`;
-            }
             html += `<a href="https://www.goodreads.com/search?q=${encodeURIComponent(book.title + ' ' + (book.author || ''))}" target="_blank" class="accent">Goodreads</a>`;
             html += '</li>';
           }

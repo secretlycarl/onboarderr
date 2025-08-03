@@ -35,7 +35,7 @@
 }
 
 .complete-card {
-  max-width: 400px;
+  max-width: 450px;
   width: 100%;
   background: var(--container-bg);
   border-radius: 1rem;
@@ -139,7 +139,6 @@
 @media (max-width: 640px) {
   .complete-card {
     padding: 2rem 1.5rem;
-    margin: 1rem;
   }
   
   .complete-title {
@@ -161,7 +160,7 @@
 }
 
 .login-card {
-  max-width: 400px;
+  max-width: 450px;
   width: 100%;
   background: var(--container-bg);
   border-radius: 1rem;
@@ -179,7 +178,7 @@
 }
 
 .login-title {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--text);
   margin-bottom: 1.5rem;
@@ -245,7 +244,6 @@
 @media (max-width: 640px) {
   .login-card {
     padding: 2rem 1.5rem;
-    margin: 1rem;
   }
   
   .login-title {
@@ -1297,7 +1295,7 @@ a:hover {
   }
   
   li {
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
   }
 }
 
@@ -1512,6 +1510,10 @@ a:hover {
   padding: 0.5rem 0;
   --scrollbar-width: 6px;
   transition: scrollbar-width 0.3s ease;
+}
+
+.library-selector.centered {
+  justify-content: center;
 }
 
 .library-selector.hide-scrollbar {
@@ -2559,7 +2561,7 @@ details.collapsible-section > .info-box {
   }
   
   li {
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
   }
 }
 

@@ -409,6 +409,19 @@
         let hasScrolled = false;
         let scrollTimeout;
         
+        // Function to check if library selector should be centered
+        const checkLibrarySelectorCentering = () => {
+          if (librarySelector.scrollWidth <= librarySelector.clientWidth) {
+            librarySelector.classList.add('centered');
+          } else {
+            librarySelector.classList.remove('centered');
+          }
+        };
+        
+        // Check centering on load and resize
+        checkLibrarySelectorCentering();
+        window.addEventListener('resize', checkLibrarySelectorCentering);
+        
         // Check if we're on desktop (not mobile)
         const isDesktop = !('ontouchstart' in window) && window.innerWidth > 768;
         
