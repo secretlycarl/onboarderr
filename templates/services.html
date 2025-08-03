@@ -344,8 +344,12 @@
         </div>
         
         <div id="admin-passwords-error" class="error-box" style="display: none;"></div>
-        
+        <hr class="section-divider">
         <div class="form-group">
+          <h2 class="form-section-title">
+            <span class="form-section-icon">🎨</span>
+            Custom Branding
+          </h2>
           <label class="form-label">Server Name:</label>
           <div class="input-with-icon">
             <img src="{{ url_for('static', filename=logo_filename) }}" alt="Server Name" class="input-icon-img">
@@ -362,12 +366,7 @@
           <div class="color-help">Choose your theme color</div>
         </div>
         
-        <div class="form-group">
-          <label class="form-label">Custom Branding:</label>
-          <div class="file-help">
-            Upload your own logo and wordmark to customize the appearance. These can be changed later.
-          </div>
-          
+        <div class="form-group">          
           <div class="form-group">
             <label class="form-label">Select New Logo:</label>
             <input type="file" name="logo_file" id="logo_file" accept=".png,.webp,.jpg,.jpeg" class="file-input">
@@ -403,7 +402,13 @@
           </div>
         </div>
 
+        <hr class="section-divider">
+
         <div class="form-group">
+          <h2 class="form-section-title">
+            <span class="form-section-icon">🎬</span>
+            Plex Configuration
+          </h2>
           <label class="form-label">Plex Token:</label>
           <div class="input-with-icon">
             <img src="{{ url_for('static', filename='plex.webp') }}" alt="Plex Token" class="input-icon-img">
@@ -425,36 +430,8 @@
         <div class="form-group">
           <button type="button" onclick="fetchLibrariesAdmin()" class="submit-btn">Fetch Plex Libraries</button>
         </div>
-        
-        <!-- Current Library Selection Display -->
-        {% if LIBRARY_IDS %}
-        <div class="form-section">
-          <h3 class="form-section-title">
-            <span class="form-section-icon">📚</span>
-            Currently Selected Libraries
-          </h3>
-          <div class="current-library-selection">
-            <div class="library-header">
-              <strong>Selected Libraries:</strong>
-              <button type="button" onclick="refreshLibraryTitles()" class="submit-btn">Refresh Titles</button>
-            </div>
-            {% set selected_ids = LIBRARY_IDS.split(',') %}
-            {% for lib_id in selected_ids %}
-              {% if lib_id.strip() %}
-                <div class="library-item">
-                  <strong>
-                    {% if library_notes[lib_id.strip()] and library_notes[lib_id.strip()]['title'] %}{{ library_notes[lib_id.strip()]['title'] }}{% else %}Unknown{% endif %} ({{ lib_id.strip() }})
-                  </strong>
-                  {% if library_notes[lib_id.strip()] and library_notes[lib_id.strip()]['description'] %}
-                    <span class="library-description"> {{ library_notes[lib_id.strip()]['description'] }}</span>
-                  {% endif %}
-                </div>
-              {% endif %}
-            {% endfor %}
-          </div>
-        </div>
-        {% endif %}
-        
+
+                
         <div id="libraries-section-admin" class="library-section" style="display:none;">
           <h3 class="form-section-title">
             <span class="form-section-icon">📚</span>
@@ -465,18 +442,37 @@
             <div id="libraries-list-admin" class="library-list"></div>
           </div>
         </div>
+        <hr class="section-divider">
+        <!-- Current Library Selection Display -->
+        {% if LIBRARY_IDS %}
+        <h3 class="form-section-title">
+          <span class="form-section-icon">📚</span>
+          Currently Selected Libraries
+        </h3>
+        {% set selected_ids = LIBRARY_IDS.split(',') %}
+        {% for lib_id in selected_ids %}
+          {% if lib_id.strip() %}
+            <div class="selected-library-item">
+              <div class="library-title-section">
+                <strong>
+                  {% if library_notes[lib_id.strip()] and library_notes[lib_id.strip()]['title'] %}{{ library_notes[lib_id.strip()]['title'] }}{% else %}Unknown{% endif %} ({{ lib_id.strip() }})
+                </strong>
+              </div>
+              <div class="library-description-section">
+                <input type="text" 
+                       name="library_desc_{{ lib_id.strip() }}" 
+                       value="{% if library_notes[lib_id.strip()] and library_notes[lib_id.strip()]['description'] %}{{ library_notes[lib_id.strip()]['description'] }}{% endif %}" 
+                       class="form-input library-description-input" 
+                       placeholder="Enter a description for this library (optional)">
+              </div>
+            </div>
+          {% endif %}
+        {% endfor %}
+        <button type="button" onclick="refreshLibraryTitles()" class="submit-btn">Refresh Titles</button>
         
-        <div id="library-descriptions-section-admin" class="description-section" style="display:none;">
-          <h3 class="form-section-title">
-            <span class="form-section-icon">📝</span>
-            Library Descriptions
-          </h3>
-          <div class="form-group">
-            <label class="form-label">Enter a description for each selected library (optional):</label>
-            <div id="library-descriptions-list-admin"></div>
-          </div>
-        </div>
-        
+        <hr class="section-divider">
+        {% endif %}
+          
         <div id="library-carousels-section-admin" class="form-section" style="display:none;">
           <h3 class="form-section-title">
             <span class="form-section-icon">🎠</span>
@@ -492,131 +488,129 @@
           </div>
         </div>
 
-        <div id="abs-section-admin" class="form-section">
-          <h3 class="form-section-title">
-            <span class="form-section-icon">📚</span>
-            Audiobookshelf Configuration
-          </h3>
-          <div class="form-group">
-            <label class="form-label">Audiobook Library ID:</label>
-            <div class="input-with-icon">
-              <img src="{{ url_for('static', filename='abs.webp') }}" alt="Audiobook Library ID" class="input-icon-img">
-              <input type="text" name="audiobooks_id" id="audiobooks_id" value="{{ AUDIOBOOKS_ID or '' }}" class="form-input">
-            </div>
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">Audiobookshelf Server URL:</label>
-            <div class="input-with-icon">
-              <img src="{{ url_for('static', filename='abs.webp') }}" alt="Audiobookshelf Server URL" class="input-icon-img">
-              <input type="text" name="audiobookshelf_url" id="audiobookshelf_url_admin" value="{{ AUDIOBOOKSHELF_URL or '' }}" class="form-input">
-            </div>
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">Audiobookshelf API Token:</label>
-            <div class="input-with-icon">
-              <img src="{{ url_for('static', filename='abs.webp') }}" alt="Audiobookshelf API Token" class="input-icon-img">
-              <div class="password-input-group">
-                <input type="password" name="audiobookshelf_token" id="audiobookshelf_token_admin" value="{{ AUDIOBOOKSHELF_TOKEN or '' }}" class="form-input">
-                <button type="button" onclick="togglePasswordVisibility('audiobookshelf_token_admin')" class="password-toggle-btn">👁</button>
-              </div>
-            </div>
-          </div>
-          
-          <div class="info-box">
-            <span>ℹ️</span>
-            <span>Leave all fields empty to disable Audiobookshelf integration. All fields are required.</span>
+        <h3 class="form-section-title">
+          <span class="form-section-icon">📚</span>
+          Audiobookshelf Configuration
+        </h3>
+        <div class="form-group">
+          <label class="form-label">Audiobook Library ID:</label>
+          <div class="input-with-icon">
+            <img src="{{ url_for('static', filename='abs.webp') }}" alt="Audiobook Library ID" class="input-icon-img">
+            <input type="text" name="audiobooks_id" id="audiobooks_id" value="{{ AUDIOBOOKS_ID or '' }}" class="form-input">
           </div>
         </div>
+        
+        <div class="form-group">
+          <label class="form-label">Audiobookshelf Server URL:</label>
+          <div class="input-with-icon">
+            <img src="{{ url_for('static', filename='abs.webp') }}" alt="Audiobookshelf Server URL" class="input-icon-img">
+            <input type="text" name="audiobookshelf_url" id="audiobookshelf_url_admin" value="{{ AUDIOBOOKSHELF_URL or '' }}" class="form-input">
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Audiobookshelf API Token:</label>
+          <div class="input-with-icon">
+            <img src="{{ url_for('static', filename='abs.webp') }}" alt="Audiobookshelf API Token" class="input-icon-img">
+            <div class="password-input-group">
+              <input type="password" name="audiobookshelf_token" id="audiobookshelf_token_admin" value="{{ AUDIOBOOKSHELF_TOKEN or '' }}" class="form-input">
+              <button type="button" onclick="togglePasswordVisibility('audiobookshelf_token_admin')" class="password-toggle-btn">👁</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="info-box">
+          <span>ℹ️</span>
+          <span>Leave all fields empty to disable Audiobookshelf integration. All fields are required.</span>
+        </div>
+        
+        <hr class="section-divider">
 
         
-        <div id="discord-section-admin" class="form-section">
-          <h3 class="form-section-title">
-            <span class="form-section-icon">📢</span>
-            Discord Notifications
-          </h3>
-          
-          <div class="form-group">
-            <label class="form-label">Notification Events:</label>
-            <div class="notification-options">
-              <label class="checkbox-option">
-                <input type="checkbox" name="discord_notify_plex" id="discord_notify_plex" value="1" {% if DISCORD_NOTIFY_PLEX == '1' %}checked{% endif %}>
-                <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
-                <span>Notify on new Plex user request</span>
-              </label>
-              <label class="checkbox-option">
-                <input type="checkbox" name="discord_notify_abs" id="discord_notify_abs" value="1" {% if DISCORD_NOTIFY_ABS == '1' %}checked{% endif %}>
-                <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
-                <span>Notify on new Audiobookshelf user request</span>
-              </label>
-            </div>
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">Webhook URL:</label>
-            <input type="text" name="discord_webhook" id="discord_webhook_admin" value="{{ DISCORD_WEBHOOK or '' }}" class="form-input" placeholder="https://discord.com/api/webhooks/...">
-            <div class="file-help">Leave blank to disable Discord notifications</div>
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">Username (optional):</label>
-            <input type="text" name="discord_username" id="discord_username_admin" value="{{ DISCORD_USERNAME or '' }}" class="form-input" placeholder="Onboarderr">
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">Avatar URL (optional):</label>
-            <input type="text" name="discord_avatar" id="discord_avatar_admin" value="{{ DISCORD_AVATAR or '' }}" class="form-input" placeholder="Default Logo">
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">Color (optional):</label>
-            <input type="text" name="discord_color" id="discord_color_admin" value="{{ DISCORD_COLOR or '' }}" class="form-input" placeholder="#000000">
+        <h3 class="form-section-title">
+          <span class="form-section-icon">📢</span>
+          Discord Notifications
+        </h3>
+        
+        <div class="form-group">
+          <label class="form-label">Notification Events:</label>
+          <div class="notification-options">
+            <label class="checkbox-option">
+              <input type="checkbox" name="discord_notify_plex" id="discord_notify_plex" value="1" {% if DISCORD_NOTIFY_PLEX == '1' %}checked{% endif %}>
+              <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
+              <span>Notify on new Plex user request</span>
+            </label>
+            <label class="checkbox-option">
+              <input type="checkbox" name="discord_notify_abs" id="discord_notify_abs" value="1" {% if DISCORD_NOTIFY_ABS == '1' %}checked{% endif %}>
+              <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
+              <span>Notify on new Audiobookshelf user request</span>
+            </label>
           </div>
         </div>
+        
+        <div class="form-group">
+          <label class="form-label">Webhook URL:</label>
+          <input type="text" name="discord_webhook" id="discord_webhook_admin" value="{{ DISCORD_WEBHOOK or '' }}" class="form-input" placeholder="https://discord.com/api/webhooks/...">
+          <div class="file-help">Leave blank to disable Discord notifications</div>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Username (optional):</label>
+          <input type="text" name="discord_username" id="discord_username_admin" value="{{ DISCORD_USERNAME or '' }}" class="form-input" placeholder="Onboarderr">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Avatar URL (optional):</label>
+          <input type="text" name="discord_avatar" id="discord_avatar_admin" value="{{ DISCORD_AVATAR or '' }}" class="form-input" placeholder="Default Logo">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Color (optional):</label>
+          <input type="text" name="discord_color" id="discord_color_admin" value="{{ DISCORD_COLOR or '' }}" class="form-input" placeholder="#000000">
+        </div>
+        
+        <hr class="section-divider">
 
         <!-- Quick Access Configuration -->
-        <div class="form-section">
-          <h3 class="form-section-title">
-            <span class="form-section-icon">⚡</span>
-             Quick Access Links
-          </h3>
-                  
-           <div class="form-group">
-            <label class="form-label">Display Quick Access Links?</label>
-            <div class="radio-group">
-              <label class="radio-option">
-                <input type="radio" name="quick_access_enabled" value="yes" id="quick_access_enabled_yes" class="radio-input" {% if QUICK_ACCESS_ENABLED == 'yes' or not QUICK_ACCESS_ENABLED %}checked{% endif %}>
-                <span>Yes</span>
-              </label>
-               <label class="radio-option">
-                <input type="radio" name="quick_access_enabled" value="no" id="quick_access_enabled_no" class="radio-input" {% if QUICK_ACCESS_ENABLED == 'no' %}checked{% endif %}>
-                <span>No</span>
-              </label>
-            </div>
-             <div class="file-help">
-              Quick access links appear as a floating panel on desktop and in the mobile navigation menu. They provide direct access to your media services.<br>
-              This feature is a work in progress.
-             </div>
+        <h3 class="form-section-title">
+          <span class="form-section-icon">⚡</span>
+           Quick Access Links
+        </h3>
+                
+         <div class="form-group">
+          <label class="form-label">Display Quick Access Links?</label>
+          <div class="radio-group">
+            <label class="radio-option">
+              <input type="radio" name="quick_access_enabled" value="yes" id="quick_access_enabled_yes" class="radio-input" {% if QUICK_ACCESS_ENABLED == 'yes' or not QUICK_ACCESS_ENABLED %}checked{% endif %}>
+              <span>Yes</span>
+            </label>
+             <label class="radio-option">
+              <input type="radio" name="quick_access_enabled" value="no" id="quick_access_enabled_no" class="radio-input" {% if QUICK_ACCESS_ENABLED == 'no' %}checked{% endif %}>
+              <span>No</span>
+            </label>
+          </div>
+           <div class="file-help">
+            Quick access links appear as a floating panel on desktop and in the mobile navigation menu. They provide direct access to your media services.<br>
+            This feature is a work in progress.
            </div>
          </div>
+         
+         <hr class="section-divider">
         
         <!-- Editable Service URLs -->
-        <div class="form-section">
-          <h3 class="form-section-title">
-            <span class="form-section-icon">🔗</span>
-            Public Service URLs
-          </h3>
-          {% for service in all_services %}
-            <div class="form-group">
-              <label class="form-label">{{ service.name }}:</label>
-              <div class="service-url-input">
-                <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" class="service-icon">
-                <input type="text" name="{{ service.env }}" value="{{ service.url }}" class="form-input">
-              </div>
+        <h3 class="form-section-title">
+          <span class="form-section-icon">🔗</span>
+          Public Service URLs
+        </h3>
+        {% for service in all_services %}
+          <div class="form-group">
+            <label class="form-label">{{ service.name }}:</label>
+            <div class="service-url-input">
+              <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" class="service-icon">
+              <input type="text" name="{{ service.env }}" value="{{ service.url }}" class="form-input">
             </div>
-          {% endfor %}
-        </div>
+          </div>
+        {% endfor %}
         
         {% if error_message %}
         <div id="admin-setup-message" class="error-box">{{ error_message }}</div>
@@ -765,12 +759,9 @@
       }).then(response => response.json()).then(data => {
           var section = document.getElementById('libraries-section-admin');
           var list = document.getElementById('libraries-list-admin');
-          var descSection = document.getElementById('library-descriptions-section-admin');
-          var descList = document.getElementById('library-descriptions-list-admin');
           var carouselSection = document.getElementById('library-carousels-section-admin');
           var carouselList = document.getElementById('library-carousels-list-admin');
           list.innerHTML = '';
-          descList.innerHTML = '';
           carouselList.innerHTML = '';
           
           // Get currently selected library IDs
@@ -816,24 +807,6 @@
                   label.appendChild(idSpan);
                   list.appendChild(label);
                   
-                  var descDiv = document.createElement('div');
-                  descDiv.id = 'admindescdiv_' + lib.key;
-                  descDiv.style.display = checkbox.checked ? 'block' : 'none';
-                  descDiv.className = 'description-item';
-                  
-                  var descLabel = document.createElement('label');
-                  descLabel.className = 'description-label';
-                  descLabel.innerText = 'Description for ' + lib.title + ':';
-                  
-                  var descInput = document.createElement('input');
-                  descInput.type = 'text';
-                  descInput.name = 'library_desc_' + lib.key;
-                  descInput.className = 'form-input';
-                  
-                  descDiv.appendChild(descLabel);
-                  descDiv.appendChild(descInput);
-                  descList.appendChild(descDiv);
-                  
                   // Add carousel checkbox
                   var carouselLabel = document.createElement('label');
                   carouselLabel.className = 'checkbox-option';
@@ -871,16 +844,13 @@
                   
                   // Add change event listener to update libraries immediately
                   checkbox.addEventListener('change', function() {
-                      descDiv.style.display = checkbox.checked ? 'block' : 'none';
                       carouselLabel.style.display = checkbox.checked ? 'flex' : 'none';
                       updateLibrariesImmediately();
                   });
               });
-              descSection.style.display = 'block';
               carouselSection.style.display = 'block';
           } else {
               section.style.display = 'none';
-              descSection.style.display = 'none';
               carouselSection.style.display = 'none';
               alert('No libraries found or error fetching libraries.');
           }
@@ -942,11 +912,14 @@
                       description = libraryNotes[libId].description;
                   }
                   
-                  html += '<div style="margin-bottom: 0.5em;">';
+                  html += '<div class="library-item" style="margin-bottom: 1em;">';
+                  html += '<div class="library-title-section">';
                   html += '<strong>' + title + ' (' + libId + ')</strong>';
-                  if (description) {
-                      html += '<span style="color: #888; font-size: 0.9em;">' + description + '</span>';
-                  }
+                  html += '</div>';
+                  html += '<div class="library-description-section" style="margin-top: 0.5em;">';
+                  html += '<label class="form-label">Description:</label>';
+                  html += '<input type="text" name="library_desc_' + libId + '" value="' + (description || '') + '" class="form-input library-description-input" placeholder="Enter a description for this library (optional)">';
+                  html += '</div>';
                   html += '</div>';
               });
           }

@@ -107,7 +107,7 @@
               <label class="form-label">Select Libraries:</label>
               <div class="library-list">
                 {% for lib in libraries %}
-                  <div class="library-item">
+                  <div class="onboarding-library-item">
                     <input type="checkbox" name="libraries" value="{{ lib.key }}" id="lib_{{ lib.key }}" {% if submitted %}disabled{% endif %} class="library-checkbox" />
                     <label for="lib_{{ lib.key }}" class="library-title">
                       {{ lib.title }}
@@ -1002,12 +1002,18 @@
 
       // Image modal system is now handled by image-modal.js
 
-      // --- NEW SIMPLIFIED CAROUSEL LOGIC ---
+      // --- AUTO-SCROLL CAROUSEL LOGIC ---
       function setupInfiniteCarousel(carousel, onLoadMore = null) {
         const container = carousel.parentElement;
         const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         
         console.log('Carousel setup - Mobile detected:', isMobile);
+        
+        // Clear any existing auto-scroll instance
+        if (carousel.autoScrollInstance) {
+          carousel.autoScrollInstance.destroy();
+          carousel.autoScrollInstance = null;
+        }
         
         // Clear any existing animation
         if (carousel.rafId) {
@@ -1035,118 +1041,67 @@
         // Reset transform
         carousel.style.transform = 'translateX(0px)';
         
-
-        
-        if (isMobile) {
-          // MOBILE: Static carousel with smooth user interactive scrolling
-          console.log('Mobile detected - using static carousel with smooth scrolling');
-          
-          // Enable CSS scrolling for mobile
-          carousel.style.transform = 'none';
-          
-          let isLoading = false;
-          
-          // Set carousel width for proper scrolling
-          function updateWidth() {
-            if (carousel.children.length === 0) {
-              return;
-            }
-            
-            let totalWidth = 0;
-            const gap = parseInt(getComputedStyle(carousel).gap || 0);
-            
-            Array.from(carousel.children).forEach((img, index) => {
-              const imgWidth = img.offsetWidth;
-              if (imgWidth === 0) {
-                totalWidth += img.naturalWidth + gap;
-              } else {
-                totalWidth += imgWidth + gap;
-              }
-            });
-            
-            carousel.style.width = totalWidth + 'px';
+        // Set carousel width for proper scrolling
+        function updateWidth() {
+          if (carousel.children.length === 0) {
+            return;
           }
           
-          // Update width immediately and after a short delay
-          updateWidth();
-          setTimeout(updateWidth, 100);
+          let totalWidth = 0;
+          const gap = parseInt(getComputedStyle(carousel).gap || 0);
           
-          // Setup intersection observer for mobile
-          const updateObserver = setupIntersectionObserver();
-          if (updateObserver) {
-            console.log('Mobile intersection observer setup successful');
-          }
-          
-          // Periodic safety check to ensure carousel doesn't become empty
-          setInterval(() => {
-            if (carousel.children.length < 5) {
-              console.log('Mobile carousel running low on posters, adding more...');
-              if (onLoadMore && !isLoading) {
-                isLoading = true;
-                onLoadMore().then(() => {
-                  isLoading = false;
-                  updateWidth();
-                }).catch(error => {
-                  console.error('Error loading more posters:', error);
-                  isLoading = false;
-                });
-              }
+          Array.from(carousel.children).forEach((img, index) => {
+            const imgWidth = img.offsetWidth;
+            if (imgWidth === 0) {
+              totalWidth += img.naturalWidth + gap;
+            } else {
+              totalWidth += imgWidth + gap;
             }
-          }, 3000);
+          });
           
-          // Return the observer update function
-          return updateObserver;
-          
-        } else {
-          // DESKTOP: Static carousel - no animation
-          console.log('Desktop detected - using static carousel');
-          
-          let isLoading = false;
-
-          // Set carousel width
-          function updateWidth() {
-            if (carousel.children.length === 0) {
-              return;
-            }
-            
-            let totalWidth = 0;
-            const gap = parseInt(getComputedStyle(carousel).gap || 0);
-            
-            Array.from(carousel.children).forEach((img, index) => {
-              const imgWidth = img.offsetWidth;
-              if (imgWidth === 0) {
-                totalWidth += img.naturalWidth + gap;
-              } else {
-                totalWidth += imgWidth + gap;
-              }
-            });
-            
-            carousel.style.width = totalWidth + 'px';
-          }
-          
-          // Update width immediately and after a short delay
-          updateWidth();
-          setTimeout(updateWidth, 100);
-          
-          // Periodic safety check to ensure carousel doesn't become empty
-          setInterval(() => {
-            if (carousel.children.length < 5) {
-              console.log('Desktop carousel running low on posters, adding more...');
-              if (onLoadMore && !isLoading) {
-                isLoading = true;
-                onLoadMore().then(() => {
-                  isLoading = false;
-                }).catch(error => {
-                  console.error('Error loading more posters:', error);
-                  isLoading = false;
-                });
-              }
-            }
-          }, 3000);
-          
-          // Return null since we don't need observer update function for desktop
-          return null;
+          carousel.style.width = totalWidth + 'px';
         }
+        
+        // Update width immediately and after a short delay
+        updateWidth();
+        setTimeout(updateWidth, 100);
+        
+        // Initialize auto-scroll with appropriate settings
+        const autoScrollOptions = {
+          scrollSpeed: 0.5, // px per frame - from old implementation
+          pauseOnHover: true,
+          pauseOnInteraction: true,
+          resumeDelay: 1000, // 1 second delay after user interaction
+          minPosters: 8,
+          loadMoreThreshold: 15,
+          onLoadMore: onLoadMore
+        };
+        
+        // Initialize the auto-scroll instance
+        carousel.autoScrollInstance = window.initializeCarouselAutoScroll(carousel.id, autoScrollOptions);
+        
+        // Setup intersection observer for poster loading
+        const updateObserver = setupIntersectionObserver();
+        if (updateObserver) {
+          console.log('Intersection observer setup successful');
+        }
+        
+        // Periodic safety check to ensure carousel doesn't become empty
+        setInterval(() => {
+          if (carousel.children.length < 5) {
+            console.log('Carousel running low on posters, adding more...');
+            if (onLoadMore) {
+              onLoadMore().then(() => {
+                updateWidth();
+              }).catch(error => {
+                console.error('Error loading more posters:', error);
+              });
+            }
+          }
+        }, 3000);
+        
+        // Return the observer update function
+        return updateObserver;
         
         // Setup intersection observer to detect when last few images come into view
         function setupIntersectionObserver() {
@@ -1217,6 +1172,9 @@
     });
   </script>
 
+  <!-- Carousel Auto-Scroll Script -->
+  <script src="{{ url_for('static', filename='carousel-auto-scroll.js') }}"></script>
+  
   <!-- Image Modal Script -->
   <script src="{{ url_for('static', filename='image-modal.js') }}"></script>
   

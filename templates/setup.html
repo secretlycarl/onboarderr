@@ -33,7 +33,7 @@
                 </div>
 
                 <!-- Passwords Section -->
-                <div class="form-section">
+
                     <h2 class="form-section-title">
                         <span class="form-section-icon">🔐</span>
                         Authentication
@@ -53,10 +53,10 @@
                         <span>⚠️</span>
                         <span><strong>SITE_PASSWORD</strong> and <strong>ADMIN_PASSWORD</strong> must be different.</span>
                     </div>
-                </div>
+                    <hr class="section-divider">
 
                 <!-- Storage Section -->
-                <div class="form-section">
+
                     <h2 class="form-section-title">
                         <span class="form-section-icon">💾</span>
                         Storage Configuration
@@ -71,10 +71,10 @@
                             Windows: <code>E:\,F:\</code>
                         </div>
                     </div>
-                </div>
+                    <hr class="section-divider">
 
                 <!-- Branding Section -->
-                <div class="form-section">
+
                     <h2 class="form-section-title">
                         <span class="form-section-icon">🎨</span>
                         Branding & Appearance
@@ -134,10 +134,9 @@
                             </div>
                         </div>
                     </div>
-                </div>
+                    <hr class="section-divider">
 
                 <!-- Plex Configuration -->
-                <div class="form-section">
                     <h2 class="form-section-title">
                         <span class="form-section-icon">📺</span>
                         Plex Configuration
@@ -182,10 +181,9 @@
                             <div class="notification-options" id="library-carousels-list"></div>
                         </div>
                     </div>
-                </div>
+                    <hr class="section-divider">
 
                 <!-- Audiobookshelf Configuration -->
-                <div class="form-section">
                     <h2 class="form-section-title">
                         <span class="form-section-icon">📚</span>
                         Audiobookshelf Configuration
@@ -221,10 +219,9 @@
                             <input type="text" name="audiobookshelf_token" id="audiobookshelf_token" class="form-input" placeholder="Settings > API Keys > Add API Key">
                         </div>
                     </div>
-                </div>
+                    <hr class="section-divider">
 
                 <!-- Discord Configuration -->
-                <div class="form-section">
                     <h2 class="form-section-title">
                         <span class="form-section-icon">💬</span>
                         Discord Notifications
@@ -266,10 +263,10 @@
                         <label class="form-label">Discord Color (optional):</label>
                         <input type="text" name="discord_color" id="discord_color" placeholder="#000000" class="form-input">
                     </div>
-                </div>
+                    <hr class="section-divider">
 
                 <!-- Quick Access Configuration -->
-                <div class="form-section">
+
                     <h2 class="form-section-title">
                         <span class="form-section-icon">⚡</span>
                         Quick Access Links
@@ -292,10 +289,9 @@
                             This feature is a work in progress.
                         </div>
                     </div>
-                </div>
+                    <hr class="section-divider">
 
                 <!-- Service URLs -->
-                <div class="form-section">
                     <h2 class="form-section-title">
                         <span class="form-section-icon">🔗</span>
                         Public Service URLs for Admin Page
@@ -306,32 +302,34 @@
                         <span>Remove any URLs for unused services!</span>
                     </div>
                     
-                    <div class="service-urls-grid">
-                        {% set service_list = [
-                            ('PLEX', 'Plex'),
-                            ('AUDIOBOOKSHELF', 'Audiobookshelf'),
-                            ('TAUTULLI', 'Tautulli'),
-                            ('QBITTORRENT', 'qBittorrent'),
-                            ('IMMICH', 'Immich'),
-                            ('LIDARR', 'Lidarr'),
-                            ('RADARR', 'Radarr'),
-                            ('SONARR', 'Sonarr'),
-                            ('PROWLARR', 'Prowlarr'),
-                            ('BAZARR', 'Bazarr'),
-                            ('PULSARR', 'Pulsarr'),
-                            ('OVERSEERR', 'Overseerr'),
-                            ('JELLYSEERR', 'Jellyseerr')
-                        ] %}
-                        {% for key, label in service_list %}
-                            <div class="service-url-item">
-                                <label class="service-label">{{ label }}:</label>
+                    {% set service_list = [
+                        ('PLEX', 'Plex', 'plex.webp'),
+                        ('AUDIOBOOKSHELF', 'Audiobookshelf', 'abs.webp'),
+                        ('TAUTULLI', 'Tautulli', 'tautulli.webp'),
+                        ('QBITTORRENT', 'qBittorrent', 'qbit.webp'),
+                        ('IMMICH', 'Immich', 'immich.webp'),
+                        ('LIDARR', 'Lidarr', 'lidarr.webp'),
+                        ('RADARR', 'Radarr', 'radarr.webp'),
+                        ('SONARR', 'Sonarr', 'sonarr.webp'),
+                        ('PROWLARR', 'Prowlarr', 'prowlarr.webp'),
+                        ('BAZARR', 'Bazarr', 'bazarr.webp'),
+                        ('PULSARR', 'Pulsarr', 'pulsarr.webp'),
+                        ('OVERSEERR', 'Overseerr', 'overseerr.webp'),
+                        ('JELLYSEERR', 'Jellyseerr', 'jellyseerr.webp')
+                    ] %}
+                    {% for key, label, icon in service_list %}
+                        <div class="form-group">
+                            <label class="form-label">{{ label }}:</label>
+                            <div class="service-url-input">
+                                <img src="{{ url_for('static', filename=icon) }}" alt="{{ label }} logo" class="service-icon">
                                 <input type="text" name="{{ key }}" value="{{ service_urls[key] }}" class="form-input">
                             </div>
-                        {% endfor %}
-                    </div>
-                </div>
+                        </div>
+                    {% endfor %}
 
-                <!-- Error Messages -->
+                <!-- Submit Section -->
+                <div class="submit-section">
+                                    <!-- Error Messages -->
                 {% if error_message %}
                 <div id="setup-message" class="error-box">
                     <span>❌</span>
@@ -343,9 +341,6 @@
                     <span></span>
                 </div>
                 {% endif %}
-
-                <!-- Submit Section -->
-                <div class="submit-section">
                     <button type="submit" id="submit-btn" class="submit-btn">Save and Finish Setup</button>
                 </div>
             </form>

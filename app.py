@@ -1082,14 +1082,26 @@ def services():
         if library_ids and ",".join(library_ids) != current_library_ids:
             safe_set_key(env_path, "LIBRARY_IDS", ",".join(library_ids))
         # Library descriptions (optional)
-        library_notes = {}
+        # Load existing library notes to preserve other data
+        existing_notes = load_library_notes()
+        
         for lib_id in library_ids:
             desc = request.form.get(f"library_desc_{lib_id}", "").strip()
+            
+            # Initialize library entry if it doesn't exist
+            if lib_id not in existing_notes:
+                existing_notes[lib_id] = {}
+            
             if desc:
-                library_notes[lib_id] = {"description": desc}
-        if library_notes:
-            with open(os.path.join(os.getcwd(), "library_notes.json"), "w", encoding="utf-8") as f:
-                json.dump(library_notes, f, indent=2)
+                # Add or update description
+                existing_notes[lib_id]["description"] = desc
+            else:
+                # Remove description if field is empty
+                if "description" in existing_notes[lib_id]:
+                    del existing_notes[lib_id]["description"]
+        
+        # Save the updated library notes
+        save_library_notes(existing_notes)
         # Discord settings
         discord_webhook = request.form.get("discord_webhook", "").strip()
         current_webhook = os.getenv("DISCORD_WEBHOOK", "")
