@@ -1114,25 +1114,25 @@
             return null;
           }
           
-          let lastTriggerTime = 0;
-          const minTriggerInterval = 0; 
-          
-          const observer = new IntersectionObserver((entries) => {
-            console.log('Intersection observer triggered:', entries.length, 'entries');
-            entries.forEach(entry => {
-              console.log('Entry:', entry.isIntersecting, 'target:', entry.target);
-              const now = Date.now();
-              if (entry.isIntersecting && (now - lastTriggerTime) > minTriggerInterval) {
-                console.log('Last few images are now visible - triggering load');
-                lastTriggerTime = now;
-                onLoadMore().then(() => {
-                  console.log('onLoadMore completed successfully');
-                }).catch(error => {
-                  console.error('Error loading more posters:', error);
-                });
-              }
-            });
-          }, {
+                  let lastTriggerTime = 0;
+        const minTriggerInterval = 200; // Increased from 0 to 200ms to prevent rapid loading during fast scrolling
+        
+        const observer = new IntersectionObserver((entries) => {
+          console.log('Intersection observer triggered:', entries.length, 'entries');
+          entries.forEach(entry => {
+            console.log('Entry:', entry.isIntersecting, 'target:', entry.target);
+            const now = Date.now();
+            if (entry.isIntersecting && (now - lastTriggerTime) > minTriggerInterval) {
+              console.log('Last few images are now visible - triggering load');
+              lastTriggerTime = now;
+              onLoadMore().then(() => {
+                console.log('onLoadMore completed successfully');
+              }).catch(error => {
+                console.error('Error loading more posters:', error);
+              });
+            }
+          });
+        }, {
             root: null, // Use viewport instead of container
             rootMargin: '100px', // Trigger when 100px away from viewport
             threshold: 0.1

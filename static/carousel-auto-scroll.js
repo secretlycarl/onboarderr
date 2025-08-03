@@ -94,8 +94,8 @@ class CarouselAutoScroll {
     this.container.addEventListener('touchmove', (e) => {
       if (this.isManualScrolling) {
         const now = Date.now();
-        // Throttle touch move events to reduce jumpiness
-        if (now - this.lastTouchMoveTime < 16) { // ~60fps
+        // Throttle touch move events to reduce jumpiness - reduced from 16ms to 8ms for better fast scroll handling
+        if (now - this.lastTouchMoveTime < 8) { // ~120fps for better fast scroll responsiveness
           return;
         }
         this.lastTouchMoveTime = now;
@@ -149,13 +149,13 @@ class CarouselAutoScroll {
       
       // Set a timeout to detect when scrolling has completely stopped
       this.scrollTimeout = setTimeout(() => {
-        // Only resume auto-scroll if scroll has been stable for multiple checks
-        if (this.scrollStableCount >= 3) {
+        // Only resume auto-scroll if scroll has been stable for multiple checks - reduced threshold for faster response
+        if (this.scrollStableCount >= 2) { // Reduced from 3 to 2 for faster response
           this.isUserInteracting = false;
           console.log('Momentum scrolling ended - auto-scroll resumed');
           this.resumeAnimation();
         }
-      }, 100);
+      }, 50); // Reduced from 100ms to 50ms for faster scroll detection
     }, { passive: true });
   }
 
@@ -209,13 +209,16 @@ class CarouselAutoScroll {
         if (firstImg && (firstImg.tagName === 'IMG' || firstImg.tagName === 'A') && this.carousel.children.length > 5) {
           const firstImgWidth = firstImg.offsetWidth + parseInt(getComputedStyle(this.carousel).gap || 0);
           if (Math.abs(this.offset) >= firstImgWidth) {
-            firstImg.remove();
-            this.offset += firstImgWidth;
-            this.carousel.style.transform = `translateX(${this.offset}px)`;
-            
-            // Update width after removing image
-            this.updateWidth();
-            console.log('Removed image, remaining children:', this.carousel.children.length);
+            // Don't remove images during user interaction to prevent conflicts
+            if (!this.isUserInteracting) {
+              firstImg.remove();
+              this.offset += firstImgWidth;
+              this.carousel.style.transform = `translateX(${this.offset}px)`;
+              
+              // Update width after removing image
+              this.updateWidth();
+              console.log('Removed image, remaining children:', this.carousel.children.length);
+            }
           }
         }
         
