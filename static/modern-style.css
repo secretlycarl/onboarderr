@@ -903,7 +903,34 @@ a:hover {
 }
 
 /* Mobile overrides for info-box margins */
-@media (pointer: coarse) and (max-width: 1800px) {
+/* Updated to use .mobile-device class instead of media query */
+.mobile-device .setup-form > .info-box {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.mobile-device .form-section .info-box {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.mobile-device .onboarding-section .info-box {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.mobile-device .onboarding-section .warning-box {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.mobile-device .onboarding-section .error-box {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Fallback for older browsers that don't support the class approach */
+@media (pointer: coarse) and (max-width: 1024px) {
   .setup-form > .info-box {
     margin-left: 0 !important;
     margin-right: 0 !important;
@@ -1385,7 +1412,7 @@ a:hover {
 }
 
 /* Mobile Carousel Styles - Enable Manual Scrolling */
-@media (pointer: coarse) and (max-width: 1800px) {
+@media (pointer: coarse) and (max-width: 1024px) {
   .poster-carousel-container {
     overflow-x: auto;
     overflow-y: hidden;
@@ -1466,6 +1493,12 @@ a:hover {
   display: none;
 }
 
+/* Show mobile-only content on actual mobile devices */
+.mobile-device .mobile-only {
+  display: inline;
+}
+
+/* Fallback for older browsers */
 @media (max-width: 768px) {
   .mobile-only {
     display: inline;
@@ -1476,7 +1509,7 @@ a:hover {
 .library-selector {
   display: flex;
   justify-content: flex-start;
-  gap: 0.75rem;
+  gap: 0.5rem;
   margin-bottom: 0.5rem;
   overflow-x: auto;
   scrollbar-width: thin;
@@ -1551,7 +1584,7 @@ a:hover {
 }
 
 /* Mobile Responsive Design - IMPROVED */
-@media (pointer: coarse) and (max-width: 1800px) {
+@media (pointer: coarse) and (max-width: 1024px) {
   /* Hide quick access panel on mobile */
   .quick-access-panel {
     display: none;
@@ -1561,69 +1594,107 @@ a:hover {
   .poster-carousel-container {
     height: 300px;
     /* Ensure proper spacing for mobile images */
-    padding: 10px 0;
-    box-sizing: border-box;
+    padding: 0.5rem;
   }
   
   .carousel-img {
     height: 280px;
-    width: 180px;
-    border-radius: 0.75rem;
-    /* Ensure consistent sizing */
-    min-width: 180px;
-    min-height: 280px;
-    max-width: 180px;
-    max-height: 280px;
-    /* Prevent layout shifts during loading */
-    display: block;
-    flex-shrink: 0;
-    /* Improve mobile performance */
-    will-change: transform;
-    /* Better image rendering for mobile */
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
+    width: auto;
+    max-width: 200px;
+    object-fit: cover;
+    border-radius: 0.5rem;
+    transition: transform 0.2s ease;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
   }
   
-  .poster-carousel {
-    gap: 1rem;
+  .poster-carousel-container.scrolling {
+    scroll-behavior: auto;
   }
+  
+  .poster-carousel-container.scrolling .carousel-img {
+    transition: none;
+  }
+  
+  /* Fallback for older browsers */
+  @media (pointer: coarse) and (max-width: 1024px) {
+    /* Hide quick access panel on mobile */
+    .quick-access-panel {
+      display: none;
+    }
+    
+    /* Improved mobile carousel sizing */
+    .poster-carousel-container {
+      height: 300px;
+      /* Ensure proper spacing for mobile images */
+      padding: 0.5rem;
+    }
+    
+    .carousel-img {
+      height: 280px;
+      width: auto;
+      max-width: 200px;
+      object-fit: cover;
+      border-radius: 0.5rem;
+      transition: transform 0.2s ease;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+    
+    .poster-carousel-container.scrolling {
+      scroll-behavior: auto;
+    }
+    
+    .poster-carousel-container.scrolling .carousel-img {
+      transition: none;
+    }
+  }
+}
 
-  #show-poster-carousel {
-    gap: 1rem;
-  }
-  
-  /* Consistent text sizing for mobile */
-  .caption {
-    font-size: 1rem;
-    margin-top: 0.5rem;
-    margin-bottom: 0.5rem;
-  }
-  
-  /* Better spacing for mobile */
-  .onboarding-container {
-    padding: 0.5rem 0;
-  }
-  
-  .onboarding-header {
-    margin-bottom: 1.5rem;
-    padding: 1.5rem 0;
-  }
-  
-  .onboarding-content {
-    padding: 0 0.5rem;
-  }
-  
-  .onboarding-section {
-    margin: 0 0 1rem 0;
-    padding: 1.25rem;
-    border-radius: 1rem;
-  }
-  
-  .form-section {
-    padding: 1.25rem;
-    margin-bottom: 1.25rem;
-  }
-  
+.poster-carousel {
+  gap: 1rem;
+}
+
+#show-poster-carousel {
+  gap: 1rem;
+}
+
+/* Consistent text sizing for mobile */
+.caption {
+  font-size: 1rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Better spacing for mobile */
+.onboarding-container {
+  padding: 0.5rem 0;
+}
+
+.onboarding-header {
+  margin-bottom: 1.5rem;
+  padding: 1.5rem 0;
+}
+
+.onboarding-content {
+  padding: 0 0.5rem;
+}
+
+.onboarding-section {
+  margin: 0 0 1rem 0;
+  padding: 1.25rem;
+  border-radius: 1rem;
+}
+
+.form-section {
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
 
   
   /* Better container spacing */
@@ -1634,12 +1705,12 @@ a:hover {
   
   /* Improved library selector for mobile */
   .library-selector {
-    gap: 0.75rem;
+    gap: 0.5rem;
     margin-bottom: 0.5rem;
   }
   
   .library-tab {
-    padding: 0.8em 1.2em;
+    padding: 0.5em 1em;
     font-size: 1em;
     border-radius: 25px;
   }
@@ -1762,7 +1833,6 @@ a:hover {
     font-size: 1rem;
     line-height: 1.4;
   }
-  
 }
 
 /* Collapsible Styles */
@@ -2070,7 +2140,7 @@ a:hover {
 }
 
 .modal-content button[type="submit"]:hover {
-  background: var(--accent-hover, #e91e63);
+  background: var(--accent-hover);
   transform: translateY(-1px);
 }
 
@@ -2082,7 +2152,7 @@ a:hover {
 }
 
 /* Mobile-first responsive design */
-@media (pointer: coarse) {
+@media (pointer: coarse) and (max-width: 1024px) {
   .nav-desktop {
     display: none;
   }
@@ -2239,7 +2309,7 @@ details.collapsible-section > .info-box {
 
 
 /* Mobile responsive adjustments for details */
-@media (pointer: coarse) and (max-width: 1800px) {
+@media (pointer: coarse) and (max-width: 1024px) {
   details.collapsible-section > summary {
     padding: 2.25rem 1.5rem;
     font-size: 1.5em;
@@ -2304,7 +2374,7 @@ details.collapsible-section > .info-box {
   }
   
   .library-tab {
-    padding: 0.7em 1.1em;
+    padding: 0.5em 1em;
     font-size: 0.95em;
     flex-shrink: 0;
   }
@@ -2413,7 +2483,7 @@ details.collapsible-section > .info-box {
 }
 
 /* Mobile Responsive for Medialists - IMPROVED */
-@media (pointer: coarse) and (max-width: 1800px) {
+@media (pointer: coarse) and (max-width: 1024px) {
   .letter-content {
     padding: 1.25rem;
   }
@@ -2719,7 +2789,7 @@ details.collapsible-section > .info-box {
 }
 
 /* Mobile Responsive for Services - IMPROVED */
-@media (pointer: coarse) and (max-width: 1800px) {
+@media (pointer: coarse) and (max-width: 1024px) {
   .admin-table {
     font-size: 1rem;
   }
@@ -2764,7 +2834,7 @@ details.collapsible-section > .info-box {
 }
 
 /* Mobile Responsive for Wordmark - IMPROVED */
-@media (pointer: coarse) and (max-width: 1800px) {
+@media (pointer: coarse) and (max-width: 1024px) {
   .wordmark {
     max-width: 70%;
     margin: 3rem auto 2rem;
@@ -2945,7 +3015,7 @@ details.collapsible-section > .info-box {
 }
 
 /* Mobile Responsive for Services Modern Styling - IMPROVED */
-@media (pointer: coarse) and (max-width: 1800px) {
+@media (pointer: coarse) and (max-width: 1024px) {
   .service-url-input {
     flex-direction: row;
     align-items: center;
@@ -3071,8 +3141,9 @@ details.collapsible-section > .info-box {
 
 .image-modal-close {
   position: absolute;
-  top: -40px;
-  right: 0;
+  bottom: -50px;
+  left: 50%;
+  transform: translateX(-50%);
   background: rgba(255, 255, 255, 0.2);
   border: none;
   color: white;
@@ -3116,7 +3187,7 @@ details.collapsible-section > .info-box {
 }
 
 /* Mobile optimizations */
-@media (pointer: coarse) and (max-width: 1800px) {
+@media (pointer: coarse) and (max-width: 1024px) {
   .image-modal-content {
     max-width: 95vw;
     max-height: 95vh;
@@ -3129,7 +3200,7 @@ details.collapsible-section > .info-box {
   }
   
   .image-modal-close {
-    top: -50px;
+    bottom: -60px;
     width: 50px;
     height: 50px;
     font-size: 2rem;
@@ -3161,7 +3232,7 @@ details.collapsible-section > .info-box {
 }
 
 /* Mobile overrides for warning-box margins */
-@media (pointer: coarse) and (max-width: 1800px) {
+@media (pointer: coarse) and (max-width: 1024px) {
   .setup-form > .warning-box {
     margin-left: 0;
     margin-right: 0;
@@ -3321,7 +3392,8 @@ details.collapsible-section > .info-box {
     aspect-ratio: 2/3;
   }
 }
-  
+
+@media (max-width: 480px) {
   .posters-container ul {
     grid-template-columns: repeat(2, 1fr); /* Fixed 2 columns for mobile */
     gap: 0.75rem;

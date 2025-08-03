@@ -958,14 +958,25 @@
         let lastLoadCheck = 0;
         let isLoading = false; // Prevent multiple simultaneous loads
 
-        // Detect mobile/touch device - more specific detection
-        const isMobile = window.matchMedia('(pointer: coarse)').matches && 
-                        (window.innerWidth <= 1800 || 'ontouchstart' in window);
+        // Use global mobile detection function from navigation.js
+        const isMobile = isMobileDevice();
+        
+        // Set CSS class on body for styling (already done in navigation.js, but ensure it's set)
+        if (isMobile) {
+          document.body.classList.add('mobile-device');
+          document.body.classList.remove('desktop-device');
+        } else {
+          document.body.classList.add('desktop-device');
+          document.body.classList.remove('mobile-device');
+        }
         
         console.log('Carousel setup - Mobile detected:', isMobile);
         console.log('Screen width:', window.innerWidth);
+        console.log('Screen height:', window.innerHeight);
         console.log('Pointer type:', window.matchMedia('(pointer: coarse)').matches);
         console.log('Touch support:', 'ontouchstart' in window);
+        console.log('Max touch points:', navigator.maxTouchPoints);
+        console.log('User agent:', navigator.userAgent);
 
         // Clear any existing animation and event listeners
         if (carousel.rafId) {

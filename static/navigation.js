@@ -1,8 +1,67 @@
 // Navigation JavaScript - Loaded at end of body
 console.log('Navigation script file loaded!');
 
+/**
+ * Detects if the device is a mobile phone or tablet based on a combination of
+ * touch capability, pointer type, screen width, and user agent string.
+ */
+function isMobileDevice() {
+  const hasCoarsePointer = window.matchMedia('(pointer: coarse)').matches;
+  const screenWidth = window.innerWidth;
+  
+  // Rule 1: Most reliable. A device is mobile if it has a touch pointer AND is not wide.
+  // This correctly excludes touchscreen laptops which are wide.
+  if (hasCoarsePointer && screenWidth < 1024) {
+    return true;
+  }
+
+  // Rule 2: Fallback using user agent sniffing for common mobile keywords.
+  const userAgent = navigator.userAgent.toLowerCase();
+  if (/mobi|android|iphone|ipad|ipod/.test(userAgent)) {
+    return true;
+  }
+  
+  // If neither rule matches, it's likely a desktop or laptop.
+  return false;
+}
+
+// Ensure the body class is set on page load
+document.addEventListener('DOMContentLoaded', function() {
+    if (isMobileDevice()) {
+        document.body.classList.add('mobile-device');
+        document.body.classList.remove('desktop-device');
+    } else {
+        document.body.classList.add('desktop-device');
+        document.body.classList.remove('mobile-device');
+    }
+});
+
+// Set mobile/desktop classes on body element
+function setDeviceClasses() {
+  const isMobile = isMobileDevice();
+  
+  if (isMobile) {
+    document.body.classList.add('mobile-device');
+    document.body.classList.remove('desktop-device');
+  } else {
+    document.body.classList.add('desktop-device');
+    document.body.classList.remove('mobile-device');
+  }
+  
+  console.log('Device detection - Mobile:', isMobile);
+  console.log('Screen width:', window.innerWidth);
+  console.log('Screen height:', window.innerHeight);
+  console.log('Pointer type:', window.matchMedia('(pointer: coarse)').matches);
+  console.log('Touch support:', 'ontouchstart' in window);
+  console.log('Max touch points:', navigator.maxTouchPoints);
+  console.log('User agent:', navigator.userAgent);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   console.log('Navigation script starting...');
+  
+  // Set device classes early
+  setDeviceClasses();
   
   const navToggle = document.getElementById('nav-toggle');
   const navMenu = document.getElementById('nav-menu');

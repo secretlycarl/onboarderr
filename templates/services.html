@@ -423,7 +423,7 @@
         </div>
         
         <div class="form-group">
-          <button type="button" onclick="fetchLibrariesAdmin()" class="btn btn-secondary">Fetch Plex Libraries</button>
+          <button type="button" onclick="fetchLibrariesAdmin()" class="submit-btn">Fetch Plex Libraries</button>
         </div>
         
         <!-- Current Library Selection Display -->
@@ -436,7 +436,7 @@
           <div class="current-library-selection">
             <div class="library-header">
               <strong>Selected Libraries:</strong>
-              <button type="button" onclick="refreshLibraryTitles()" class="btn btn-secondary">Refresh Titles</button>
+              <button type="button" onclick="refreshLibraryTitles()" class="submit-btn">Refresh Titles</button>
             </div>
             {% set selected_ids = LIBRARY_IDS.split(',') %}
             {% for lib_id in selected_ids %}
@@ -926,7 +926,7 @@
           var libraryNotes = {{ library_notes | tojson }};
           var html = '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em;">';
           html += '<strong style="display:block;">Currently Selected Libraries:</strong>';
-          html += '<button type="button" onclick="refreshLibraryTitles()" style="padding: 0.3em 0.8em; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;">Refresh Titles</button>';
+          html += '<button type="button" onclick="refreshLibraryTitles()" class="submit-btn" style="padding: 0.3em 0.8em; font-size: 0.9em;">Refresh Titles</button>';
           html += '</div>';
           
           if (selectedLibraries.length === 0) {
