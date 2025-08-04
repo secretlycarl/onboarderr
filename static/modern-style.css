@@ -35,7 +35,7 @@
 }
 
 .complete-card {
-  max-width: 450px;
+  max-width: 400px;
   width: 100%;
   background: var(--container-bg);
   border-radius: 1rem;
@@ -46,7 +46,7 @@
 }
 
 .complete-logo {
-  max-width: 200px;
+  max-width: 175px;
   height: auto;
   margin: 0 auto 1.5rem;
   display: block;
@@ -64,7 +64,7 @@
 }
 
 .complete-message {
-  max-width: 100%;
+  max-width: 80%;
   font-size: 1rem;
   color: var(--text);
   line-height: 1.4;
@@ -77,12 +77,12 @@
 }
 
 .countdown-container {
-  margin-top: 2rem;
+  margin-top: 1rem;
   margin-bottom: 0rem;
 }
 
 .countdown-bar-container {
-  width: 80%;
+  width: 100%;
   background: var(--input-bg);
   border-radius: 1rem;
   height: 2rem;
@@ -141,13 +141,6 @@
     padding: 2rem 1.5rem;
   }
   
-  .complete-title {
-    font-size: 1.5rem;
-  }
-  
-  .complete-message {
-    font-size: 1rem;
-  }
 }
 
 /* Login Page Styles */
@@ -160,7 +153,7 @@
 }
 
 .login-card {
-  max-width: 450px;
+  max-width: 400px;
   width: 100%;
   background: var(--container-bg);
   border-radius: 1rem;
@@ -171,7 +164,7 @@
 }
 
 .login-logo {
-  max-width: 200px;
+  max-width: 175px;
   height: auto;
   margin: 0 auto 1.5rem;
   display: block;
@@ -231,7 +224,7 @@
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: var(--shadow);
-  width: 66%;
+  width: 100%;
   margin: 0 auto;
   display: block;
 }
@@ -242,9 +235,6 @@
 }
 
 @media (max-width: 640px) {
-  .login-card {
-    padding: 2rem 1.5rem;
-  }
   
   .login-title {
     font-size: 1.5rem;
@@ -2278,7 +2268,7 @@ details.collapsible-section > summary::-webkit-details-marker {
 }
 
 /* Content styling - simplified */
-details.collapsible-section > *:not(summary) {
+details.collapsible-section > *:not(summary):not(.section-divider) {
   padding: 0.5rem 1.75rem;
   margin: 0;
 }
@@ -2307,7 +2297,7 @@ details.collapsible-section > .info-box {
     justify-content: flex-start;
   }
   
-  details.collapsible-section > *:not(summary) {
+  details.collapsible-section > *:not(summary):not(.section-divider) {
     padding: 0.5rem 1.5rem;
   }
   
@@ -2331,7 +2321,7 @@ details.collapsible-section > .info-box {
     justify-content: flex-start;
   }
   
-  details.collapsible-section > *:not(summary) {
+  details.collapsible-section > *:not(summary):not(.section-divider) {
     padding: 0.75rem 1.5rem;
   }
   
@@ -3445,6 +3435,17 @@ details.collapsible-section > .info-box {
   }
 }
 
+/* Section dividers in onboarding collapsible sections get horizontal margins */
+details.collapsible-section .section-divider {
+  margin: 1em 1.75rem;
+}
+
+@media (pointer: coarse) and (max-width: 1024px) {
+  details.collapsible-section .section-divider {
+    margin: 1.5em 1.5rem;
+  }
+}
+
 /* Onboarding Library Items - Specific styling for onboarding form */
 .onboarding-library-item {
   display: grid;
@@ -3568,3 +3569,9 @@ details.collapsible-section > .info-box {
   }
 }
 
+.section-divider {
+  border: none;
+  height: 1px;
+  background: var(--border);
+  margin: 2em 1em;
+}
