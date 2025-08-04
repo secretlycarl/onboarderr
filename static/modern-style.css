@@ -371,8 +371,8 @@ a:hover {
 }
 
 .service-icon {
-  width: 36px !important;
-  height: 36px !important;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   filter: brightness(0.9);
   transition: filter 0.2s ease;
@@ -437,11 +437,6 @@ a:hover {
     width: 56px;
     height: 56px;
     margin-bottom: 1rem;
-  }
-  
-  .service-icon {
-    width: 36px !important;
-    height: 36px !important;
   }
   
   .service-name {
@@ -2860,8 +2855,8 @@ details.collapsible-section > .info-box {
 }
 
 .service-icon {
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   border-radius: 8px;
   object-fit: contain;
 }
