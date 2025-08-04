@@ -208,7 +208,7 @@ Create and activate a venv (conda or through system python), then:
 
 # Setup Form
 
-- First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup.png). Everything here can be changed afterwards from Settings on ```/services``` (recommended) or ```.env``` 
+- First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setupdesktop.png). Everything here can be changed afterwards from Settings on ```/services``` (recommended) or ```.env``` 
 - The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1
 - After submission, the app will restart to apply the new ```.env``` and direct you to `/login`
 - ```ADMIN_PASSWORD``` will take you to services page, but you can browse the others from the links at the top
