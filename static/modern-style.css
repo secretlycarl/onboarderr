@@ -596,7 +596,6 @@ a:hover {
   height: auto;
   width: 100%;
   border-radius: 0.5rem;
-  box-shadow: var(--shadow);
 }
 
 .screenshot-caption {
@@ -1372,7 +1371,7 @@ a:hover {
   width: 180px;
   height: 270px;
   object-fit: cover;
-  border-radius: 0.5rem;
+  border-radius: 0.25rem;
   box-shadow: var(--shadow-lg);
   transition: transform 0.2s ease, box-shadow 0.2s;
   /* Prevent size changes during loading */
@@ -1799,7 +1798,6 @@ a:hover {
     height: auto;
     width: 100%;
     border-radius: 0.5rem;
-    box-shadow: var(--shadow);
   }
   
 
@@ -3144,7 +3142,6 @@ details.collapsible-section > .info-box {
 
 .clickable-image:hover {
   transform: scale(1.02);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* Legacy toggle-grow support (for backward compatibility) */
@@ -3156,7 +3153,6 @@ details.collapsible-section > .info-box {
 
 .toggle-grow:hover {
   transform: scale(1.02);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 /* Mobile optimizations */
