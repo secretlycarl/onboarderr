@@ -1,16 +1,17 @@
 # ATTENTION
-If you're reading this, the repo recently had a big update that might break current installs.
+If you're reading this, the repo recently had a big update and I recommend you start from scratch.
 
-Setup is much easier now! just docker compose (tweak mounts first on `compose.yml`) and set all initial settings on the site itself.
+Setup is much easier now! 
+- Set port with changeport.py if you don't want to use the default `10000`
+- Docker compose (tweak mounts first on `compose.yml`) and set all initial settings on the site itself
 
-The readme is mostly accurate, but new screenshots will be added soon.
+The readme is mostly accurate, but I'm updating it if I find any inaccuracies.
 
 [How to Update](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#updates)
 
-# onboarderr
-Self-hosted user onboarding site for Plex and Audiobookshelf server owners
 
 # Onboarderr v2
+Onboarderr is a customizable onboarding site for a host's Plex and (optional) Audiobookshelf servers. It includes user instructions, server highlights, and an admin dashboard.
 
 ![mainpage](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/10a_mainpagedesktop.png)
 
@@ -18,7 +19,7 @@ Self-hosted user onboarding site for Plex and Audiobookshelf server owners
 
 ![Customization 2](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/10c_customexample2.png)
 
-Onboarderr is a customizable onboarding site for a host's Plex and (optional) Audiobookshelf servers. It includes user instructions, server highlights, and an admin dashboard.
+**[Screenshots](https://github.com/secretlycarl/onboarderr/tree/main/screenshots)**
 
 #
 
@@ -49,8 +50,6 @@ Big thanks to [@mon5termatt](https://github.com/mon5termatt) for many of the imp
    	- Storage bars
    	- Change settings
 
-**[Screenshots](https://github.com/secretlycarl/onboarderr/tree/main/screenshots)**
-
 # Requirements
 
 Docker or Python (3.10+)
@@ -70,10 +69,13 @@ Method of making your local server publicly accessible:
 
 [Overseerr](https://github.com/sct/overseerr) - User media requesting site
 
-Depending if you have pulsarr or overseerr, or neither, some body content (section 5 on `/onboarding`) will change/disappear.
+[Jellyseerr](https://github.com/fallenbagel/jellyseerr) - Overseerr fork
+
+Depending if you have Pulsarr, Overseerr, Jellyseerr, or none, some body content (section 5 on `/onboarding`) will change/disappear.
 
 [Tautulli](https://github.com/Tautulli/Tautulli) - Per-user specific "episode/media item added" notifications on Discord
 - If a user wants notifications for each new episode of a show, I create a new private text channel that is only for them on my discord server, then use the info for that channel in Tautulli for a new notification agent. Condition for the Show Name and it directs those notifs to the channel I made.
+- If Tautulli is not enabled, some body text "...ask me about my Discord" is hidden.
 
 [Sonarr](https://github.com/Sonarr/Sonarr) & [Radarr](https://github.com/Radarr/Radarr) - to grab the watchlisted content
 
@@ -224,8 +226,6 @@ https://github.com/homarr-labs/dashboard-icons/tree/main/webp has all icons.
 
 Most customization is done on setup and settings in the admin panel, but you may want to tweak some HTML contents or instructional images it comes with.
 
-
-
 - ```onboarding_section7.html``` is personalized, you should change it to what you want it to say
 
 - Delete placeholder ```plex_submissions.json``` and ```audiobookshelf_submissions.json```. The ones that come with it have example data to populate the requests sections on ```/services```
@@ -255,11 +255,9 @@ Keep copies of custom assets in another folder!
 
 # Future goals
 
-I've never made a project this complex, or had a project this many people were interested in, so I'm not clear on how the future development for this will go. I have some ideas to make it better, but getting this all set up in a way that it's customizable and not just for my machine only was a beast itself.
+I've never made a project this complex, or had a project this many people were interested in, so I'm not clear on how the future development for this will go. I just spent like two weeks on v2.
 
-That being said, a release for v2 is coming soon. Already committed most of the new code changes.
-
-Once that is finalized I want to overhaul the CSS and make the whole experience cleaner for v2.
+Only missing feature I want to add is language switching. Someone already started that [here](https://github.com/secretlycarl/onboarderr/pull/24)
 
 If you want to make it better, please do! Fork, PR, make an issue
 
