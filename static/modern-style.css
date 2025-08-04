@@ -248,7 +248,10 @@
 }
 
 body {
-  background: linear-gradient(180deg, var(--bg, #1a1a1a) 0%, var(--bg, #1a1a1a) 33%, color-mix(in srgb, var(--accent-dark, #2a2a2a) 25%, var(--bg, #1a1a1a) 75%) 100%);
+  background: linear-gradient(180deg, var(--bg, #1a1a1a) 0%, var(--bg, #1a1a1a) 66%, color-mix(in srgb, var(--accent-dark, #2a2a2a) 25%, var(--bg, #1a1a1a) 75%) 100%);
+  background-attachment: fixed;
+  background-size: 100% 100vh;
+  background-repeat: no-repeat;
   color: var(--text);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.4;
@@ -256,6 +259,40 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: calc(100vh + 25px);
+  position: relative;
+}
+
+/* Smooth background extension system */
+body::after {
+  content: '';
+  position: fixed;
+  top: 100vh;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent-dark, #2a2a2a) 25%, var(--bg, #1a1a1a) 75%) 0%, var(--bg, #1a1a1a) 100%);
+  z-index: -1;
+  opacity: var(--bg-extension-opacity, 0);
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+/* Ensure smooth background extension on different screen sizes */
+@media (max-width: 768px) {
+  body::after {
+    height: 100vh;
+  }
+  
+  body {
+    background: linear-gradient(180deg, var(--bg, #1a1a1a) 0%, var(--bg, #1a1a1a) 40%, color-mix(in srgb, var(--accent-dark, #2a2a2a) 25%, var(--bg, #1a1a1a) 75%) 100%);
+    background-attachment: fixed;
+  }
+}
+
+@media (min-width: 769px) {
+  body::after {
+    height: 100vh;
+  }
 }
 
 /* Paragraph and List Styling */
