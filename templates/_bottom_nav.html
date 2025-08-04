@@ -1,50 +1,76 @@
 <img src="{{ url_for('static', filename=wordmark_filename) }}" alt="Wordmark" class="wordmark" />
-<div class="bottom-nav">
-  <a href="/onboarding">Join Plex</a>
-  {% if ABS_ENABLED == 'yes' %}
-  <a href="/audiobookshelf">Join Audiobookshelf</a>
-  {% endif %}
-  <a href="/medialists">Media Lists</a>
-  {% if is_admin %}
-  <a href="/services">Admin</a>
-  {% else %}
-  <a href="#" id="admin-login-link">Admin</a>
-  {% endif %}
-</div>
 
-{% if not is_admin %}
-<!-- Admin Password Modal -->
-<div id="admin-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
-  <div style="background:#181818; padding:2em 2.5em; border-radius:12px; box-shadow:0 4px 32px #000a; min-width:320px; max-width:90vw; position:relative;">
-    <button id="close-admin-modal" style="position:absolute; top:-0.5em; right:-0.5em; background:#181818; border:2px solid #444; border-radius:50%; width:2em; height:2em; color:#fff; font-size:1.2em; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,0.3);">&times;</button>
-    <h2 style="margin-top:0;">Admin Login</h2>
-    <form id="admin-login-form" method="POST" action="/login">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <label for="admin-password">Enter Admin Password:</label><br>
-      <input type="password" id="admin-password" name="password" style="margin:1em 0; width:100%; padding:0.5em; border-radius:6px; border:1px solid #444; background:#222; color:#fff;" required><br>
-      <button type="submit" style="padding:0.5em 1.5em; border-radius:6px; background:#a84fff; color:#fff; border:none; font-weight:bold;">Login as Admin</button>
-    </form>
-    <div id="admin-login-error" style="color:#f44; margin-top:1em; display:none;"></div>
+<!-- Desktop Navigation -->
+<nav class="nav-desktop">
+  <a href="/onboarding" class="{% if request.endpoint == 'onboarding' %}active{% endif %}">Join Plex</a>
+  {% if ABS_ENABLED == 'yes' %}
+  <a href="/audiobookshelf" class="{% if request.endpoint == 'audiobookshelf' %}active{% endif %}">Join Audiobookshelf</a>
+  {% endif %}
+  <a href="/medialists" class="{% if request.endpoint == 'medialists' %}active{% endif %}">Media Lists</a>
+  {% if is_admin %}
+  <a href="/services" class="{% if request.endpoint == 'services' %}active{% endif %}">Admin</a>
+  {% else %}
+  <a href="/logout">Log Out</a>
+  {% endif %}
+</nav>
+
+<!-- Mobile Navigation -->
+<nav class="nav-mobile">
+  <div class="nav-mobile-header">
+    <span class="nav-mobile-title">
+      {% if request.endpoint == 'onboarding' %}
+        Join Plex
+      {% elif request.endpoint == 'audiobookshelf' %}
+        Join Audiobookshelf
+      {% elif request.endpoint == 'medialists' %}
+        Media Lists
+      {% elif request.endpoint == 'services' %}
+        Admin
+      {% else %}
+        Menu
+      {% endif %}
+    </span>
+    <button class="nav-mobile-toggle" id="nav-toggle" aria-label="Toggle menu">
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+    </button>
   </div>
-</div>
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    var link = document.getElementById('admin-login-link');
-    var modal = document.getElementById('admin-modal');
-    var closeBtn = document.getElementById('close-admin-modal');
-    if (link && modal && closeBtn) {
-      link.addEventListener('click', function(e) {
-        e.preventDefault();
-        modal.style.display = 'flex';
-        document.getElementById('admin-password').focus();
-      });
-      closeBtn.addEventListener('click', function() {
-        modal.style.display = 'none';
-      });
-      modal.addEventListener('click', function(e) {
-        if (e.target === modal) modal.style.display = 'none';
-      });
-    }
-  });
-</script>
-{% endif %}
+  
+  <div class="nav-mobile-menu" id="nav-menu">
+    <a href="/onboarding" class="nav-mobile-link">Join Plex</a>
+    {% if ABS_ENABLED == 'yes' %}
+    <a href="/audiobookshelf" class="nav-mobile-link">Join Audiobookshelf</a>
+    {% endif %}
+    <a href="/medialists" class="nav-mobile-link">Media Lists</a>
+    {% if is_admin %}
+    <a href="/services" class="nav-mobile-link">Admin</a>
+    {% else %}
+    <a href="/logout" class="nav-mobile-link">Log Out</a>
+    {% endif %}
+    
+    {% if quick_access_services and QUICK_ACCESS_ENABLED == 'yes' %}
+    <div class="nav-mobile-services">
+      {% for service in quick_access_services %}
+        <div class="nav-service-item">
+          <a href="{{ service.url }}" target="_blank" title="{{ service.name }}" class="nav-service-link">
+            <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }}" class="nav-service-icon">
+          </a>
+          <div class="nav-service-label">
+            {% if service.name == "Plex" %}
+              Media
+            {% elif service.name == "Audiobookshelf" %}
+              Books
+            {% elif service.name == "Overseerr" or service.name == "Jellyseerr" %}
+              Request
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</nav>
+
+
+

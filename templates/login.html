@@ -2,20 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>{{ SERVER_NAME }}</title>
-      <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}">
-  <link rel="stylesheet" href="/static/style.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ SERVER_NAME }} - Login</title>
+  <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}">
+  <link rel="stylesheet" href="/static/modern-style.css">
+  <style>
+    :root {
+      --accent-color: {{ ACCENT_COLOR }};
+    }
+  </style>
 </head>
-<body style="display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
-  <div class="container login-container" style="max-width: 100%;">
-    <img src="{{ url_for('static', filename=logo_filename) }}" alt="Logo" style="display: block; margin: 0 auto; max-width: 200px" >
-    <h1 style="text-align: center">Welcome to {{ SERVER_NAME }}!</h1>
-    <form method="POST">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <label for="password">Please enter the password.</label><br>
-      <input type="password" name="password" placeholder="Enter password" required autofocus>
-      <button type="submit">Enter</button>
-    </form>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <img src="{{ url_for('static', filename=logo_filename) }}" alt="Logo" class="login-logo">
+      <h1 class="login-title" style="color: white;">Welcome to {{ SERVER_NAME }}!</h1>
+      <form method="POST" class="login-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="password" name="password" id="password" placeholder="Enter password" required autofocus>
+        <button type="submit" class="login-btn">Enter</button>
+      </form>
+    </div>
   </div>
 </body>
 </html>

@@ -2,381 +2,334 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>{{ SERVER_NAME }}</title>
-      <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}" />
-  <link rel="stylesheet" href="/static/style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ SERVER_NAME }} - Join Plex</title>
+  <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}" />
+  <link rel="stylesheet" href="/static/modern-style.css" />
   <script>
     // Set accent color from environment variable
     document.addEventListener('DOMContentLoaded', function() {
-      const accentColor = '{{ ACCENT_COLOR or "#d33fbc" }}';
+      const accentColor = '{{ ACCENT_COLOR }}';
       document.documentElement.style.setProperty('--accent-color', accentColor);
     });
   </script>
 </head>
 <body>
-    {% include "_bottom_nav.html" %}
+  {% include "_bottom_nav.html" %}
   
   <!-- Fixed bottom-left service icons -->
-  {% if services %}
-    <div style="position: fixed; bottom: 20px; left: 20px; z-index: 1000; background: rgba(0, 0, 0, 0.9); padding: 12px; border-radius: 8px; backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); min-width: 200px;">
-      <div style="margin-bottom: 8px; color: #aaa; font-size: 0.8em; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Quick Access</div>
-      <div style="display: flex; gap: 0.8em; align-items: center; flex-wrap: wrap;">
-        {% for service in services %}
-          <div style="display: flex; flex-direction: column; align-items: center; text-align: center;">
-            <a href="{{ service.url }}" target="_blank" title="{{ service.name }}" style="display: flex; align-items: center; margin-bottom: 4px;">
-              <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" style="width: 28px; height: 28px; border-radius: 6px; filter: brightness(0.9); transition: filter 0.2s ease;" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='brightness(0.9)'">
-            </a>
-            <div style="color: #ccc; font-size: 0.7em; font-weight: 500; max-width: 60px; line-height: 1.2;">
-              {% if service.name == "Plex" %}
-                Media
-              {% elif service.name == "Audiobookshelf" %}
-                Books
-              {% elif service.name == "Tautulli" %}
-                Stats
-              {% elif service.name == "Overseerr" %}
-                Request
-              {% else %}
-                {{ service.name }}
+  {% include "_quick_access_panel.html" %}
+
+    <div class="onboarding-content">
+      <div class="onboarding-section">
+        <h1 class="onboarding-title" style="color: white !important; -webkit-text-fill-color: white !important; background: none !important;">Welcome to Plex!</h1>
+        <p class="onboarding-intro">
+          Plex Media Server (or just <a href="https://support.plex.tv/articles/200288286-what-is-plex/" target="_blank" class="accent">Plex</a>) lets me share my collection of movies and shows with you, just like Netflix, but you don't have to pay. You can watch on your TV, computer, phone, or tablet!
+        </p>
+
+        {% set library_list = carousel_libraries|map(attribute='title')|list %}
+
+        <!-- Single Carousel with Library Selector -->
+        <div class="carousel-section">
+          <div class="poster-carousel-container">
+            <div class="poster-carousel animate" id="main-carousel"></div>
+          </div>
+          
+          <div class="library-selector">
+            <button class="library-tab {% if default_library == 'random-all' %}active{% endif %}" data-library="random-all">🎲 Random All</button>
+            {% for lib in carousel_libraries %}
+              <button class="library-tab {% if default_library == lib.title %}active{% endif %}" data-library="{{ lib.title }}">{{ lib.title }}</button>
+            {% endfor %}
+          </div>
+          
+          {% if not carousel_libraries %}
+          <div class="info-box">
+            <span>ℹ️</span>
+            <span>No library carousels are currently enabled. Please contact the administrator to enable carousels for specific libraries.</span>
+          </div>
+          {% endif %}
+        </div>
+
+        <p class="carousel-note">
+          Random selection of posters from each library. Go <a href="/medialists" class="accent" id="medialists-link">here</a> for the full list. <br>
+          <span class="mobile-only">On mobile, scroll horizontally to browse through posters.</span>
+        </p>
+
+        <h3>Desktop and Mobile UI</h3>
+        <div class="screenshot-section">
+          <img src="{{ url_for('static', filename='homepage.webp') }}" alt="Homepage Example" class="toggle-grow" />
+          <p class="screenshot-caption">Click to enlarge</p>
+        </div>
+      </div>
+
+      <details {% if submitted %}open{% endif %} class="collapsible-section">
+        <summary class="collapsible-heading">1. Get Access</summary>
+          <p>To get started, enter your email below and select what you want access to. Let me know when you're done, and you'll recieve an email or invite link.</p>
+
+          <p class="muted">
+            Note: Please don't share the account you create with others. If you know someone who you think would enjoy having access, let me know. In most cases I'll be happy to add them with their own account.
+          </p>
+          <form method="POST" action="/onboarding" id="onboarding-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+              <label for="email" class="form-label">Email:</label>
+              <input type="email" name="email" id="email" placeholder="Enter email for Plex" required
+                     class="form-input"
+                     {% if submitted %}disabled{% endif %} />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Select Libraries:</label>
+              <div class="library-list">
+                {% for lib in libraries %}
+                  <div class="onboarding-library-item">
+                    <input type="checkbox" name="libraries" value="{{ lib.key }}" id="lib_{{ lib.key }}" {% if submitted %}disabled{% endif %} class="library-checkbox" />
+                    <label for="lib_{{ lib.key }}" class="library-title">
+                      {{ lib.title }}
+                    </label>
+                    <div class="library-id">
+                      {% if library_notes[lib.key|string] and library_notes[lib.key|string]['description'] %}
+                        <span class="muted">{{ library_notes[lib.key|string]['description'] }}</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+              {% if has_music_library %}
+              <p class="music-note">
+                If you picked any audio category, check out Plex's audio app for phones and tablets, Plexamp. You can find a link in "Logging In" below.
+              </p>
               {% endif %}
             </div>
-          </div>
-        {% endfor %}
-      </div>
-    </div>
-  {% endif %}
-  
-  <div class="container">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1em;">
-      <h1 style="margin: 0;">Welcome to Plex!</h1>
-      {% if services %}
-        <div style="display: flex; gap: 0.5em; align-items: center;">
-          {% for service in services %}
-            <a href="{{ service.url }}" target="_blank" title="{{ service.name }}" style="display: flex; align-items: center;">
-              <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" style="width: 24px; height: 24px; border-radius: 4px;">
-            </a>
-          {% endfor %}
-        </div>
-      {% endif %}
-    </div>
-
-    <p class="max-850">
-      Plex Media Server (or just <a href="https://support.plex.tv/articles/200288286-what-is-plex/" target="_blank">Plex</a>) lets me share my collection of movies and shows with you, just like Netflix, but you don't have to pay. You can watch on your TV, computer, phone, or tablet!
-    </p>
-
-    {% set library_list = library_posters.keys()|list %}
-
-    <!-- Single Carousel with Library Selector -->
-    <div class="carousel-row">
-      <div class="poster-carousel-container">
-        <div class="poster-carousel animate" id="main-carousel"></div>
-      </div>
-      
-      <div class="library-selector">
-        <button class="library-tab {% if default_library == 'random-all' %}active{% endif %}" data-library="random-all">🎲 Random All</button>
-        {% for lib_name in library_list %}
-          <button class="library-tab {% if default_library == lib_name %}active{% endif %}" data-library="{{ lib_name }}">{{ lib_name }}</button>
-        {% endfor %}
-      </div>
-    </div>
-
-    <p class="muted" style="margin-top: 1em; text-align: center; color: #aaa;">
-      Random selection of posters from each library. Go <a href="/medialists" class="accent">here</a> for the full list.
-    </p>
-
-    <img src="{{ url_for('static', filename='homepage.webp') }}" alt="Homepage Example" class="toggle-grow" />
-
-    <p class="muted">
-      Click to enlarge (Zoom on mobile)
-    </p>
-  </div>
-  <div class="container">
-    <details {% if submitted %}open{% endif %}>
-      <summary class="collapsible-heading">1. Get Access</summary>
-      <div style="margin-left: 1em;">
-        <p>To get started, enter your email below and select what you want access to. Let me know when you're done, and you'll recieve an email or invite link.</p>
-
-        <p class="muted">
-          Note: Please don't share the account you create with others. If you know someone who you think would enjoy having access, let me know. In most cases I'll be happy to add them with their own account.
-        </p>
-        <form method="POST" action="/onboarding" id="onboarding-form">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <label for="email">Email:</label><br>
-          <input type="email" name="email" placeholder="Enter email for Plex" required
-                 class="max-300"
-                 {% if submitted %}disabled{% endif %} />
-          <div class="text-left max-800" style="margin: 1em 0;">
-            <div class="library-table-container">
-              <table class="library-table">
-                <tbody>
-                  {% for lib in libraries %}
-                    <tr>
-                      <td class="lib-checkbox">
-                        <input type="checkbox" name="libraries" value="{{ lib.key }}" {% if submitted %}disabled{% endif %} />
-                      </td>
-                      <td class="lib-title">
-                        {{ lib.title }}
-                      </td>
-                      <td class="lib-desc">
-                        {% if library_notes[lib.key|string] and library_notes[lib.key|string]['description'] %}
-                          <span class="muted">{{ library_notes[lib.key|string]['description'] }}</span>
-                        {% endif %}
-                      </td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
-            </div>
-            {% if has_music_library %}
-            <p>
-              If you picked any audio category, check out Plex's audio app for phones and tablets, Plexamp. You can find a link in "Logging In" below.
-            </p>
-            {% endif %}
-          </div>
-          
-          <!-- Explicit content checkbox temporarily hidden
-          <div style="margin: 1em 0;">
-            <label class="onboard-checkbox-label">
-              <input type="checkbox" name="explicit_content" value="yes" {% if submitted %}disabled{% endif %} />
-              <span>I would like access to explicit content (R-rated movies, mature shows, etc.)</span>
-            </label>
-            <div style="margin-left: 1.5em; color: #888; font-size: 0.9em;">
-              This includes movies and shows with mature themes, violence, or adult content.
-            </div>
-          </div>
-          -->
-          
-          <button type="submit" {% if submitted %}disabled{% endif %}>Submit</button>
-        </form>
-        
-        <div style="margin: 1.5em 0; padding: 1em; background: #2a2a2a; border-radius: 0.5em; border-left: 4px solid #f6b900;">
-          <p style="margin: 0; color: #f6b900; font-weight: bold;">⚠️ Content Disclaimer</p>
-          <p style="margin: 0.5em 0 0 0; color: #aaa; font-size: 0.95em;">
-            Some content in this media library may not be suitable for all ages. The server owner is not responsible for the content available through this service. Users are responsible for their own viewing choices and should exercise appropriate discretion.
-          </p>
-        </div>
-        
-        <div id="onboarding-success" style="display:none;">
-          <p class="accent" style="font-weight: bold; margin-top: 1em;">
-            Thanks! Your request has been submitted.
-          </p>
-        </div>
-      </div>
-    </details>
-  </div>
-  <div class="container">
-    <details>
-      <summary class="collapsible-heading">2. Logging In</summary>
-      <div style="margin-left: 1em;">
-        <p>
-          Once you get the invite, go ahead and make a Plex account, and download the app on your device. 
-        </p>
-        <p>
-          <a href="https://www.plex.tv/media-server-downloads/?cat=plex+desktop&plat=windows#plex-app" target="_blank">Here</a> is a link to a list of compatible devices with download links.
-        </p>
-        <p>
-         You can also access it via web browser on desktop at <a href="https://app.plex.tv/" target="_blank">app.plex.tv</a> to try it out, but I'd prefer if you use the standalone Windows or Mac app. 
-        </p>
-      </div>
-    </details>
-  </div>
-  <div class="container">
-    <details>
-      <summary class="collapsible-heading">3. First Time Setup</summary>
-      <div style="margin-left: 1em;">    
-        <p>
-          While Plex is generally easy to use, there are some important settings to change the first time you use it.
-        </p>
-
-        <p>
-          First is the removal of Live TV content provided by Plex. This content has ads and clutters the home page on some devices.
-        </p>
-
-        <p>
-          To change this setting, use the web or desktop app versions of Plex.
-        </p>
-
-        <figure style="width: 100%; margin: 0 0 1em 0;">
-          <img src="{{ url_for('static', filename='newuser1.webp') }}" alt="New User Screenshot" class="toggle-grow" />
-          <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
-            Go to "Online Media Sources"
-          </figcaption>
-        </figure>
-        
-        <figure style="width: 100%; margin: 0 0 1em 0;">
-          <img src="{{ url_for('static', filename='onlinemedia.webp') }}" alt="Online Media Setting" class="toggle-grow" />
-          <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
-            Disable Live TV, Movies & Shows, and Other Streaming Availability. The others can stay as-is.
-          </figcaption>
-        </figure>
-        
-       
-        <p>
-          You can poke around in the account settings and change things in the other tabs too.	
-        </p>
-
-        <p>
-          Next is to increase streaming quality. Check out <a href="https://mediaclients.wiki/Plex" target="_blank">this</a> handy guide for getting the best quality stream.
-    </p>
-
-        <p>
-          If you don't want to read all that, here's the general flow (must be done on every device):
-        </p>
-        <ul class="text-left max-800" style="margin: 1em 0;">
-          <li>Open Plex settings</li>
-          <li>Find Video or Quality settings</li>
-          <li>Disable any Automatic adjustments</li>
-          <li>Change streaming quality to Maximum</li>
-          <li>Enable Direct Play/Direct Stream</li>
-        </ul>
-
-        <p>
-          Note: If you're a nerd and want the best possible Plex experience on your TV, I reccomend one of these: 
-        </p>
-        <ul class="text-left max-800" style="margin: 1em 0;">
-          <li>Nvidia Shield Pro (2019) – plays nearly everything flawlessly, best overall.</li>
-          <li>Apple TV 4K (3rd Gen) – nearly as good, faster UI, only lacks full TRUEHD passthrough.</li>
-          <li>FireTV Cube (3rd Gen) – smooth UI, but has DTS playback issues.</li>
-        </ul>
-        <p>
-        Not required unless you notice problems on your current TV device or want the best playback quality.
-        </p>
-      </div>
-    </details>
-  </div>
-  <div class="container">
-    <details>
-      <summary class="collapsible-heading">4. Pinning/Favoriting Libraries</summary>
-      <div style="margin-left: 1em;">
-    
-        <h3>Desktop</h3>
-        <p>
-          Once those settings have been changed, click the home button in the top left (on desktop) and you'll be taken to the page where all the magic happens.
-        </p>
-    
-        <figure style="width: 100%; margin: 0 0 1em 0;">
-          <img src="{{ url_for('static', filename='sidemore.webp') }}" alt="Sidebar" class="toggle-grow" />
-          <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
-            Click "More" at the bottom.
-          </figcaption>
-        </figure>
-    
-             <figure style="width: 100%; margin: 0 0 1em 0;">
-              <img src="{{ url_for('static', filename='unpin.webp') }}" alt="Unpinning" class="toggle-grow" />
-              <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
-                Unpin Playlists, Live TV, Movies & Shows, and Rentals. Make sure my sections at the top are pinned.
-              </figcaption>
-            </figure>
             
-    
-        <h3>Mobile/Tablet</h3>
-    
-        <figure style="width: 100%; margin: 0 0 1em 0;">
-          <img src="{{ url_for('static', filename='mobilehome.webp') }}" alt="Mobile Home Screen" class="toggle-grow" />
-          <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
-            Press and hold "Libraries", go to the all libraries menu, and favorite everything there.
-          </figcaption>
-        </figure>
-        
-    
-        <p>
-          And you're all set! Browse through my libraries, check out my movie collections (separate tab in Movies library), or put on a comfort show and go to sleep. If you ever want a show or movie that I don't have, see "Requests" below.
-        </p>
+            <div class="submit-section">
+              <button type="submit" class="submit-btn" {% if submitted %}disabled{% endif %}>Submit</button>
+            </div>
+          </form>
+          
+          <div class="warning-box">
+            <span>⚠️</span>
+            <div>
+              <strong>Content Disclaimer</strong><br>
+              Some content on my Plex may not be suitable for all ages. I am not responsible for the content available. Users are responsible for their own viewing choices and should exercise appropriate discretion.
+            </div>
+          </div>
+          
+          <div id="onboarding-success" style="display:none;">
+            <div class="info-box">
+              <span>✅</span>
+              <span><strong>Thanks! Your request has been submitted.</strong></span>
+            </div>
+          </div>
+      </details>
 
-        <img src="{{ url_for('static', filename='screens.webp') }}"
-        alt="Screens"
-        class="toggle-grow" />
-    
-      </div>
-    </details>
-  </div>
-  {% if pulsarr_enabled or overseerr_enabled %}
-  <div class="container">
-    <details>
-      <summary class="collapsible-heading">5. Requests</summary>
-      <div style="margin-left: 1em;">
-        {% if pulsarr_enabled %}
-        <h3>Plex Watchlist Requests</h3>
-        <p>
-          Through some technomancy, requesting movies and shows you want is pretty easy.
-        </p>
-        <p>
-          We have to be "friends" on Plex (different than adding you to my server) for this feature to work so tell me to do that first before you request anything.
-        </p>
-        <p class="accent">
-          Note: This feature does not work for new movies currently in theaters. Anything older or already on streaming services should be available.
-        </p>
-        <ul class="text-left max-800" style="margin: 1em 0;">
-          <li>Go to the search bar or search menu</li>
-          <li>Enable "More Ways to Watch" if not already enabled</li>
-          <li>Search for the media you want</li>
-          <li>Click the "Add to watchlist" icon</li>
-        </ul>
-        <figure style="width: 100%; margin: 0 0 1em 0;">
-          <img src="{{ url_for('static', filename='watchlist.webp') }}" alt="Watchlist" class="toggle-grow" />
-          <figcaption class="caption" style="margin-top: 0.25em; margin-bottom: 1em; text-align: center;">
-            Desktop Example
-          </figcaption>
-        </figure>
-        <p>
-          Movies should show up in less than 30 minutes. Shows can take longer. The first season will show up to start, and others as you watch. If it's a show that's airing now and you want a more recent season, let me know.
-        </p>
-        <p class="accent">
-          Be nice to my hard drives, don't request too much!
-        </p>
-        <h3>Notifications</h3>
-        <p>
-          If I added you as a friend, you can receive notifications on phones and tablets when your Watchlisted media is available. For shows, this only applies when it is added for the first time.{% if tautulli_enabled %} For per-episode notifications about currently airing shows, ask me about my Discord.{% endif %}
-        </p>
-        <ul class="text-left max-800" style="margin: 1em 0;">
-          <li>Make sure notifications are enabled for Plex on your phone (Settings app)</li>
-          <li>Go to settings in Plex > Notifications</li>
-          <li>Turn off anything you'd like in Plex News, Friends, Discover, Live TV</li>
-          <li>Scroll down to Personal Media > New Content Added to Library</li>
-          <li>Set the toggles to how they look below (all off except for top one)</li>
-        </ul>
-        <img src="{{ url_for('static', filename='notifs.webp') }}"
-             alt="Notification Settings"
-             class="toggle-grow" />
-        {% endif %}
-        {% if overseerr_enabled %}
-        <h3>Overseerr Requests</h3>
-        <p>
-          You can request movies and shows directly using Overseerr. Click the link below to open the request page:
-        </p>
-        <p>
-          <a href="{{ overseerr_url }}" target="_blank" class="accent">Open Overseerr</a>
-        </p>
-        <p class="muted">
-          Requests made here will be sent to the admin for approval and processing.
-        </p>
-        {% endif %}
-      </div>
-    </details>
-  </div>
-  {% endif %}
-  <div class="container">
-    <details>
-      <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled %}6{% else %}5{% endif %}. Issues</summary>
-      <div style="margin-left: 1em;">
-    
-        <p>
-          If you have issues playing a specific piece of media, or it has bad subs, you can report it through Plex or just tell me.
-        </p>
-    
-        <img src="{{ url_for('static', filename='issue.webp') }}"
-             alt="Report Issue"
-             class="toggle-grow" />
-    
-      </div>
-    </details>
-  </div>
-  <div class="container">
-    <details>
-      <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled %}7{% else %}6{% endif %}. The End</summary>
-      <div style="margin-left: 1em;">
-        {% include "onboarding_section7.html" %}
-      </div>
-    </details>
+      <details class="collapsible-section">
+        <summary class="collapsible-heading">2. Logging In</summary>
+          <p>
+            Once you get the invite, go ahead and make a Plex account, then download the app on your device. 
+          </p>
+          <p>
+            <a href="https://www.plex.tv/media-server-downloads/?cat=plex+desktop&plat=windows#plex-app" target="_blank" class="accent">Here</a> is a link to a list of compatible devices with download links. Most smart TVs have a Plex app.
+          </p>
+          <p>
+           You can also access it via web browser on desktop at <a href="https://app.plex.tv/" target="_blank" class="accent">app.plex.tv</a> to try it out, but I'd prefer if you use the standalone Windows or Mac app. 
+          </p>
+
+          <h3>Login Screenshots</h3>
+          <div class="screenshot-section">
+            <img src="{{ url_for('static', filename='plexlogin.webp') }}" alt="Login Examples" class="toggle-grow" />
+          </div>
+      </details>
+
+      <details class="collapsible-section">
+        <summary class="collapsible-heading">3. First Time Setup</summary>
+          <p>
+            Plex is pretty easy to use, but there are  important settings to change the first time you open it up.
+          </p>
+
+          <p>
+            First is the removal of Live TV content provided by Plex. This content has ads and clutters the home page on some devices.
+          </p>
+
+          <p>
+            To change this setting, use the web or desktop app versions of Plex.
+          </p>
+
+          <div class="screenshot-section">
+            <img src="{{ url_for('static', filename='newuser1.webp') }}" alt="New User Screenshot" class="toggle-grow" />
+            <p class="screenshot-caption">Go to "Online Media Sources"</p>
+          </div>
+          
+          <div class="screenshot-section">
+            <img src="{{ url_for('static', filename='onlinemedia.webp') }}" alt="Online Media Setting" class="toggle-grow" />
+            <p class="screenshot-caption">Disable Live TV, Movies & Shows, and Other Streaming Availability. The others can stay as-is.</p>
+          </div>
+          
+          <p>
+            You can poke around in the account settings (I recommend you turn on automatic login) and change things in the other tabs too.
+          </p>
+
+          <hr class="section-divider">
+
+          <p>
+            Next is to increase streaming quality. Check out <a href="https://mediaclients.wiki/Plex" target="_blank" class="accent">this</a> handy guide for getting the best quality stream.
+          </p>
+
+          <p>
+            If you don't want to read all that, here's the general flow (must be done on every device):
+          </p>
+          <ul class="text-left max-800">
+            <li>Open Plex settings</li>
+            <li>Find Video or Quality settings</li>
+            <li>Disable any Automatic adjustments</li>
+            <li>Change streaming quality to Maximum</li>
+            <li>Enable Direct Play/Direct Stream</li>
+          </ul>
+
+          <hr class="section-divider">
+
+          <p>
+            If you're a nerd and want the best possible Plex experience on your TV, I reccomend one of these: 
+          </p>
+          <ul class="text-left max-800">
+            <li><a href="https://www.amazon.com/s?k=Nvidia+Shield+Pro+%282019%29" target="_blank" class="accent">Nvidia Shield Pro (2019)</a> – plays nearly everything flawlessly, best overall</li>
+            <li><a href="https://www.amazon.com/s?k=Apple+TV+4K+%283rd+Gen%29&crid=28HVITCEYC8GN&sprefix=apple+tv+4k+3rd+gen+%2Caps%2C169&ref=nb_sb_noss_2" target="_blank" class="accent">Apple TV 4K (3rd Gen)</a> – nearly as good, faster UI, only lacks full TRUEHD passthrough</li>
+            <li><a href="https://www.amazon.com/s?k=FireTV+Cube+%283rd+Gen%29&crid=3KR2YPPAK6S5K&sprefix=firetv+cube+3rd+gen+%2Caps%2C128&ref=nb_sb_noss_2" target="_blank" class="accent">FireTV Cube (3rd Gen)</a> – smooth UI, but has DTS playback issues</li>
+          </ul>
+          <p>
+          Not needed unless you have problems on your current TV or want the absolute best playback quality.
+          </p>
+      </details>
+
+      <details class="collapsible-section">
+        <summary class="collapsible-heading">4. Pinning Libraries</summary>
+      
+          <h3>Desktop</h3>
+          <p>
+            Once those settings have been changed, click the home button in the top left and you'll be taken to the page where all the magic happens.
+          </p>
+      
+          <div class="screenshot-section">
+            <img src="{{ url_for('static', filename='sidemore.webp') }}" alt="Sidebar" class="toggle-grow" />
+            <p class="screenshot-caption">Click "More" at the bottom.</p>
+          </div>
+      
+          <div class="screenshot-section">
+            <img src="{{ url_for('static', filename='unpin.webp') }}" alt="Unpinning" class="toggle-grow" />
+            <p class="screenshot-caption">Unpin Playlists, Live TV, Movies & Shows, and Rentals. Make sure my sections at the top are pinned.</p>
+          </div>
+              
+          <h3>Mobile/Tablet</h3>
+      
+          <div class="screenshot-section">
+            <img src="{{ url_for('static', filename='mobilehome.webp') }}" alt="Mobile Home Screen" class="toggle-grow" />
+            <p class="screenshot-caption">Press and hold "Libraries", go to the all libraries menu, and favorite everything there.</p>
+          </div>
+          
+          <p>
+            And you're all set! Browse through my libraries, check out my movie collections (separate tab in Movies library), or put on a comfort show and go to sleep. If you ever want a show or movie that I don't have, see "Requests" below.
+          </p>
+
+          <div class="screenshot-section">
+            <img src="{{ url_for('static', filename='screens.webp') }}" alt="Screens" class="toggle-grow" />
+          </div>
+      
+      </details>
+
+      {% if pulsarr_enabled or overseerr_enabled or jellyseerr_enabled %}
+      <details class="collapsible-section">
+        <summary class="collapsible-heading">5. Requests</summary>
+          {% if pulsarr_enabled %}
+          <h3>Plex Watchlist Requests</h3>
+          <p>
+            Through some technomancy, requesting movies and shows you want is pretty easy.
+          </p>
+          <p>
+            We have to be "friends" on Plex (different than adding you to my server) for this feature to work so tell me to do that first before you request anything.
+          </p>
+          <p class="accent">
+            Note: This feature does not work for new movies currently in theaters. Anything older or already on streaming services should be available.
+          </p>
+          <ul class="text-left max-800">
+            <li>Go to the search bar or search menu</li>
+            <li>Enable "More Ways to Watch" if not already enabled</li>
+            <li>Search for the media you want</li>
+            <li>Click the "Add to watchlist" icon</li>
+          </ul>
+          <div class="screenshot-section">
+            <img src="{{ url_for('static', filename='watchlist.webp') }}" alt="Watchlist" class="toggle-grow" />
+            <p class="screenshot-caption">Click to enlarge</p>
+          </div>
+          <p>
+            Movies should show up in less than 30 minutes. Shows can take longer. The first season will show up to start, and others as you watch. If it's a show that's airing now and you want a more recent season, let me know.
+          </p>
+          <p class="accent">
+            Be nice to my hard drives, don't request too much!
+          </p>
+          <h3>Notifications</h3>
+          <p>
+            If I added you as a friend, you can receive notifications on phones and tablets when your Watchlisted media is available. For shows, this only applies when it is added for the first time.{% if tautulli_enabled %} For per-episode notifications about currently airing shows, ask me about my Discord.{% endif %}
+          </p>
+          <ul class="text-left max-800">
+            <li>Make sure notifications are enabled for Plex on your phone (Settings app)</li>
+            <li>Go to settings in Plex > Notifications</li>
+            <li>Turn off anything you'd like in Plex News, Friends, Discover, Live TV</li>
+            <li>Scroll down to Personal Media > New Content Added to Library</li>
+            <li>Set the toggles to how they look below (all off except for top one)</li>
+          </ul>
+          <div class="screenshot-section">
+            <img src="{{ url_for('static', filename='notifs.webp') }}" alt="Notification Settings" class="toggle-grow" />
+          </div>
+          {% endif %}
+          {% if overseerr_enabled %}
+          <h3>Overseerr Requests</h3>
+          <p>
+            You can request movies and shows directly using Overseerr.
+          </p>
+          <p>
+            Click the link below to open the request page:
+          </p>
+          <p>
+            <a href="{{ overseerr_url }}" target="_blank" class="accent">Open Overseerr</a>
+          </p>
+          <p class="muted">
+            Requests made here will be sent to me for approval and processing.
+          </p>
+          {% endif %}
+          {% if jellyseerr_enabled %}
+          <h3>Jellyseerr Requests</h3>
+          <p>
+            You can request movies and shows directly using Jellyseerr.
+          </p>
+          <p>
+            Click the link below to open the request page:
+          </p>
+          <p>
+            <a href="{{ jellyseerr_url }}" target="_blank" class="accent">Open Jellyseerr</a>
+          </p>
+          <p class="muted">
+            Requests made here will be sent to me for approval and processing.
+          </p>
+          {% endif %}
+      </details>
+      {% endif %}
+
+      <details class="collapsible-section">
+        <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled or jellyseerr_enabled %}6{% else %}5{% endif %}. Issues</summary>
+      
+          <p>
+            If you have issues playing a specific piece of media, find a movie or episode with bad subs, or any other issues, you can report it through Plex or just tell me.
+          </p>
+      
+          <div class="screenshot-section">
+            <img src="{{ url_for('static', filename='issue.webp') }}" alt="Report Issue" class="toggle-grow" />
+          </div>
+      </details>
+
+      <details class="collapsible-section">
+        <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled or jellyseerr_enabled %}7{% else %}6{% endif %}. The End</summary>
+          {% include "onboarding_section7.html" %}
+      </details>
+    </div>
   </div>
 
   <script>
@@ -451,6 +404,82 @@
       // Track current library
       let currentLibrary = null;
       
+      // Library selector scrollbar hiding functionality
+      const librarySelector = document.querySelector('.library-selector');
+      if (librarySelector) {
+        let hasScrolled = false;
+        let scrollTimeout;
+        
+        // Function to check if library selector should be centered
+        const checkLibrarySelectorCentering = () => {
+          if (librarySelector.scrollWidth <= librarySelector.clientWidth) {
+            librarySelector.classList.add('centered');
+          } else {
+            librarySelector.classList.remove('centered');
+          }
+        };
+        
+        // Check centering on load and resize
+        checkLibrarySelectorCentering();
+        window.addEventListener('resize', checkLibrarySelectorCentering);
+        
+        // Scrollbar fade functionality
+        let hasInteracted = false;
+        let fadeTimeout;
+        
+        // Add scrolling class when user scrolls
+        librarySelector.addEventListener('scroll', () => {
+          hasInteracted = true;
+          librarySelector.classList.add('scrolling');
+          
+          // Add fade class after first interaction
+          librarySelector.classList.add('scrollbar-faded');
+          
+          // Clear existing timeout
+          if (fadeTimeout) {
+            clearTimeout(fadeTimeout);
+          }
+          
+          // Remove scrolling class after 2 seconds of no scrolling
+          fadeTimeout = setTimeout(() => {
+            if (!librarySelector.matches(':hover')) {
+              librarySelector.classList.remove('scrolling');
+            }
+          }, 2000);
+        });
+        
+        // Show scrollbar on hover
+        librarySelector.addEventListener('mouseenter', () => {
+          if (hasInteracted) {
+            librarySelector.classList.remove('scrollbar-faded');
+          }
+        });
+        
+        // Hide scrollbar when leaving (if already interacted)
+        librarySelector.addEventListener('mouseleave', () => {
+          if (hasInteracted) {
+            librarySelector.classList.add('scrollbar-faded');
+          }
+        });
+
+      }
+      
+      // Helper function to extract title from poster URL
+      function getTitleFromPosterUrl(posterUrl) {
+        // Extract filename from URL and clean it up for display
+        const filename = posterUrl.split('/').pop();
+        if (!filename) return 'Unknown Title';
+        
+        // Remove file extension
+        const nameWithoutExt = filename.replace(/\.(webp|jpg|jpeg|png)$/i, '');
+        
+        // Replace underscores and hyphens with spaces
+        const cleanName = nameWithoutExt.replace(/[_-]/g, ' ');
+        
+        // Capitalize first letter of each word
+        return cleanName.replace(/\b\w/g, l => l.toUpperCase());
+      }
+      
       // Load initial carousel with default library
       const defaultLibrary = '{{ default_library }}';
       const defaultTab = document.querySelector(`.library-tab[data-library="${defaultLibrary}"]`);
@@ -463,6 +492,12 @@
         console.log(`Loading carousel with ${defaultLibrary}`);
         currentLibrary = defaultLibrary;
         loadCarousel('main-carousel', defaultLibrary);
+      } else if (Object.keys(libraryPosters).length === 0) {
+        // No libraries available, show message
+        const carousel = document.getElementById('main-carousel');
+        if (carousel) {
+          carousel.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 200px; color: #888;">No library carousels are currently enabled.</div>';
+        }
       }
       
       function loadCarousel(carouselId, library) {
@@ -483,6 +518,12 @@
         // Clear existing content
         carousel.innerHTML = '';
         carousel.style.transform = 'translateX(0px)';
+        
+        // Reset scroll position for mobile
+        const container = carousel.parentElement;
+        if (container) {
+          container.scrollLeft = 0;
+        }
         
         // Show loading state
         carousel.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 200px; color: #888;">Loading posters...</div>';
@@ -544,39 +585,61 @@
         }
         
         // Function to add posters to carousel
-        function addPostersToCarousel(posters, imdbIds, lastfmUrls) {
+        function addPostersToCarousel(posters, imdbIds, lastfmUrls, titles) {
+          console.log('Adding posters to carousel:', posters.length);
           // Clear loading state
           carousel.innerHTML = '';
           
           if (posters.length === 0) {
             carousel.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 200px; color: #888;">No posters available for this library</div>';
+            console.log('No posters available');
             return;
           }
           
           posters.forEach((poster, index) => {
             const imdbId = imdbIds[index];
             const lastfmUrl = lastfmUrls ? lastfmUrls[index] : null;
+            const title = titles ? titles[index] : getTitleFromPosterUrl(poster);
             
             let imgElement;
             if (lastfmUrl) {
               // If it's a music artist, link to Last.fm
-              imgElement = `<a href="${lastfmUrl}" target="_blank"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>`;
+              imgElement = `<a href="${lastfmUrl}" target="_blank" class="accent" title="${title}"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy" style="opacity: 0; transition: opacity 0.3s ease;"></a>`;
             } else if (imdbId) {
               // If it has IMDB ID, link to IMDB
-              imgElement = `<a href="https://www.imdb.com/title/${imdbId}" target="_blank"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>`;
+              imgElement = `<a href="https://www.imdb.com/title/${imdbId}" target="_blank" class="accent" title="${title}"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy" style="opacity: 0; transition: opacity 0.3s ease;"></a>`;
             } else {
-              // No link
-              imgElement = `<img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy">`;
+              // No link - add hover tooltip with title
+              imgElement = `<img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy" title="${title}" style="opacity: 0; transition: opacity 0.3s ease;">`;
             }
             
             carousel.insertAdjacentHTML('beforeend', imgElement);
           });
           
+          // Set up image loading handlers for opacity transitions
+          const imgs = carousel.querySelectorAll('img');
+          imgs.forEach(img => {
+            if (img.complete) {
+              // Image is already loaded
+              img.style.opacity = '1';
+            } else {
+              // Image is still loading
+              img.addEventListener('load', () => {
+                img.style.opacity = '1';
+              });
+              img.addEventListener('error', () => {
+                // Handle failed image loads
+                console.log('Image failed to load:', img.src);
+              });
+            }
+          });
+          
           console.log(`Added ${posters.length} new posters for ${library}`);
+          console.log('Carousel now has', carousel.children.length, 'children');
         }
         
         // Function to append posters to the end of carousel (out of view)
-        function appendPostersToCarousel(posters, imdbIds, lastfmUrls) {
+        function appendPostersToCarousel(posters, imdbIds, lastfmUrls, titles, updateObserver = null) {
           if (posters.length === 0) {
             return;
           }
@@ -584,24 +647,53 @@
           posters.forEach((poster, index) => {
             const imdbId = imdbIds[index];
             const lastfmUrl = lastfmUrls ? lastfmUrls[index] : null;
+            const title = titles ? titles[index] : getTitleFromPosterUrl(poster);
             
             let imgElement;
             if (lastfmUrl) {
               // If it's a music artist, link to Last.fm
-              imgElement = `<a href="${lastfmUrl}" target="_blank"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>`;
+              imgElement = `<a href="${lastfmUrl}" target="_blank" class="accent" title="${title}"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy" style="opacity: 0; transition: opacity 0.3s ease;"></a>`;
             } else if (imdbId) {
               // If it has IMDB ID, link to IMDB
-              imgElement = `<a href="https://www.imdb.com/title/${imdbId}" target="_blank"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy"></a>`;
+              imgElement = `<a href="https://www.imdb.com/title/${imdbId}" target="_blank" class="accent" title="${title}"><img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy" style="opacity: 0; transition: opacity 0.3s ease;"></a>`;
             } else {
-              // No link
-              imgElement = `<img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy">`;
+              // No link - add hover tooltip with title
+              imgElement = `<img src="${poster}" class="carousel-img" alt="${library} poster" loading="lazy" title="${title}" style="opacity: 0; transition: opacity 0.3s ease;">`;
             }
             
             carousel.insertAdjacentHTML('beforeend', imgElement);
           });
           
+          // Set up image loading handlers for opacity transitions
+          const imgs = carousel.querySelectorAll('img');
+          imgs.forEach(img => {
+            if (img.complete) {
+              // Image is already loaded
+              img.style.opacity = '1';
+            } else {
+              // Image is still loading
+              img.addEventListener('load', () => {
+                img.style.opacity = '1';
+              });
+              img.addEventListener('error', () => {
+                // Handle failed image loads
+                console.log('Image failed to load:', img.src);
+              });
+            }
+          });
+          
           // Update carousel width after adding new posters
           updateWidth();
+          
+          // Update intersection observer to watch the new last 4 images
+          if (updateObserver) {
+            try {
+              updateObserver();
+            } catch (error) {
+              console.error('Error updating intersection observer:', error);
+            }
+          }
+          
           console.log(`Appended ${posters.length} new posters to carousel for ${library}`);
         }
         
@@ -629,12 +721,12 @@
         // Function to ensure minimum posters in carousel
         function ensureMinimumPosters() {
           const currentPosters = carousel.children.length;
-          if (currentPosters < 5) {
+          if (currentPosters < 8) { // Increased minimum threshold
             console.log(`Only ${currentPosters} posters left, adding more...`);
             // Try to load more posters
-            fetchRandomPosters(5).then(data => {
+            fetchRandomPosters(10).then(data => { // Load more at once
               if (data.posters.length > 0) {
-                appendPostersToCarousel(data.posters, data.imdb_ids);
+                appendPostersToCarousel(data.posters, data.imdb_ids, [], data.titles || [], updateObserver);
               } else {
                 // If AJAX fails, try fallback data
                 if (library === 'random-all') {
@@ -651,20 +743,20 @@
                   if (allPosters.length > 0) {
                     // Get random selection from all posters
                     const indices = [];
-                    for (let i = 0; i < Math.min(5, allPosters.length); i++) {
+                    for (let i = 0; i < Math.min(10, allPosters.length); i++) {
                       indices.push(Math.floor(Math.random() * allPosters.length));
                     }
                     const nextBatch = indices.map(i => allPosters[i]);
                     const nextImdbIds = indices.map(i => allImdbIds[i] || null);
-                    appendPostersToCarousel(nextBatch, nextImdbIds);
+                    appendPostersToCarousel(nextBatch, nextImdbIds, [], [], updateObserver);
                   }
                 } else if (libraryPosters[library] && libraryPosters[library].length > 0) {
                   const posters = libraryPosters[library];
                   const imdbIds = posterImdbIds[library] || [];
-                  const nextBatch = posters.slice(0, 5);
-                  const nextImdbIds = imdbIds.slice(0, 5);
+                  const nextBatch = posters.slice(0, 10);
+                  const nextImdbIds = imdbIds.slice(0, 10);
                   if (nextBatch.length > 0) {
-                    appendPostersToCarousel(nextBatch, nextImdbIds);
+                    appendPostersToCarousel(nextBatch, nextImdbIds, [], [], updateObserver);
                   }
                 }
               }
@@ -676,17 +768,31 @@
         
         // Load initial posters
         fetchRandomPosters(15).then(data => {
+          console.log('Fetched initial posters:', data.posters.length);
           if (data.posters.length > 0) {
-            addPostersToCarousel(data.posters, data.imdb_ids, data.lastfm_urls);
+            addPostersToCarousel(data.posters, data.imdb_ids, data.lastfm_urls, data.titles);
+            console.log('Added initial posters, carousel children:', carousel.children.length);
             
-            // Start animation immediately
-            setupInfiniteCarousel(carousel, async () => {
-              // Load more random posters when needed
-              const newData = await fetchRandomPosters(5);
-              if (newData.posters.length > 0) {
-                appendPostersToCarousel(newData.posters, newData.imdb_ids, newData.lastfm_urls);
+            // Wait a moment for images to load, then start animation
+            setTimeout(() => {
+              console.log('Starting animation after delay, carousel children:', carousel.children.length);
+              const updateObserver = setupInfiniteCarousel(carousel, async () => {
+                // Load more random posters when needed
+                const newData = await fetchRandomPosters(5);
+                if (newData.posters.length > 0) {
+                  appendPostersToCarousel(newData.posters, newData.imdb_ids, newData.lastfm_urls, newData.titles, updateObserver);
+                }
+              });
+              
+              // Setup intersection observer for the initial posters
+              if (updateObserver) {
+                try {
+                  updateObserver();
+                } catch (error) {
+                  console.error('Error setting up intersection observer:', error);
+                }
               }
-            });
+            }, 500);
           } else {
             // Fallback to original library_posters data if AJAX fails
             console.log('AJAX failed, using fallback data for', library);
@@ -710,10 +816,10 @@
                 const initialPosters = indices.map(i => allPosters[i]);
                 const initialImdbIds = indices.map(i => allImdbIds[i] || null);
                 
-                addPostersToCarousel(initialPosters, initialImdbIds, []);
+                addPostersToCarousel(initialPosters, initialImdbIds, [], []);
                 
                 // Start animation with fallback loading
-                setupInfiniteCarousel(carousel, () => {
+                const updateObserver = setupInfiniteCarousel(carousel, () => {
                   // Load more random posters
                   const nextIndices = [];
                   for (let i = 0; i < Math.min(5, allPosters.length); i++) {
@@ -722,11 +828,20 @@
                   const nextBatch = nextIndices.map(i => allPosters[i]);
                   const nextImdbIds = nextIndices.map(i => allImdbIds[i] || null);
                   if (nextBatch.length > 0) {
-                    appendPostersToCarousel(nextBatch, nextImdbIds, []);
+                    appendPostersToCarousel(nextBatch, nextImdbIds, [], [], updateObserver);
                   }
                 });
+                
+                // Setup intersection observer for the initial posters
+                if (updateObserver) {
+                  try {
+                    updateObserver();
+                  } catch (error) {
+                    console.error('Error setting up intersection observer:', error);
+                  }
+                }
               } else {
-                addPostersToCarousel([], [], []);
+                addPostersToCarousel([], [], [], []);
               }
             } else if (libraryPosters[library] && libraryPosters[library].length > 0) {
               const posters = libraryPosters[library];
@@ -736,18 +851,27 @@
               const initialPosters = posters.slice(0, 15);
               const initialImdbIds = imdbIds.slice(0, 15);
               
-              addPostersToCarousel(initialPosters, initialImdbIds, []);
+              addPostersToCarousel(initialPosters, initialImdbIds, [], []);
               
               // Start animation with fallback loading
-              setupInfiniteCarousel(carousel, () => {
+              const updateObserver = setupInfiniteCarousel(carousel, () => {
                 // Load more from original data
                 const currentCount = carousel.children.length;
                 const nextBatch = posters.slice(currentCount, currentCount + 5);
                 const nextImdbIds = imdbIds.slice(currentCount, currentCount + 5);
                 if (nextBatch.length > 0) {
-                  appendPostersToCarousel(nextBatch, nextImdbIds, []);
+                  appendPostersToCarousel(nextBatch, nextImdbIds, [], []);
                 }
               });
+              
+              // Setup intersection observer for the initial posters
+              if (updateObserver) {
+                try {
+                  updateObserver();
+                } catch (error) {
+                  console.error('Error setting up intersection observer:', error);
+                }
+              }
             } else {
               // No posters available at all
               addPostersToCarousel([], [], []);
@@ -778,7 +902,7 @@
               
               addPostersToCarousel(initialPosters, initialImdbIds);
               
-              setupInfiniteCarousel(carousel, () => {
+              const updateObserver = setupInfiniteCarousel(carousel, () => {
                 // Load more random posters
                 const nextIndices = [];
                 for (let i = 0; i < Math.min(5, allPosters.length); i++) {
@@ -787,37 +911,75 @@
                 const nextBatch = nextIndices.map(i => allPosters[i]);
                 const nextImdbIds = nextIndices.map(i => allImdbIds[i] || null);
                 if (nextBatch.length > 0) {
-                  appendPostersToCarousel(nextBatch, nextImdbIds, []);
+                  appendPostersToCarousel(nextBatch, nextImdbIds, [], [], updateObserver);
                 }
               });
-            } else {
-              addPostersToCarousel([], [], []);
-            }
-          } else if (libraryPosters[library] && libraryPosters[library].length > 0) {
+              
+              // Setup intersection observer for the initial posters
+              if (updateObserver) {
+                try {
+                  updateObserver();
+                } catch (error) {
+                  console.error('Error setting up intersection observer:', error);
+                }
+              }
+                          } else {
+                addPostersToCarousel([], [], [], []);
+              }
+            } else if (libraryPosters[library] && libraryPosters[library].length > 0) {
             const posters = libraryPosters[library];
             const imdbIds = posterImdbIds[library] || [];
             
             const initialPosters = posters.slice(0, 15);
             const initialImdbIds = imdbIds.slice(0, 15);
             
-            addPostersToCarousel(initialPosters, initialImdbIds, []);
+            addPostersToCarousel(initialPosters, initialImdbIds, [], []);
             
-            setupInfiniteCarousel(carousel, () => {
+            const updateObserver = setupInfiniteCarousel(carousel, () => {
               const currentCount = carousel.children.length;
               const nextBatch = posters.slice(currentCount, currentCount + 5);
               const nextImdbIds = imdbIds.slice(currentCount, currentCount + 5);
               if (nextBatch.length > 0) {
-                appendPostersToCarousel(nextBatch, nextImdbIds, []);
+                appendPostersToCarousel(nextBatch, nextImdbIds, [], [], updateObserver);
               }
             });
+            
+            // Setup intersection observer for the initial posters
+            if (updateObserver) {
+              try {
+                updateObserver();
+              } catch (error) {
+                console.error('Error setting up intersection observer:', error);
+              }
+            }
           } else {
-            addPostersToCarousel([], [], []);
+            addPostersToCarousel([], [], [], []);
           }
         });
       }
       
       // Library tab switching functionality
       const libraryTabs = document.querySelectorAll('.library-tab');
+      
+      // Function to update the medialists link
+      function updateMedialistsLink() {
+        const medialistsLink = document.getElementById('medialists-link');
+        if (medialistsLink) {
+          if (currentLibrary === 'random-all') {
+            // For random view, go to first available library
+            const firstLibraryTab = document.querySelector('.library-tab:not([data-library="random-all"])');
+            if (firstLibraryTab) {
+              const firstLibrary = firstLibraryTab.getAttribute('data-library');
+              medialistsLink.href = `/medialists?service=plex&library=${encodeURIComponent(firstLibrary)}`;
+            } else {
+              medialistsLink.href = '/medialists';
+            }
+          } else {
+            // For specific library, go to that library's list
+            medialistsLink.href = `/medialists?service=plex&library=${encodeURIComponent(currentLibrary)}`;
+          }
+        }
+      }
       
       libraryTabs.forEach(tab => {
         tab.addEventListener('click', function() {
@@ -834,41 +996,34 @@
             // Update current library tracking
             currentLibrary = targetLibrary;
             
+            // Update medialists link
+            updateMedialistsLink();
+            
             // Load new carousel data
             loadCarousel('main-carousel', targetLibrary);
           }
         });
       });
+      
+      // Initialize medialists link
+      updateMedialistsLink();
 
-      // Only enable enlarge on screens wider than 1081px (adjust as needed)
-      if (window.innerWidth >= 1081) {
-        document.querySelectorAll(".toggle-grow").forEach(function (img) {
-          img.addEventListener("click", function () {
-            const isGrown = img.classList.toggle("grown");
+      // Image modal system is now handled by image-modal.js
 
-            if (!isGrown) {
-              img.style.left = "0px";
-              img.style.top = "0px";
-              img.style.position = "relative";
-              img.style.zIndex = "";
-            } else {
-              img.style.position = "relative";
-              img.style.zIndex = 10;
-            }
-          });
-        });
-      }
-
-      // --- Improved Infinite Carousel Logic ---
+      // --- AUTO-SCROLL CAROUSEL LOGIC ---
       function setupInfiniteCarousel(carousel, onLoadMore = null) {
         const container = carousel.parentElement;
-        let scrollSpeed = 0.5; // px per frame - increased for better visibility
-        let isPaused = false;
-        let offset = 0;
-        let lastLoadCheck = 0;
-        let isLoading = false; // Prevent multiple simultaneous loads
-
-        // Clear any existing animation and event listeners
+        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        
+        console.log('Carousel setup - Mobile detected:', isMobile);
+        
+        // Clear any existing auto-scroll instance
+        if (carousel.autoScrollInstance) {
+          carousel.autoScrollInstance.destroy();
+          carousel.autoScrollInstance = null;
+        }
+        
+        // Clear any existing animation
         if (carousel.rafId) {
           cancelAnimationFrame(carousel.rafId);
           carousel.rafId = null;
@@ -881,14 +1036,22 @@
         if (carousel._mouseLeaveHandler) {
           container.removeEventListener('mouseleave', carousel._mouseLeaveHandler);
         }
+        if (carousel._touchStartHandler) {
+          container.removeEventListener('touchstart', carousel._touchStartHandler);
+        }
+        if (carousel._touchEndHandler) {
+          container.removeEventListener('touchend', carousel._touchEndHandler);
+        }
+        if (carousel._scrollHandler) {
+          container.removeEventListener('scroll', carousel._scrollHandler);
+        }
 
         // Reset transform
         carousel.style.transform = 'translateX(0px)';
-
-        // Set carousel width
+        
+        // Set carousel width for proper scrolling
         function updateWidth() {
           if (carousel.children.length === 0) {
-            console.log('No children in carousel for width calculation');
             return;
           }
           
@@ -898,7 +1061,6 @@
           Array.from(carousel.children).forEach((img, index) => {
             const imgWidth = img.offsetWidth;
             if (imgWidth === 0) {
-              console.log(`Image ${index} has zero width, using naturalWidth`);
               totalWidth += img.naturalWidth + gap;
             } else {
               totalWidth += imgWidth + gap;
@@ -906,102 +1068,129 @@
           });
           
           carousel.style.width = totalWidth + 'px';
-          console.log(`Carousel width set to: ${totalWidth}px`);
         }
         
         // Update width immediately and after a short delay
         updateWidth();
         setTimeout(updateWidth, 100);
-
-        // Animation loop using transform
-        function animate() {
-          try {
-            // Don't animate if there are no images or if we have a loading/error message
-            if (carousel.children.length === 0 || carousel.querySelector('div')) {
-              carousel.rafId = requestAnimationFrame(animate);
-              return;
-            }
-            
-            if (!isPaused) {
-              offset -= scrollSpeed;
-              carousel.style.transform = `translateX(${offset}px)`;
-              
-              // Remove images that have scrolled completely off screen
-              const firstImg = carousel.children[0];
-              if (firstImg && (firstImg.tagName === 'IMG' || firstImg.tagName === 'A')) {
-                const firstImgWidth = firstImg.offsetWidth + parseInt(getComputedStyle(carousel).gap || 0);
-                if (Math.abs(offset) >= firstImgWidth) {
-                  firstImg.remove();
-                  offset += firstImgWidth;
-                  carousel.style.transform = `translateX(${offset}px)`;
-                  
-                  // Update width after removing image
-                  updateWidth();
-                }
-              }
-              
-              // Check if we need to load more posters (every 3 seconds)
-              const now = Date.now();
-              if (onLoadMore && now - lastLoadCheck > 3000 && !isLoading) {
-                lastLoadCheck = now;
-                const remainingImages = carousel.children.length;
-                if (remainingImages <= 15) { // Load earlier to prevent gaps
-                  console.log(`Only ${remainingImages} images left, loading more...`);
-                  isLoading = true;
-                  try {
-                    onLoadMore().then(() => {
-                      isLoading = false;
-                    }).catch(error => {
-                      console.error('Error loading more posters:', error);
-                      isLoading = false;
-                      // Use safety mechanism to ensure minimum posters
-                      ensureMinimumPosters();
-                    });
-                  } catch (error) {
-                    console.error('Error in onLoadMore:', error);
-                    isLoading = false;
-                    ensureMinimumPosters();
-                  }
-                }
-              }
-            }
-            carousel.rafId = requestAnimationFrame(animate);
-          } catch (error) {
-            console.error('Animation error:', error);
-            // Stop animation on error
-            if (carousel.rafId) {
-              cancelAnimationFrame(carousel.rafId);
-              carousel.rafId = null;
-            }
-          }
-        }
         
-        // Start animation immediately
-        console.log(`Starting animation for carousel ${carousel.id}`);
-        animate();
-
-        // Pause on hover - store handlers to prevent duplicates
-        carousel._mouseEnterHandler = () => { 
-          isPaused = true; 
-          console.log('Carousel paused on hover');
+        // Initialize auto-scroll with appropriate settings
+        const autoScrollOptions = {
+          scrollSpeed: 0.5, // px per frame - from old implementation
+          pauseOnHover: true,
+          pauseOnInteraction: true,
+          resumeDelay: 1000, // 1 second delay after user interaction
+          minPosters: 8,
+          loadMoreThreshold: 15,
+          onLoadMore: onLoadMore
         };
-        carousel._mouseLeaveHandler = () => { 
-          isPaused = false; 
-          console.log('Carousel resumed on mouse leave');
-        };
-        container.addEventListener('mouseenter', carousel._mouseEnterHandler);
-        container.addEventListener('mouseleave', carousel._mouseLeaveHandler);
+        
+        // Initialize the auto-scroll instance
+        carousel.autoScrollInstance = window.initializeCarouselAutoScroll(carousel.id, autoScrollOptions);
+        
+        // Setup intersection observer for poster loading
+        const updateObserver = setupIntersectionObserver();
+        if (updateObserver) {
+          console.log('Intersection observer setup successful');
+        }
         
         // Periodic safety check to ensure carousel doesn't become empty
         setInterval(() => {
           if (carousel.children.length < 5) {
             console.log('Carousel running low on posters, adding more...');
-            ensureMinimumPosters();
+            if (onLoadMore) {
+              onLoadMore().then(() => {
+                updateWidth();
+              }).catch(error => {
+                console.error('Error loading more posters:', error);
+              });
+            }
           }
-        }, 5000); // Check every 5 seconds
+        }, 3000);
+        
+        // Return the observer update function
+        return updateObserver;
+        
+        // Setup intersection observer to detect when last few images come into view
+        function setupIntersectionObserver() {
+          console.log('Setting up intersection observer...');
+          console.log('onLoadMore available:', !!onLoadMore);
+          console.log('IntersectionObserver available:', !!window.IntersectionObserver);
+          
+          if (!onLoadMore || !window.IntersectionObserver) {
+            console.log('Intersection observer setup failed - missing requirements');
+            return null;
+          }
+          
+                  let lastTriggerTime = 0;
+        const minTriggerInterval = 200; // Increased from 0 to 200ms to prevent rapid loading during fast scrolling
+        
+        const observer = new IntersectionObserver((entries) => {
+          console.log('Intersection observer triggered:', entries.length, 'entries');
+          entries.forEach(entry => {
+            console.log('Entry:', entry.isIntersecting, 'target:', entry.target);
+            const now = Date.now();
+            if (entry.isIntersecting && (now - lastTriggerTime) > minTriggerInterval) {
+              console.log('Last few images are now visible - triggering load');
+              lastTriggerTime = now;
+              onLoadMore().then(() => {
+                console.log('onLoadMore completed successfully');
+              }).catch(error => {
+                console.error('Error loading more posters:', error);
+              });
+            }
+          });
+        }, {
+            root: null, // Use viewport instead of container
+            rootMargin: '100px', // Trigger when 100px away from viewport
+            threshold: 0.1
+          });
+
+          // Function to observe the last few images
+          function observeLastImages() {
+            console.log('Updating intersection observer...');
+            // Disconnect previous observations
+            observer.disconnect();
+            
+            const images = Array.from(carousel.children);
+            console.log('Total images in carousel:', images.length);
+            if (images.length >= 5) {
+              // Observe all of the last 5 images
+              const last5Images = images.slice(-5);
+              console.log('Observing last 5 images:', last5Images.length);
+              
+              last5Images.forEach((img, index) => {
+                if (img) {
+                  observer.observe(img);
+                  console.log(`Now observing image ${images.length - 5 + index + 1} of ${images.length}`);
+                }
+              });
+            } else {
+              console.log('Not enough images to observe (need at least 5, have', images.length, ')');
+            }
+          }
+
+          // Initial setup
+          observeLastImages();
+
+          // Return function to update observation when new images are added
+          return observeLastImages;
+        }
       }
     });
   </script>
+
+  <!-- Carousel Auto-Scroll Script -->
+  <script src="{{ url_for('static', filename='carousel-auto-scroll.js') }}"></script>
+  
+  <!-- Image Modal Script -->
+  <script src="{{ url_for('static', filename='image-modal.js') }}"></script>
+  
+  <!-- Navigation Script -->
+  <script src="{{ url_for('static', filename='navigation.js') }}"></script>
+
+  <!-- Smooth Background Extension Script -->
+  <script src="{{ url_for('static', filename='smooth-background.js') }}"></script>
 
 </body>
 </html>

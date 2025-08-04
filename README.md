@@ -113,9 +113,19 @@ To display storage bars for specific drives (e.g., E: and F: on Windows, or /mnt
   > **Note:** On Windows, you may need to allow Docker Desktop access to your drives (Docker Desktop > Settings > Resources > File Sharing).
 
 ### Port Used
-It runs on port `10000` by default. You can change this near the top of `app.py`.
+It runs on port `10000` by default. You can change this using the included port configuration script:
 
-If you change the port, you must also update `compose.yml` to use the same one.
+```bash
+python changeport.py 8080  # Change to port 8080
+python changeport.py 9000  # Change to port 9000
+```
+
+This script will automatically update all necessary files (`compose.yml`, `Dockerfile`).
+
+Alternatively, you can manually change the port by:
+1. Setting `APP_PORT=8080` in your `.env` file
+2. Updating the port mapping in `compose.yml`
+3. Updating the `EXPOSE` directive in `Dockerfile`
 
 <!-- NOTES
 
@@ -169,7 +179,7 @@ docker run -d -p 10000:10000 --name onboarderr ^
 ```
 
 - **If you change the drives in `.env`, make sure your Docker volumes match!**
-- The site will be available at `localhost:10000`
+- The site will be available at `localhost:10000` (or your configured port)
 
 -->
 
@@ -189,8 +199,8 @@ Create and activate a venv (conda or through system python), then:
 
     python app.py
 
-- It runs on port `10000` by default. You can change this near the top of `app.py`
-- Go to `http://127.0.0.1:10000`
+- It runs on port `10000` by default (or the port specified in your `.env` file via `APP_PORT`)
+- Go to `http://127.0.0.1:10000` (or your configured port)
 
 # Setup Form
 
@@ -211,6 +221,8 @@ https://github.com/homarr-labs/dashboard-icons/tree/main/webp has all icons.
 -->
 
 Most customization is done on setup and settings in the admin panel, but you may want to tweak some HTML contents or instructional images it comes with.
+
+
 
 - ```onboarding_section7.html``` is personalized, you should change it to what you want it to say
 
