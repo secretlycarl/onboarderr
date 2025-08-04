@@ -10,11 +10,13 @@ The readme is mostly accurate, but new screenshots will be added soon.
 # onboarderr
 Self-hosted user onboarding site for Plex and Audiobookshelf server owners
 
-# Introducing Onboarderr
+# Onboarderr v2
 
-![mainpage](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/mainpage.png)
+![mainpage](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/10a_mainpagedesktop.png)
 
-![Customization Options](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/customexample.png)
+![Customization 1](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/10b_customexample1.png)
+
+![Customization 2](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/10c_customexample2.png)
 
 Onboarderr is a customizable onboarding site for a host's Plex and (optional) Audiobookshelf servers. It includes user instructions, server highlights, and an admin dashboard.
 
