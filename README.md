@@ -2,7 +2,7 @@
 If you're reading this, the repo recently had a big update and I recommend you start from scratch.
 
 Setup is much easier now! 
-- Set port with changeport.py if you don't want to use the default `10000`
+- Set port with `changeport.py` if you don't want to use the default `10000`
 - Docker compose (tweak mounts first on `compose.yml`) and set all initial settings on the site itself
 
 The readme is mostly accurate, but I'm updating it if I find any inaccuracies.
