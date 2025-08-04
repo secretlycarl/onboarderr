@@ -32,12 +32,12 @@
                 Media
               {% elif service.name == "Audiobookshelf" %}
                 Books
+                 <!-- removing tautulli for now
               {% elif service.name == "Tautulli" %}
                 Stats
-              {% elif service.name == "Overseerr" %}
+                -->
+              {% elif service.name == "Overseerr" or service.name == "Jellyseerr" %}
                 Request
-              {% else %}
-                {{ service.name }}
               {% endif %}
             </div>
           </div>

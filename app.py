@@ -769,7 +769,9 @@ def onboarding():
 
     pulsarr_enabled = bool(os.getenv("PULSARR"))
     overseerr_enabled = bool(os.getenv("OVERSEERR"))
+    jellyseerr_enabled = bool(os.getenv("JELLYSEERR"))
     overseerr_url = os.getenv("OVERSEERR", "")
+    jellyseerr_url = os.getenv("JELLYSEERR", "")
     tautulli_enabled = bool(os.getenv("TAUTULLI"))
     
     # Get default library setting
@@ -835,7 +837,9 @@ def onboarding():
         library_notes=library_notes,
         pulsarr_enabled=pulsarr_enabled,
         overseerr_enabled=overseerr_enabled,
+        jellyseerr_enabled=jellyseerr_enabled,
         overseerr_url=overseerr_url,
+        jellyseerr_url=jellyseerr_url,
         tautulli_enabled=tautulli_enabled,
         library_posters=library_posters,
         poster_imdb_ids=poster_imdb_ids,
@@ -2283,7 +2287,7 @@ def get_random_audiobook_covers_with_links():
                         author = meta.get('author', '')
                         
                         if title and author:
-                            search_query = f"{title} {author}"
+                            search_query = f"{author} {title}"
                         elif title:
                             search_query = title
                         else:
@@ -3704,7 +3708,7 @@ def get_random_audiobook_posters():
                             author = meta.get('author', '')
                             
                             if title and author:
-                                search_query = f"{title} {author}"
+                                search_query = f"{author} {title}"
                             elif title:
                                 search_query = title
                             else:

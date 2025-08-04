@@ -1514,22 +1514,32 @@ a:hover {
   overflow-x: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--accent) transparent;
-  padding: 0.5rem 0;
+  padding: 0.5rem 0.5rem 0.5rem 0;
   --scrollbar-width: 6px;
   transition: scrollbar-width 0.3s ease;
 }
 
 .library-selector.centered {
   justify-content: center;
+  padding: 0.5rem 0;
 }
 
-.library-selector.hide-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+/* Universal scrollbar styles with fade functionality */
+.library-selector::-webkit-scrollbar {
+  height: var(--scrollbar-width, 6px);
+  transition: opacity 0.3s ease;
+  opacity: 1;
 }
 
-.library-selector.hide-scrollbar::-webkit-scrollbar {
-  display: none;
+.library-selector::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.library-selector::-webkit-scrollbar-thumb {
+  background-color: var(--accent);
+  border-radius: 3px;
+  transition: opacity 0.3s ease;
+  opacity: 1;
 }
 
 .library-tab {
@@ -1551,23 +1561,6 @@ a:hover {
   background: var(--accent);
   color: white;
 }
-
-/* Library Selector Scrollbar Styles */
-.library-selector::-webkit-scrollbar {
-  height: var(--scrollbar-width, 6px);
-  transition: height 0.3s ease;
-}
-
-.library-selector::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.library-selector::-webkit-scrollbar-thumb {
-  background-color: var(--accent);
-  border-radius: 3px;
-}
-
-/* Legacy toggle-grow styles - now handled by modal system */
 
 /* Caption Styles */
 .caption {
@@ -2343,7 +2336,7 @@ details.collapsible-section > .info-box {
 @media (max-width: 768px) {
   .library-selector {
     gap: 0.5em;
-    padding: 0.25rem 0 0.75rem 0;
+    padding: 0.25rem 0 0.5rem 0;
   }
   
   .library-tab {

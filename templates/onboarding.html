@@ -32,12 +32,12 @@
                 Media
               {% elif service.name == "Audiobookshelf" %}
                 Books
+                 <!-- removing tautulli for now
               {% elif service.name == "Tautulli" %}
                 Stats
-              {% elif service.name == "Overseerr" %}
+                -->
+              {% elif service.name == "Overseerr" or service.name == "Jellyseerr" %}
                 Request
-              {% else %}
-                {{ service.name }}
               {% endif %}
             </div>
           </div>
@@ -222,7 +222,7 @@
       
           <h3>Desktop</h3>
           <p>
-            Once those settings have been changed, click the home button in the top left (on desktop) and you'll be taken to the page where all the magic happens.
+            Once those settings have been changed, click the home button in the top left and you'll be taken to the page where all the magic happens.
           </p>
       
           <div class="screenshot-section">
@@ -252,7 +252,7 @@
       
       </details>
 
-      {% if pulsarr_enabled or overseerr_enabled %}
+      {% if pulsarr_enabled or overseerr_enabled or jellyseerr_enabled %}
       <details class="collapsible-section">
         <summary class="collapsible-heading">5. Requests</summary>
           {% if pulsarr_enabled %}
@@ -300,20 +300,38 @@
           {% if overseerr_enabled %}
           <h3>Overseerr Requests</h3>
           <p>
-            You can request movies and shows directly using Overseerr. Click the link below to open the request page:
+            You can request movies and shows directly using Overseerr.
+          </p>
+          <p>
+            Click the link below to open the request page:
           </p>
           <p>
             <a href="{{ overseerr_url }}" target="_blank" class="accent">Open Overseerr</a>
           </p>
           <p class="muted">
-            Requests made here will be sent to the admin for approval and processing.
+            Requests made here will be sent to me for approval and processing.
+          </p>
+          {% endif %}
+          {% if jellyseerr_enabled %}
+          <h3>Jellyseerr Requests</h3>
+          <p>
+            You can request movies and shows directly using Jellyseerr.
+          </p>
+          <p>
+            Click the link below to open the request page:
+          </p>
+          <p>
+            <a href="{{ jellyseerr_url }}" target="_blank" class="accent">Open Jellyseerr</a>
+          </p>
+          <p class="muted">
+            Requests made here will be sent to me for approval and processing.
           </p>
           {% endif %}
       </details>
       {% endif %}
 
       <details class="collapsible-section">
-        <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled %}6{% else %}5{% endif %}. Issues</summary>
+        <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled or jellyseerr_enabled %}6{% else %}5{% endif %}. Issues</summary>
       
           <p>
             If you have issues playing a specific piece of media, or it has bad subs, you can report it through Plex or just tell me.
@@ -325,7 +343,7 @@
       </details>
 
       <details class="collapsible-section">
-        <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled %}7{% else %}6{% endif %}. The End</summary>
+        <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled or jellyseerr_enabled %}7{% else %}6{% endif %}. The End</summary>
           {% include "onboarding_section7.html" %}
       </details>
     </div>
@@ -422,51 +440,45 @@
         checkLibrarySelectorCentering();
         window.addEventListener('resize', checkLibrarySelectorCentering);
         
-        // Check if we're on desktop (not mobile)
-        const isDesktop = !('ontouchstart' in window) && window.innerWidth > 768;
+        // Scrollbar fade functionality
+        let hasInteracted = false;
+        let fadeTimeout;
         
-        if (isDesktop) {
-          // Hide scrollbar initially on desktop
-          librarySelector.classList.add('hide-scrollbar');
+        // Add scrolling class when user scrolls
+        librarySelector.addEventListener('scroll', () => {
+          hasInteracted = true;
+          librarySelector.classList.add('scrolling');
           
-          // Show scrollbar on hover
-          librarySelector.addEventListener('mouseenter', () => {
-            if (librarySelector.scrollWidth > librarySelector.clientWidth) {
-              librarySelector.classList.remove('hide-scrollbar');
-            }
-          });
+          // Add fade class after first interaction
+          librarySelector.classList.add('scrollbar-faded');
           
-          // Hide scrollbar when mouse leaves
-          librarySelector.addEventListener('mouseleave', () => {
-            if (hasScrolled) {
-              librarySelector.classList.add('hide-scrollbar');
-            }
-          });
+          // Clear existing timeout
+          if (fadeTimeout) {
+            clearTimeout(fadeTimeout);
+          }
           
-          // Track scroll events
-          librarySelector.addEventListener('scroll', () => {
-            hasScrolled = true;
-            
-            // Clear existing timeout
-            if (scrollTimeout) {
-              clearTimeout(scrollTimeout);
+          // Remove scrolling class after 2 seconds of no scrolling
+          fadeTimeout = setTimeout(() => {
+            if (!librarySelector.matches(':hover')) {
+              librarySelector.classList.remove('scrolling');
             }
-            
-            // Hide scrollbar after 2 seconds of no scrolling
-            scrollTimeout = setTimeout(() => {
-              if (!librarySelector.matches(':hover')) {
-                librarySelector.classList.add('hide-scrollbar');
-              }
-            }, 2000);
-          });
-          
-          // Show scrollbar when user starts scrolling
-          librarySelector.addEventListener('scroll', () => {
-            if (librarySelector.scrollWidth > librarySelector.clientWidth) {
-              librarySelector.classList.remove('hide-scrollbar');
-            }
-          });
-        }
+          }, 2000);
+        });
+        
+        // Show scrollbar on hover
+        librarySelector.addEventListener('mouseenter', () => {
+          if (hasInteracted) {
+            librarySelector.classList.remove('scrollbar-faded');
+          }
+        });
+        
+        // Hide scrollbar when leaving (if already interacted)
+        librarySelector.addEventListener('mouseleave', () => {
+          if (hasInteracted) {
+            librarySelector.classList.add('scrollbar-faded');
+          }
+        });
+
       }
       
       // Helper function to extract title from poster URL

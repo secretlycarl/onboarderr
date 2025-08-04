@@ -600,8 +600,12 @@
         <!-- Editable Service URLs -->
         <h3 class="form-section-title">
           <span class="form-section-icon">🔗</span>
-          Public Service URLs
+          Service URLs
         </h3>
+        <div class="info-box">
+          <span>ℹ️</span>
+          <span><strong>Note:</strong> These URLs are used in the services panel at the top of this page, as well as the quick access panel when enabled. Default local URLs are provided for admin-only services. For user-facing ones, put a public link that remote users can access.</span>
+        </div>
         {% for service in all_services %}
           <div class="form-group">
             <label class="form-label">{{ service.name }}:</label>
@@ -617,6 +621,10 @@
         {% else %}
         <div id="admin-setup-message" class="error-box" style="display: none;"></div>
         {% endif %}
+        <div class="warning-box" id="request-services-warning" style="display: none;">
+          <span>⚠️</span>
+          <span><strong>Request Services:</strong> You can only configure one of Pulsarr, Overseerr, or Jellyseerr. These are different versions of the same type of service.</span>
+        </div>
         
         <div class="submit-section">
           <button type="submit" id="admin-submit-btn" class="submit-btn">Apply Settings</button>
@@ -632,6 +640,26 @@
 
   <!-- Navigation Script -->
   <script src="{{ url_for('static', filename='navigation.js') }}"></script>
+
+  <script>
+    // Form submission handler for admin settings form
+    document.addEventListener('DOMContentLoaded', function() {
+      var adminForm = document.getElementById('admin-settings-form');
+      if (adminForm) {
+        adminForm.addEventListener('submit', function(e) {
+          // Check request services validation
+          if (!validateRequestServices()) {
+            e.preventDefault();
+            var warningDiv = document.getElementById('request-services-warning');
+            if (warningDiv) {
+              warningDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return false;
+          }
+        });
+      }
+    });
+  </script>
 
   <script>
     // Select All functionality for Plex users
@@ -1340,6 +1368,49 @@
         }
       });
     }
+    
+    // Request services validation - ensure only one of Pulsarr, Overseerr, or Jellyseerr has a URL
+    function validateRequestServices() {
+      var pulsarrInput = document.querySelector('input[name="PULSARR"]');
+      var overseerrInput = document.querySelector('input[name="OVERSEERR"]');
+      var jellyseerrInput = document.querySelector('input[name="JELLYSEERR"]');
+      
+      var pulsarrUrl = pulsarrInput ? pulsarrInput.value.trim() : '';
+      var overseerrUrl = overseerrInput ? overseerrInput.value.trim() : '';
+      var jellyseerrUrl = jellyseerrInput ? jellyseerrInput.value.trim() : '';
+      
+      var requestServices = [pulsarrUrl, overseerrUrl, jellyseerrUrl];
+      var configuredServices = requestServices.filter(function(url) { return url !== ''; });
+      
+      var warningDiv = document.getElementById('request-services-warning');
+      
+      if (configuredServices.length > 1) {
+        warningDiv.style.display = 'flex';
+        return false;
+      } else {
+        warningDiv.style.display = 'none';
+        return true;
+      }
+    }
+    
+    // Add event listeners for request service inputs
+    document.addEventListener('DOMContentLoaded', function() {
+      var requestServiceInputs = [
+        document.querySelector('input[name="PULSARR"]'),
+        document.querySelector('input[name="OVERSEERR"]'),
+        document.querySelector('input[name="JELLYSEERR"]')
+      ];
+      
+      requestServiceInputs.forEach(function(input) {
+        if (input) {
+          input.addEventListener('input', validateRequestServices);
+          input.addEventListener('change', validateRequestServices);
+        }
+      });
+      
+      // Initial validation
+      validateRequestServices();
+    });
   </script>
 
 </body>
