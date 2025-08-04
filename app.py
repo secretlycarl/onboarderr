@@ -130,7 +130,8 @@ def inject_server_name():
         AUDIOBOOKSHELF_URL=os.getenv("AUDIOBOOKSHELF_URL", ""),
         ACCENT_COLOR=os.getenv("ACCENT_COLOR", "#d33fbc"),
         QUICK_ACCESS_ENABLED=os.getenv("QUICK_ACCESS_ENABLED", "yes"),
-        LIBRARY_CAROUSELS=os.getenv("LIBRARY_CAROUSELS", "")
+        LIBRARY_CAROUSELS=os.getenv("LIBRARY_CAROUSELS", ""),
+        ONBOARDERR_URL=os.getenv("ONBOARDERR_URL", "")
     )
 
 @app.context_processor
@@ -507,10 +508,21 @@ def send_discord_notification(email, service_type, event_type=None):
     username = os.getenv("DISCORD_USERNAME", "Onboarderr")
     avatar_url = os.getenv("DISCORD_AVATAR", url_for('static', filename=get_logo_filename(), _external=True))
     color = os.getenv("DISCORD_COLOR", "#000000")
+    
+    # Get Onboarderr URL for admin link
+    onboarderr_url = os.getenv("ONBOARDERR_URL", "")
+    
+    # Build description with optional admin link
+    description = f"{email} has requested access to {service_type}"
+    if onboarderr_url:
+        # Add linked text to admin page
+        admin_link = f"{onboarderr_url}/services"
+        description += f"\n\n[🔧 **Manage Users**]({admin_link})"
+    
     payload = {
         "username": username,
         "embeds": [{
-            "description": f"{email} has requested access to {service_type}",
+            "description": description,
             "color": int(color.lstrip('#'), 16) if color.startswith('#') else 0
         }]
     }
@@ -1014,6 +1026,7 @@ def services():
         "discord_webhook" in request.form or
         "discord_notify_plex" in request.form or
         "discord_notify_abs" in request.form or
+        "onboarderr_url" in request.form or
         "library_ids" in request.form or
         "audiobookshelf_url" in request.form or
         "accent_color" in request.form or
@@ -1130,6 +1143,11 @@ def services():
         current_color = os.getenv("DISCORD_COLOR", "")
         if discord_color != current_color:
             safe_set_key(env_path, "DISCORD_COLOR", discord_color)
+        
+        onboarderr_url = request.form.get("onboarderr_url", "").strip()
+        current_onboarderr_url = os.getenv("ONBOARDERR_URL", "")
+        if onboarderr_url != current_onboarderr_url:
+            safe_set_key(env_path, "ONBOARDERR_URL", onboarderr_url)
         
         # Update service URLs if changed
         service_defs = get_service_definitions()
@@ -2489,6 +2507,7 @@ def setup():
         discord_username = form.get("discord_username", "").strip()
         discord_avatar = form.get("discord_avatar", "").strip()
         discord_color = form.get("discord_color", "").strip()
+        onboarderr_url = form.get("onboarderr_url", "").strip()
 
 
 
@@ -2517,6 +2536,8 @@ def setup():
                 safe_set_key(env_path, "DISCORD_AVATAR", discord_avatar)
             if discord_color:
                 safe_set_key(env_path, "DISCORD_COLOR", discord_color)
+            if onboarderr_url:
+                safe_set_key(env_path, "ONBOARDERR_URL", onboarderr_url)
         
         # Save Discord notification settings
         discord_notify_plex = form.get("discord_notify_plex")

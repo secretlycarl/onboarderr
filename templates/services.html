@@ -569,6 +569,12 @@
           <input type="text" name="discord_color" id="discord_color_admin" value="{{ DISCORD_COLOR or '' }}" class="form-input" placeholder="#000000">
         </div>
         
+        <div class="form-group">
+          <label class="form-label">Onboarderr Public URL (for Discord links):</label>
+          <input type="text" name="onboarderr_url" id="onboarderr_url_admin" value="{{ ONBOARDERR_URL or '' }}" class="form-input" placeholder="https://your-onboarderr-domain.com">
+          <div class="file-help">This URL will be used in Discord notifications to link back to the admin page. Leave blank to disable links.</div>
+        </div>
+        
         <hr class="section-divider">
 
         <!-- Quick Access Configuration -->
