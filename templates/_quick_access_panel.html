@@ -1,0 +1,23 @@
+{% if quick_access_services and QUICK_ACCESS_ENABLED == 'yes' %}
+  <div class="quick-access-panel">
+    <div class="quick-access-title">Quick Access</div>
+    <div class="quick-access-grid">
+      {% for service in quick_access_services %}
+        <div class="quick-access-item">
+          <a href="{{ service.url }}" target="_blank" title="{{ service.name }}" class="service-link">
+            <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" class="quick-access-icon">
+          </a>
+          <div class="quick-access-label">
+            {% if service.name == "Plex" %}
+              Media
+            {% elif service.name == "Audiobookshelf" %}
+              Books
+            {% elif service.name == "Overseerr" or service.name == "Jellyseerr" %}
+              Request
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %} 

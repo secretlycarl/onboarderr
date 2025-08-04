@@ -18,33 +18,7 @@
   {% include "_bottom_nav.html" %}
   
   <!-- Fixed bottom-left service icons -->
-  {% if services and QUICK_ACCESS_ENABLED == 'yes' %}
-    <div class="quick-access-panel">
-      <div class="quick-access-title">Quick Access</div>
-      <div class="quick-access-grid">
-        {% for service in services %}
-          <div class="quick-access-item">
-            <a href="{{ service.url }}" target="_blank" title="{{ service.name }}" class="service-link">
-              <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" class="quick-access-icon">
-            </a>
-            <div class="quick-access-label">
-              {% if service.name == "Plex" %}
-                Media
-              {% elif service.name == "Audiobookshelf" %}
-                Books
-                 <!-- removing tautulli for now
-              {% elif service.name == "Tautulli" %}
-                Stats
-                -->
-              {% elif service.name == "Overseerr" or service.name == "Jellyseerr" %}
-                Request
-              {% endif %}
-            </div>
-          </div>
-        {% endfor %}
-      </div>
-    </div>
-  {% endif %}
+  {% include "_quick_access_panel.html" %}
 
   <div class="onboarding-content">
     <div class="onboarding-section">
@@ -132,6 +106,11 @@
         <li><a href="https://apps.apple.com/us/app/shelfplayer/id6475221163" target="_blank" class="accent">ShelfPlayer</a></li>
         <li><a href="https://apps.apple.com/us/app/plappa/id6475201956" target="_blank" class="accent">plappa</a></li>
       </ul>
+      
+      <h3>Login Screenshots</h3>
+      <div class="screenshot-section">
+        <img src="{{ url_for('static', filename='abslogin.webp') }}" alt="Login Screenshots" class="toggle-grow" />
+      </div>
     </details>
 
     <details class="collapsible-section">

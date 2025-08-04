@@ -49,12 +49,23 @@
     <a href="/logout" class="nav-mobile-link">Log Out</a>
     {% endif %}
     
-    {% if services and QUICK_ACCESS_ENABLED == 'yes' %}
+    {% if quick_access_services and QUICK_ACCESS_ENABLED == 'yes' %}
     <div class="nav-mobile-services">
-      {% for service in services %}
-        <a href="{{ service.url }}" target="_blank" title="{{ service.name }}" class="nav-service-link">
-          <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }}" class="nav-service-icon">
-        </a>
+      {% for service in quick_access_services %}
+        <div class="nav-service-item">
+          <a href="{{ service.url }}" target="_blank" title="{{ service.name }}" class="nav-service-link">
+            <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }}" class="nav-service-icon">
+          </a>
+          <div class="nav-service-label">
+            {% if service.name == "Plex" %}
+              Media
+            {% elif service.name == "Audiobookshelf" %}
+              Books
+            {% elif service.name == "Overseerr" or service.name == "Jellyseerr" %}
+              Request
+            {% endif %}
+          </div>
+        </div>
       {% endfor %}
     </div>
     {% endif %}

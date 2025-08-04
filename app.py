@@ -826,27 +826,27 @@ def onboarding():
             if debug_mode:
                 print(f"Error parsing DEFAULT_LIBRARY: {e}")
 
-    # Get public services data for icons (end user services only)
-    services = build_public_services_data()
+    # Get template context with quick_access_services
+    context = get_template_context()
     
-    return render_template(
-        "onboarding.html",
-        libraries=available_libraries,  # Use filtered libraries for access requests
-        carousel_libraries=carousel_libraries,  # Use filtered libraries for carousel display
-        submitted=submitted,
-        library_notes=library_notes,
-        pulsarr_enabled=pulsarr_enabled,
-        overseerr_enabled=overseerr_enabled,
-        jellyseerr_enabled=jellyseerr_enabled,
-        overseerr_url=overseerr_url,
-        jellyseerr_url=jellyseerr_url,
-        tautulli_enabled=tautulli_enabled,
-        library_posters=library_posters,
-        poster_imdb_ids=poster_imdb_ids,
-        default_library=default_library_name,
-        has_music_library=has_music_library,
-        services=services
-    )
+    # Add page-specific variables
+    context.update({
+        "libraries": available_libraries,  # Use filtered libraries for access requests
+        "carousel_libraries": carousel_libraries,  # Use filtered libraries for carousel display
+        "submitted": submitted,
+        "pulsarr_enabled": pulsarr_enabled,
+        "overseerr_enabled": overseerr_enabled,
+        "jellyseerr_enabled": jellyseerr_enabled,
+        "overseerr_url": overseerr_url,
+        "jellyseerr_url": jellyseerr_url,
+        "tautulli_enabled": tautulli_enabled,
+        "library_posters": library_posters,
+        "poster_imdb_ids": poster_imdb_ids,
+        "default_library": default_library_name,
+        "has_music_library": has_music_library,
+    })
+    
+    return render_template("onboarding.html", **context)
 
 @app.route("/audiobookshelf", methods=["GET", "POST"])
 def audiobookshelf():
@@ -891,16 +891,17 @@ def audiobookshelf():
 
     tautulli_enabled = bool(os.getenv("TAUTULLI"))
     
-    # Get public services data for icons (end user services only)
-    services = build_public_services_data()
+    # Get template context with quick_access_services
+    context = get_template_context()
     
-    return render_template(
-        "audiobookshelf.html",
-        submitted=submitted,
-        abs_covers=abs_covers,
-        tautulli_enabled=tautulli_enabled,
-        services=services
-    )
+    # Add page-specific variables
+    context.update({
+        "submitted": submitted,
+        "abs_covers": abs_covers,
+        "tautulli_enabled": tautulli_enabled,
+    })
+    
+    return render_template("audiobookshelf.html", **context)
 
 # Add this helper at the top (after imports)
 def is_setup_complete():
@@ -2220,26 +2221,27 @@ def medialists():
     abs_book_groups = group_books_by_letter(abs_books) if abs_books else {}
     abs_book_count = len(abs_books) if abs_books else 0
 
-    # Get public services data for icons (end user services only)
-    services = build_public_services_data()
-
-    return render_template(
-        "medialists.html",
-        library_media=library_media,
-        library_counts=library_counts,  # Pass library counts
-        audiobooks=audiobooks,
-        abs_enabled=abs_enabled,
-        library_posters={},  # Empty - will be loaded on-demand
-        library_poster_groups={},  # Empty - will be loaded on-demand
-        abs_books=abs_books,
-        abs_book_groups=abs_book_groups,
-        abs_book_count=abs_book_count,
-        filtered_libraries=filtered_libraries,  # Pass library info for AJAX
-        logo_filename=get_logo_filename(),
-        services=services,
-        selected_library=selected_library,
-        selected_service=selected_service
-    )
+    # Get template context with quick_access_services
+    context = get_template_context()
+    
+    # Add page-specific variables
+    context.update({
+        "library_media": library_media,
+        "library_counts": library_counts,  # Pass library counts
+        "audiobooks": audiobooks,
+        "abs_enabled": abs_enabled,
+        "library_posters": {},  # Empty - will be loaded on-demand
+        "library_poster_groups": {},  # Empty - will be loaded on-demand
+        "abs_books": abs_books,
+        "abs_book_groups": abs_book_groups,
+        "abs_book_count": abs_book_count,
+        "filtered_libraries": filtered_libraries,  # Pass library info for AJAX
+        "logo_filename": get_logo_filename(),
+        "selected_library": selected_library,
+        "selected_service": selected_service
+    })
+    
+    return render_template("medialists.html", **context)
 
 @app.route("/audiobook-covers")
 def get_random_audiobook_covers():
@@ -2791,6 +2793,22 @@ def build_public_services_data():
     
     return services
 
+def build_quick_access_services_data():
+    """Build filtered services data for quick access panel (desktop and mobile)"""
+    service_defs = get_public_service_definitions()
+    services = []
+    
+    for name, env, logo in service_defs:
+        # Skip Tautulli for now (commented out in desktop panels)
+        if name == "Tautulli":
+            continue
+            
+        url = os.getenv(env, "")
+        if url:
+            services.append({"name": name, "url": url, "logo": logo})
+    
+    return services
+
 def get_storage_info():
     """Get storage information for templates"""
     drives_env = os.getenv("DRIVES")
@@ -2851,6 +2869,7 @@ def is_music_artist(poster_data, library_info=None):
 def get_template_context():
     """Get common template context data to avoid repetition"""
     services, all_services = build_services_data()
+    quick_access_services = build_quick_access_services_data()
     storage_info = get_storage_info()
     library_notes = load_library_notes()
     
@@ -2860,6 +2879,7 @@ def get_template_context():
     
     return {
         "services": services,
+        "quick_access_services": quick_access_services,
         "all_services": all_services,
         "submissions": submissions,
         "storage_info": storage_info,

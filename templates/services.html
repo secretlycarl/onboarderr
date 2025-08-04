@@ -590,11 +590,13 @@
             </label>
           </div>
            <div class="file-help">
-            Quick access links appear as a floating panel on desktop and in the mobile navigation menu. They provide direct access to your media services.<br>
-            This feature is a work in progress.
+            Quick access links appear as a floating panel on desktop and in the mobile navigation menu. They provide direct access to your media and requesting services.
            </div>
          </div>
-         
+         <div class="info-box">
+          <span>ℹ️</span>
+          <span><strong>Note:</strong> This feature is a work in progress.</span>
+        </div>
          <hr class="section-divider">
         
         <!-- Editable Service URLs -->
@@ -604,7 +606,7 @@
         </h3>
         <div class="info-box">
           <span>ℹ️</span>
-          <span><strong>Note:</strong> These URLs are used in the services panel at the top of this page, as well as the quick access panel when enabled. Default local URLs are provided for admin-only services. For user-facing ones, put a public link that remote users can access.</span>
+          <span><strong>Note:</strong> These URLs are used in the services panel at the top of this page, and a few populate the quick access panel when enabled. Default local URLs are provided for admin-only services. For user-facing ones, put a public link that remote users can access.</span>
         </div>
         {% for service in all_services %}
           <div class="form-group">

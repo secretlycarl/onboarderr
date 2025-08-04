@@ -18,33 +18,7 @@
   {% include "_bottom_nav.html" %}
   
   <!-- Fixed bottom-left service icons -->
-  {% if services and QUICK_ACCESS_ENABLED == 'yes' %}
-    <div class="quick-access-panel">
-      <div class="quick-access-title">Quick Access</div>
-      <div class="quick-access-grid">
-        {% for service in services %}
-          <div class="quick-access-item">
-            <a href="{{ service.url }}" target="_blank" title="{{ service.name }}" class="service-link">
-              <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" class="quick-access-icon">
-            </a>
-            <div class="quick-access-label">
-              {% if service.name == "Plex" %}
-                Media
-              {% elif service.name == "Audiobookshelf" %}
-                Books
-                 <!-- removing tautulli for now
-              {% elif service.name == "Tautulli" %}
-                Stats
-                -->
-              {% elif service.name == "Overseerr" or service.name == "Jellyseerr" %}
-                Request
-              {% endif %}
-            </div>
-          </div>
-        {% endfor %}
-      </div>
-    </div>
-  {% endif %}
+  {% include "_quick_access_panel.html" %}
 
     <div class="onboarding-content">
       <div class="onboarding-section">
@@ -81,7 +55,7 @@
           <span class="mobile-only">On mobile, scroll horizontally to browse through posters.</span>
         </p>
 
-        <h3>Desktop Example</h3>
+        <h3>Desktop and Mobile UI</h3>
         <div class="screenshot-section">
           <img src="{{ url_for('static', filename='homepage.webp') }}" alt="Homepage Example" class="toggle-grow" />
           <p class="screenshot-caption">Click to enlarge</p>
@@ -159,6 +133,11 @@
           <p>
            You can also access it via web browser on desktop at <a href="https://app.plex.tv/" target="_blank" class="accent">app.plex.tv</a> to try it out, but I'd prefer if you use the standalone Windows or Mac app. 
           </p>
+
+          <h3>Login Screenshots</h3>
+          <div class="screenshot-section">
+            <img src="{{ url_for('static', filename='plexlogin.webp') }}" alt="Login Examples" class="toggle-grow" />
+          </div>
       </details>
 
       <details class="collapsible-section">
@@ -186,7 +165,7 @@
           </div>
           
           <p>
-            You can poke around in the account settings and change things in the other tabs too.	
+            You can poke around in the account settings (I recommend you turn on automatic login) and change things in the other tabs too.
           </p>
 
           <p>
@@ -205,7 +184,7 @@
           </ul>
 
           <p>
-            Note: If you're a nerd and want the best possible Plex experience on your TV, I reccomend one of these: 
+            If you're a nerd and want the best possible Plex experience on your TV, I reccomend one of these: 
           </p>
           <ul class="text-left max-800">
             <li><a href="https://www.amazon.com/s?k=Nvidia+Shield+Pro+%282019%29" target="_blank" class="accent">Nvidia Shield Pro (2019)</a> – plays nearly everything flawlessly, best overall.</li>
@@ -213,7 +192,7 @@
             <li><a href="https://www.amazon.com/s?k=FireTV+Cube+%283rd+Gen%29&crid=3KR2YPPAK6S5K&sprefix=firetv+cube+3rd+gen+%2Caps%2C128&ref=nb_sb_noss_2" target="_blank" class="accent">FireTV Cube (3rd Gen)</a> – smooth UI, but has DTS playback issues.</li>
           </ul>
           <p>
-          Not required unless you notice problems on your current TV device or want the best playback quality.
+          Not needed unless you notice problems on your current TV setup or want the absolute best playback quality.
           </p>
       </details>
 

@@ -470,7 +470,8 @@ a:hover {
   border-radius: 8px;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  min-width: 200px;
+  width: fit-content;
+  min-width: auto;
 }
 
 .quick-access-title {
@@ -1977,7 +1978,7 @@ a:hover {
 
 .nav-mobile-services {
   display: flex;
-  gap: 0.75rem;
+  gap: 1.25rem;
   justify-content: center;
   padding: 1rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -2010,6 +2011,21 @@ a:hover {
 
 .nav-service-link:hover .nav-service-icon {
   filter: brightness(1.1);
+}
+
+.nav-service-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.nav-service-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+  font-weight: 500;
+  line-height: 1;
 }
 
 /* Modal Styles */
@@ -2152,7 +2168,7 @@ a:hover {
   }
   
   .nav-mobile-services {
-    gap: 0.5rem;
+    gap: 1.25rem;
     padding: 0.875rem;
   }
   
@@ -2164,6 +2180,11 @@ a:hover {
   .nav-service-icon {
     width: 1.25rem;
     height: 1.25rem;
+  }
+  
+  .nav-service-label {
+    font-size: 0.7rem;
+    margin-top: 0.2rem;
   }
 }
 

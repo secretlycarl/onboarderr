@@ -19,33 +19,7 @@
   {% include "_bottom_nav.html" %}
   
   <!-- Fixed bottom-left service icons -->
-  {% if services and QUICK_ACCESS_ENABLED == 'yes' %}
-    <div class="quick-access-panel">
-      <div class="quick-access-title">Quick Access</div>
-      <div class="quick-access-grid">
-        {% for service in services %}
-          <div class="quick-access-item">
-            <a href="{{ service.url }}" target="_blank" title="{{ service.name }}" class="service-link">
-              <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" class="quick-access-icon">
-            </a>
-            <div class="quick-access-label">
-              {% if service.name == "Plex" %}
-                Media
-              {% elif service.name == "Audiobookshelf" %}
-                Books
-                 <!-- removing tautulli for now
-              {% elif service.name == "Tautulli" %}
-                Stats
-                -->
-              {% elif service.name == "Overseerr" or service.name == "Jellyseerr" %}
-                Request
-              {% endif %}
-            </div>
-          </div>
-        {% endfor %}
-      </div>
-    </div>
-  {% endif %}
+  {% include "_quick_access_panel.html" %}
 
   <div class="onboarding-content medialists-page">
     <div class="onboarding-section">
@@ -57,10 +31,10 @@
         <label for="list-select" class="form-label">Select Library:</label>
         <select id="list-select" class="form-input" style="max-width: 350px;">
           {% for lib_name in library_media.keys() %}
-            <option value="plex-{{ loop.index0 }}" {% if selected_service == 'plex' and selected_library == lib_name %}selected{% endif %}>Plex - {{ lib_name }}</option>
+            <option value="plex-{{ loop.index0 }}" {% if selected_service == 'plex' and selected_library == lib_name %}selected{% endif %}>{{ lib_name }}</option>
           {% endfor %}
           {% if abs_book_groups %}
-            <option value="abs" {% if selected_service == 'abs' %}selected{% endif %}>Audiobookshelf</option>
+            <option value="abs" {% if selected_service == 'abs' %}selected{% endif %}>Audiobooks</option>
           {% endif %}
         </select>
       </div>
@@ -71,7 +45,7 @@
       <div class="medialist-section" id="plex-{{ library_index }}" style="display:none;">
         <div style="display: flex; align-items: center; gap: 1em;">
           <img src="/static/plex.webp" alt="Plex Logo" style="height: 32px; display: block;" />
-          <span class="service-libraries-label">Plex - {{ lib_name }}</span>
+          <span class="service-libraries-label">{{ lib_name }}</span>
         </div>
         
         {% if library_count >= 75 %}
@@ -116,7 +90,7 @@
       <div class="medialist-section" id="abs" style="display:none;">
         <div style="display: flex; align-items: center; gap: 1em;">
           <img src="/static/abs.webp" alt="ABS Logo" style="height: 32px; display: block;" />
-          <span class="service-libraries-label">Audiobookshelf</span>
+          <span class="service-libraries-label">Audiobooks</span>
         </div>
         
         {% if abs_book_count >= 75 %}
