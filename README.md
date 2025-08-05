@@ -41,7 +41,7 @@ Big thanks to [@mon5termatt](https://github.com/mon5termatt) for many of the imp
 - Customizable branding
 - Setup instructions for Plex and Audiobookshelf users
 - Carousel previews and media lists pulled from your server
-- Optional Discord notifications when users request access
+- Discord notifications when users request access
 - Admin dashboard with tools and info
 	- Links to other services
    	- User request log
