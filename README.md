@@ -192,7 +192,7 @@ Create and activate a venv (conda or through system python), then:
 - After submission, it will pull all posters from selected libraries for use across the site. This can take a while for large libraries, so keep an eye on the console to see when it finishes.
 
 
-# !!! Per-Host Tweaks !!!
+# Per-Host Tweaks
 
 
 <!-- S
