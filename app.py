@@ -2906,7 +2906,7 @@ def is_music_artist(poster_data, library_info=None):
         return False
     
     # If library info is provided, check if it's actually a music library
-    if library_info and library_info.get("type") == "artist":
+    if library_info and library_info.get("media_type") == "artist":
         title = poster_data.get("title")
         year = poster_data.get("year")
         
