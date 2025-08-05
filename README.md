@@ -1,4 +1,4 @@
-# ATTENTION
+# Attention
 If you're reading this, the repo recently had a big update and I recommend you start from scratch.
 
 Setup is much easier now! 
