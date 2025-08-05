@@ -13,11 +13,11 @@ The readme is mostly accurate, but I'm updating it if I find any inaccuracies.
 # Onboarderr v2
 Onboarderr is a customizable onboarding site for a host's Plex and (optional) Audiobookshelf servers. It includes user instructions, server highlights, and an admin dashboard.
 
-![mainpage](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/10a_mainpagedesktop.png)
+![mainpage](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/10a_main-page-desktop.png)
 
-![Customization 1](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/10b_customexample1.png)
+![Customization 1](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/10b_custom-example1.png)
 
-![Customization 2](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/10c_customexample2.png)
+![Customization 2](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/10c_custom-example2.png)
 
 **[Screenshots](https://github.com/secretlycarl/onboarderr/tree/main/screenshots)**
 
@@ -209,7 +209,7 @@ Create and activate a venv (conda or through system python), then:
 
 # Setup Form
 
-- First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setupdesktop.png). Everything here can be changed afterwards from Settings on ```/services``` (recommended) or ```.env``` 
+- First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1_setup-desktop.png). Everything here can be changed afterwards from Settings on ```/services``` (recommended) or ```.env``` 
 - The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1
 - After submission, the app will restart to apply the new ```.env``` and direct you to `/login`
 - ```ADMIN_PASSWORD``` will take you to services page, but you can browse the others from the links at the top
