@@ -180,7 +180,7 @@ Create and activate a venv (conda or through system python), then:
 
 # Setup Form
 
-- First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1a_setup-desktop.png). Everything here can be changed afterwards from Settings on ```/services``` (recommended) or ```.env``` 
+- First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1a_setup-desktop.png). Everything here can be changed afterwards from Settings on [/services](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/7a_services-desktop.png) (recommended) or `.env` 
 - The library descriptions you write are saved to ```library_s.json```, and displayed on the Plex onboarding page in section 1
 - After submission, the app will restart to apply the new ```.env``` and direct you to `/login`
 - ```ADMIN_PASSWORD``` will take you to services page, but you can browse the others from the links at the top
@@ -198,9 +198,9 @@ https://github.com/homarr-labs/dashboard-icons/tree/main/webp has all icons.
 
 Most customization is done on setup and settings in the admin panel, but you may want to tweak some HTML contents or instructional images it comes with.
 
-- ```onboarding_section7.html``` is personalized, you should change it to what you want it to say
+- `onboarding_section7.html` is personalized, you should change it to what you want it to say
 
-- Delete placeholder ```plex_submissions.json``` and ```audiobookshelf_submissions.json```. The ones that come with it have example data to populate the requests sections on ```/services```
+- Delete placeholder `plex_submissions.json` and `audiobookshelf_submissions.json`. The ones that come with it have example data to populate the requests sections on `/services`
   
 # Sharing
 
