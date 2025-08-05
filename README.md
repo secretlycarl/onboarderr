@@ -133,7 +133,7 @@ python changeport.py 9000  # Change to port 9000
 This script will automatically update all necessary files (`compose.yml`, `Dockerfile`, `empty.env`).
 
 Alternatively, you can manually change the port by:
-1. Setting `APP_PORT=` in your `empty.env` file
+1. Setting `APP_PORT` in your `empty.env` file
 2. Updating the port mapping in `compose.yml`
 3. Updating the `EXPOSE` directive in `Dockerfile` (optional, for manual docker runs)
 
