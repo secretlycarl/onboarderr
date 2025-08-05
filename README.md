@@ -153,7 +153,7 @@ You can install this app directly from the Unraid Community Applications (CA) pl
 
 - Go to **Apps > Settings > CA Settings > Add New Repository**
 
-- Paste this URL: [need to make xml file for repo]
+- Paste this URL: https://github.com/secretlycarl/onboarderr-unraid
 
 - After saving, return to the Apps tab and search again.
 
