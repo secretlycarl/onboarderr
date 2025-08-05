@@ -161,6 +161,13 @@ You can install this app directly from the Unraid Community Applications (CA) pl
 
 - After saving, return to the Apps tab and search again.
 
+To update the docker image:
+
+```bash
+docker pull secretlycarl/onboarderr:latest
+docker run -d -p 10000:10000 secretlycarl/onboarderr:latest
+```
+
 [Go to Site Setup Instructions](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#setup-form)
 
 # Restarting the App
