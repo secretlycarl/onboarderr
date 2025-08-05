@@ -137,7 +137,7 @@ Alternatively, you can manually change the port by:
 2. Updating the port mapping in `compose.yml`
 3. Updating the `EXPOSE` directive in `Dockerfile`
 
-# Hosting on UNRAID (not ready yet)
+# Hosting on UNRAID (untested)
 
 You can install this app directly from the Unraid Community Applications (CA) plugin:
 
