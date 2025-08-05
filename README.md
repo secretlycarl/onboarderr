@@ -175,7 +175,7 @@ Create and activate a venv (conda or through system python), then:
 
     python app.py
 
-- It runs on port `10000` by default (or the port specified in your `.env` file via `APP_PORT`)
+- It runs on port `10000` by default (change it with `changeport.py`)
 - Go to `http://127.0.0.1:10000` (or your configured port)
 
 # Setup Form
