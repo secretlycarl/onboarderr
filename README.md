@@ -4,6 +4,7 @@ If you're reading this, the repo recently had a big update and I recommend you s
 Setup is much easier now! 
 - Set port with `python changeport.py [PORT_NUMBER]` if you don't want to use the default `10000`
 - Docker compose (tweak mounts first on `compose.yml`) and set all initial settings on the site itself
+- **Delete `/static/posters`**, there is new backend logic for posters/info grabbing which requires a full refresh of that data
 
 The readme is mostly accurate, but I'm updating it if I find any inaccuracies.
 
