@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<Container>
+  <Name>Onboarderr</Name>
+  <Repository>secretlycarl/onboarderr:latest</Repository>
+  <Registry>https://hub.docker.com/r/secretlycarl/onboarderr</Registry>
+  <Network>bridge</Network>
+  <MyID>onboarderr</MyID>
+  <Support>https://github.com/secretlycarl/onboarderr/issues</Support>
+  <Project>https://github.com/secretlycarl/onboarderr</Project>
+  <Overview>
+    <![CDATA[
+    Onboarderr is a customizable onboarding portal for your Plex and (optional) Audiobookshelf servers. 
+    It includes user instructions, server highlights, and an admin dashboard.
+    ]]>
+  </Overview>
+  <Category>Tools:</Category>
+  <WebUI>http://[IP]:[PORT:10000]/</WebUI>
+  <Icon>https://raw.githubusercontent.com/secretlycarl/onboarderr/main/icon.png</Icon>
+</Container>
