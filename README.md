@@ -40,7 +40,7 @@ Big thanks to [@mon5termatt](https://github.com/mon5termatt) for many of the imp
 
 - Customizable branding
 - Setup instructions for Plex and Audiobookshelf users
-- User request forms for Plex and ABS
+- User access request forms for Plex and ABS
 - Carousel previews and media lists pulled from your server
 - Discord notifications when users request access
 - Admin dashboard with tools and info
