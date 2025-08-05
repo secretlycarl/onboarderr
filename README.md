@@ -5,8 +5,6 @@ Setup is much easier now!
 - Set port with `python changeport.py [PORT_NUMBER]` if you don't want to use the default `10000`
 - Docker compose (tweak mounts first on `compose.yml`) and set all initial settings on the site itself
 
-The readme is mostly accurate, but I'm updating it if I find any inaccuracies.
-
 [How to Update](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#updates)
 
 
@@ -42,7 +40,7 @@ Big thanks to [@mon5termatt](https://github.com/mon5termatt) for many of the imp
 
 # Features
 
-- Docker & UNRAID support (and Win/Mac/Linux)
+- Docker & UNRAID (needs testing) support (also Win/Mac/Linux)
 - Customizable branding
 - Setup instructions for Plex and Audiobookshelf users
 - User access request forms for Plex and ABS
