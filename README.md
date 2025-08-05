@@ -141,7 +141,7 @@ Alternatively, you can manually change the port by:
 
 # Hosting on UNRAID (untested)
 
-> **Note:** I'm not familiar with UNRAID, but I believe this will get you up and running. Not on CA yet but soon. Tell me about issues if you have any.
+> **Note:** I'm not familiar with UNRAID, but I believe this will get you up and running. Waiting on CA approval. Tell me about issues if you have any.
 
 You can install this app directly from the Unraid Community Applications (CA) plugin:
 
