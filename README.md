@@ -137,6 +137,8 @@ Alternatively, you can manually change the port by:
 2. Updating the port mapping in `compose.yml`
 3. Updating the `EXPOSE` directive in `Dockerfile` (optional, for manual docker runs)
 
+[Go to Site Setup Instructions](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#setup-form)
+
 # Hosting on UNRAID (untested)
 
 > **Note:** I'm not familiar with UNRAID, but I believe this will get you up and running. Not on CA yet but soon. Tell me about issues if you have any.
@@ -158,6 +160,8 @@ You can install this app directly from the Unraid Community Applications (CA) pl
 - Paste this URL: https://github.com/secretlycarl/onboarderr-unraid
 
 - After saving, return to the Apps tab and search again.
+
+[Go to Site Setup Instructions](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#setup-form)
 
 # Restarting the App
 
