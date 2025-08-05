@@ -1181,6 +1181,19 @@ def services():
         current_quick_access = os.getenv("QUICK_ACCESS_ENABLED", "yes")
         if quick_access_enabled in ["yes", "no"] and quick_access_enabled != current_quick_access:
             safe_set_key(env_path, "QUICK_ACCESS_ENABLED", quick_access_enabled)
+        
+        # Handle individual Quick Access service toggles
+        qa_plex_enabled = "yes" if request.form.get("qa_plex_enabled") else "no"
+        qa_audiobookshelf_enabled = "yes" if request.form.get("qa_audiobookshelf_enabled") else "no"
+        qa_tautulli_enabled = "yes" if request.form.get("qa_tautulli_enabled") else "no"
+        qa_overseerr_enabled = "yes" if request.form.get("qa_overseerr_enabled") else "no"
+        qa_jellyseerr_enabled = "yes" if request.form.get("qa_jellyseerr_enabled") else "no"
+        
+        safe_set_key(env_path, "QA_PLEX_ENABLED", qa_plex_enabled)
+        safe_set_key(env_path, "QA_AUDIOBOOKSHELF_ENABLED", qa_audiobookshelf_enabled)
+        safe_set_key(env_path, "QA_TAUTULLI_ENABLED", qa_tautulli_enabled)
+        safe_set_key(env_path, "QA_OVERSEERR_ENABLED", qa_overseerr_enabled)
+        safe_set_key(env_path, "QA_JELLYSEERR_ENABLED", qa_jellyseerr_enabled)
 
         # Handle Library Carousel settings
         library_carousels = request.form.getlist("library_carousels")
@@ -2553,6 +2566,19 @@ def setup():
         # Save Quick Access setting
         quick_access_enabled = form.get("quick_access_enabled", "yes")
         safe_set_key(env_path, "QUICK_ACCESS_ENABLED", quick_access_enabled)
+        
+        # Save individual Quick Access service toggles
+        qa_plex_enabled = "yes" if form.get("qa_plex_enabled") else "no"
+        qa_audiobookshelf_enabled = "yes" if form.get("qa_audiobookshelf_enabled") else "no"
+        qa_tautulli_enabled = "yes" if form.get("qa_tautulli_enabled") else "no"
+        qa_overseerr_enabled = "yes" if form.get("qa_overseerr_enabled") else "no"
+        qa_jellyseerr_enabled = "yes" if form.get("qa_jellyseerr_enabled") else "no"
+        
+        safe_set_key(env_path, "QA_PLEX_ENABLED", qa_plex_enabled)
+        safe_set_key(env_path, "QA_AUDIOBOOKSHELF_ENABLED", qa_audiobookshelf_enabled)
+        safe_set_key(env_path, "QA_TAUTULLI_ENABLED", qa_tautulli_enabled)
+        safe_set_key(env_path, "QA_OVERSEERR_ENABLED", qa_overseerr_enabled)
+        safe_set_key(env_path, "QA_JELLYSEERR_ENABLED", qa_jellyseerr_enabled)
         # Save selected library IDs and names
         library_ids = request.form.getlist("library_ids")
         library_notes = {}
@@ -2820,12 +2846,15 @@ def build_quick_access_services_data():
     services = []
     
     for name, env, logo in service_defs:
-        # Skip Tautulli for now (commented out in desktop panels)
-        if name == "Tautulli":
+        url = os.getenv(env, "")
+        if not url:
             continue
             
-        url = os.getenv(env, "")
-        if url:
+        # Check individual QA service toggles
+        qa_env = f"QA_{env}_ENABLED"
+        qa_enabled = os.getenv(qa_env, "yes")  # Default to "yes" for backward compatibility
+        
+        if qa_enabled.lower() == "yes":
             services.append({"name": name, "url": url, "logo": logo})
     
     return services
@@ -2924,7 +2953,12 @@ def get_template_context():
         "custom_services_url": os.getenv("CUSTOM_SERVICES_URL", "").strip(),
         "DISCORD_NOTIFY_PLEX": os.getenv("DISCORD_NOTIFY_PLEX", "1"),
         "DISCORD_NOTIFY_ABS": os.getenv("DISCORD_NOTIFY_ABS", "1"),
-        "QUICK_ACCESS_ENABLED": os.getenv("QUICK_ACCESS_ENABLED", "yes")
+        "QUICK_ACCESS_ENABLED": os.getenv("QUICK_ACCESS_ENABLED", "yes"),
+        "QA_PLEX_ENABLED": os.getenv("QA_PLEX_ENABLED", "yes"),
+        "QA_AUDIOBOOKSHELF_ENABLED": os.getenv("QA_AUDIOBOOKSHELF_ENABLED", "yes"),
+        "QA_TAUTULLI_ENABLED": os.getenv("QA_TAUTULLI_ENABLED", "yes"),
+        "QA_OVERSEERR_ENABLED": os.getenv("QA_OVERSEERR_ENABLED", "yes"),
+        "QA_JELLYSEERR_ENABLED": os.getenv("QA_JELLYSEERR_ENABLED", "yes")
     }
 
 @app.route("/ajax/load-library-posters", methods=["POST"])
@@ -3218,6 +3252,9 @@ def ajax_load_posters_by_letter():
                     if debug_mode:
                         print(f"Error loading poster metadata: {e}")
                     continue
+        
+        # Sort items alphabetically by title
+        unified_items.sort(key=lambda x: x["title"].lower())
         
         return jsonify({
             "success": True,

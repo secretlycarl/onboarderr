@@ -248,7 +248,7 @@
 }
 
 body {
-  background: linear-gradient(180deg, var(--bg, #1a1a1a) 0%, var(--bg, #1a1a1a) 66%, color-mix(in srgb, var(--accent-dark, #2a2a2a) 25%, var(--bg, #1a1a1a) 75%) 100%);
+  background: linear-gradient(180deg, var(--bg, #1a1a1a) 0%, var(--bg, #1a1a1a) 50%, color-mix(in srgb, var(--accent-dark, #2a2a2a) 25%, var(--bg, #1a1a1a) 75%) 100%);
   background-attachment: fixed;
   background-size: 100% 100vh;
   background-repeat: no-repeat;
@@ -494,6 +494,106 @@ a:hover {
   border: 1px solid rgba(255, 255, 255, 0.1);
   width: fit-content;
   min-width: auto;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+.quick-access-panel.minimized {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.quick-access-toggle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 1001;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.quick-access-panel.minimized .quick-access-toggle {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.quick-access-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+.toggle-arrow {
+  color: #ffffff;
+  transition: transform 0.3s ease;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+.quick-access-panel.minimized .toggle-arrow {
+  transform: rotate(180deg);
+}
+
+/* Hover effect for the minimized panel */
+.quick-access-panel.minimized:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.quick-access-content {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.quick-access-panel.minimized .quick-access-content {
+  opacity: 0;
+  transform: translateX(-20px);
+  pointer-events: none;
+}
+
+/* Focus styles for accessibility */
+.quick-access-toggle:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
+.quick-access-toggle:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.8);
+  outline-offset: 2px;
+}
+
+/* Ensure the panel doesn't interfere with other elements when minimized */
+.quick-access-panel.minimized {
+  pointer-events: auto;
+}
+
+.quick-access-panel.minimized .quick-access-toggle {
+  pointer-events: auto;
+}
+
+/* Smooth transition for the entire panel */
+.quick-access-panel {
+  will-change: width, height, border-radius, padding;
+}
+
+/* Ensure content is properly hidden when minimized */
+.quick-access-panel.minimized .quick-access-title,
+.quick-access-panel.minimized .quick-access-grid {
+  display: none;
 }
 
 .quick-access-title {
@@ -503,6 +603,47 @@ a:hover {
   font-weight: bold;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quick-access-title-toggle {
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: #aaa;
+  opacity: 0.7;
+}
+
+.quick-access-title-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.quick-access-title-toggle:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.3);
+  outline-offset: 1px;
+}
+
+.title-toggle-arrow {
+  color: #aaa;
+  transition: transform 0.2s ease;
+}
+
+.quick-access-title-toggle:hover .title-toggle-arrow {
+  color: #fff;
+}
+
+.quick-access-panel.minimized .quick-access-title-toggle {
+  display: none;
 }
 
 .quick-access-grid {
@@ -3253,7 +3394,7 @@ details.collapsible-section > .info-box {
 .letter-navigation {
   display: flex;
   gap: 0.75rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   padding: 1rem 0;
   overflow-x: auto;
   scrollbar-width: thin;
@@ -3277,14 +3418,14 @@ details.collapsible-section > .info-box {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: var(--accent);
-  padding: 0.75rem 1.25rem;
+  padding: 0.9rem 1rem;
   border-radius: 0.5rem;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
   font-weight: 700;
-  font-size: 1rem;
-  min-width: 3rem;
+  font-size: 1.2rem;
+  min-width: 3.25rem;
   text-align: center;
   display: flex;
   align-items: center;
@@ -3557,12 +3698,19 @@ details.collapsible-section .section-divider {
     grid-template-rows: auto auto;
     gap: 0.5rem;
     padding: 0.75rem;
+    /* Ensure minimum touch target size */
+    min-height: 44px;
+    /* Add touch-friendly spacing */
+    margin-bottom: 0.75rem;
   }
   
   .onboarding-library-item .library-checkbox {
     grid-column: 1;
     grid-row: 1;
     justify-self: start;
+    /* Ensure checkbox is properly sized for touch */
+    width: 1.5rem;
+    height: 1.5rem;
   }
   
   .onboarding-library-item .library-title {
@@ -3570,6 +3718,9 @@ details.collapsible-section .section-divider {
     grid-row: 1;
     justify-self: start;
     margin-left: 0.25rem;
+    /* Ensure text is readable and touch-friendly */
+    font-size: 1rem;
+    line-height: 1.4;
   }
   
   .onboarding-library-item .library-id {
@@ -3589,6 +3740,8 @@ details.collapsible-section .section-divider {
   .onboarding-library-item {
     padding: 0.5rem;
     gap: 0.25rem;
+    /* Ensure touch target is large enough */
+    min-height: 48px;
   }
   
   .onboarding-library-item .library-title {
@@ -3598,6 +3751,27 @@ details.collapsible-section .section-divider {
   .onboarding-library-item .library-id {
     font-size: 0.85rem;
     padding-left: 1.25rem;
+  }
+}
+
+/* Touch-friendly improvements for mobile devices */
+@media (pointer: coarse) and (max-width: 1024px) {
+  .onboarding-library-item {
+    /* Add visual feedback for touch */
+    transition: all 0.15s ease;
+    /* Ensure proper touch target */
+    min-height: 44px;
+  }
+  
+  .onboarding-library-item:active {
+    background: var(--accent-30);
+    transform: scale(0.98);
+  }
+  
+  .onboarding-library-item .library-checkbox {
+    /* Larger checkbox for touch */
+    width: 1.5rem;
+    height: 1.5rem;
   }
 }
 

@@ -603,6 +603,36 @@
           <span>ℹ️</span>
           <span><strong>Note:</strong> This feature is a work in progress.</span>
         </div>
+
+        <!-- Quick Access Service Toggles -->
+        <div id="qa-service-toggles" class="form-group" style="display: none;">
+          <label class="form-label">Quick Access Services</label>
+          <div class="checkbox-group">
+            <label class="checkbox-option">
+              <input type="checkbox" name="qa_plex_enabled" value="yes" class="checkbox-input" {% if QA_PLEX_ENABLED != 'no' %}checked{% endif %}>
+              <span>Plex</span>
+            </label>
+            <label class="checkbox-option">
+              <input type="checkbox" name="qa_audiobookshelf_enabled" value="yes" class="checkbox-input" {% if QA_AUDIOBOOKSHELF_ENABLED != 'no' %}checked{% endif %}>
+              <span>Audiobookshelf</span>
+            </label>
+            <label class="checkbox-option">
+              <input type="checkbox" name="qa_tautulli_enabled" value="yes" class="checkbox-input" {% if QA_TAUTULLI_ENABLED != 'no' %}checked{% endif %}>
+              <span>Tautulli</span>
+            </label>
+            <label class="checkbox-option">
+              <input type="checkbox" name="qa_overseerr_enabled" value="yes" class="checkbox-input" {% if QA_OVERSEERR_ENABLED != 'no' %}checked{% endif %}>
+              <span>Overseerr</span>
+            </label>
+            <label class="checkbox-option">
+              <input type="checkbox" name="qa_jellyseerr_enabled" value="yes" class="checkbox-input" {% if QA_JELLYSEERR_ENABLED != 'no' %}checked{% endif %}>
+              <span>Jellyseerr</span>
+            </label>
+          </div>
+          <div class="file-help">
+            Select which services to show in the Quick Access panel. Services will only appear if they have a URL configured below.
+          </div>
+        </div>
          <hr class="section-divider">
         
         <!-- Editable Service URLs -->
@@ -1418,6 +1448,29 @@
       
       // Initial validation
       validateRequestServices();
+    });
+    
+    // Quick Access service toggles visibility
+    function toggleQAServiceToggles() {
+      var qaEnabled = document.querySelector('input[name="quick_access_enabled"]:checked');
+      var qaToggles = document.getElementById('qa-service-toggles');
+      
+      if (qaEnabled && qaEnabled.value === 'yes') {
+        qaToggles.style.display = 'block';
+      } else {
+        qaToggles.style.display = 'none';
+      }
+    }
+    
+    // Add event listeners for QA radio buttons
+    document.addEventListener('DOMContentLoaded', function() {
+      var qaRadios = document.querySelectorAll('input[name="quick_access_enabled"]');
+      qaRadios.forEach(function(radio) {
+        radio.addEventListener('change', toggleQAServiceToggles);
+      });
+      
+      // Initial toggle state
+      toggleQAServiceToggles();
     });
   </script>
 

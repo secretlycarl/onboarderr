@@ -1,23 +1,39 @@
 {% if quick_access_services and QUICK_ACCESS_ENABLED == 'yes' %}
-  <div class="quick-access-panel">
-    <div class="quick-access-title">Quick Access</div>
-    <div class="quick-access-grid">
-      {% for service in quick_access_services %}
-        <div class="quick-access-item">
-          <a href="{{ service.url }}" target="_blank" title="{{ service.name }}" class="service-link">
-            <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" class="quick-access-icon">
-          </a>
-          <div class="quick-access-label">
-            {% if service.name == "Plex" %}
-              Media
-            {% elif service.name == "Audiobookshelf" %}
-              Books
-            {% elif service.name == "Overseerr" or service.name == "Jellyseerr" %}
-              Request
-            {% endif %}
+  <div class="quick-access-panel" id="quickAccessPanel">
+    <div class="quick-access-toggle" id="quickAccessToggle" title="Toggle Quick Access">
+      <svg class="toggle-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="quick-access-content">
+      <div class="quick-access-title">
+        <button class="quick-access-title-toggle" id="quickAccessTitleToggle" title="Minimize Quick Access" aria-label="Minimize Quick Access">
+          <svg class="title-toggle-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M4 9L7 6L4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        Quick Access
+      </div>
+      <div class="quick-access-grid">
+        {% for service in quick_access_services %}
+          <div class="quick-access-item">
+            <a href="{{ service.url }}" target="_blank" title="{{ service.name }}" class="service-link">
+              <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" class="quick-access-icon">
+            </a>
+            <div class="quick-access-label">
+              {% if service.name == "Plex" %}
+                Media
+              {% elif service.name == "Audiobookshelf" %}
+                Books
+              {% elif service.name == "Tautulli" %}
+                Stats
+              {% elif service.name == "Overseerr" or service.name == "Jellyseerr" %}
+                Request
+              {% endif %}
+            </div>
           </div>
-        </div>
-      {% endfor %}
+        {% endfor %}
+      </div>
     </div>
   </div>
 {% endif %} 

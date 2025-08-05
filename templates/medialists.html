@@ -134,6 +134,52 @@
       const loadedLetters = new Map(); // Track which letters have been loaded per library
       const loadedContent = new Map(); // Store the actual content for each letter
       
+      // URL state management functions
+      function updateURL(service, library, letter = null) {
+        const url = new URL(window.location);
+        url.searchParams.set('service', service);
+        if (library) {
+          url.searchParams.set('library', library);
+        }
+        if (letter) {
+          url.searchParams.set('letter', letter);
+        } else {
+          url.searchParams.delete('letter');
+        }
+        window.history.replaceState({}, '', url);
+      }
+      
+      function getURLParams() {
+        const url = new URL(window.location);
+        return {
+          service: url.searchParams.get('service') || 'plex',
+          library: url.searchParams.get('library'),
+          letter: url.searchParams.get('letter')
+        };
+      }
+      
+      function getLibraryNameFromIndex(libraryIndex) {
+        if (libraryIndex === 'abs') {
+          return 'Audiobooks';
+        }
+        // For Plex libraries, we need to get the name from the select options
+        const option = select.querySelector(`option[value="${libraryIndex}"]`);
+        return option ? option.textContent : null;
+      }
+      
+      function getLibraryIndexFromName(libraryName) {
+        if (libraryName === 'Audiobooks') {
+          return 'abs';
+        }
+        // For Plex libraries, find the option with matching text
+        for (const option of select.options) {
+          if (option.textContent === libraryName) {
+            return option.value;
+          }
+        }
+        return null;
+      }
+      
       function showSection(id) {
         sections.forEach(sec => sec.style.display = "none");
         const el = document.getElementById(id);
@@ -151,6 +197,11 @@
         
         if (initialMessage) initialMessage.style.display = 'block';
         if (postersContainer) postersContainer.style.display = 'none';
+        
+        // Update URL with current library
+        const libraryName = getLibraryNameFromIndex(id);
+        const service = id === 'abs' ? 'abs' : 'plex';
+        updateURL(service, libraryName);
         
         // Auto-load all items for small libraries (less than 75 items)
         if (id === 'abs') {
@@ -295,6 +346,11 @@
         postersContainer.style.display = 'block';
         if (initialMessage) initialMessage.style.display = 'none';
         
+        // Update URL with current letter
+        const libraryName = getLibraryNameFromIndex(libraryIndex);
+        const service = libraryIndex === 'abs' ? 'abs' : 'plex';
+        updateURL(service, libraryName, letter);
+        
         // For ABS section, load content directly
         if (libraryIndex === 'abs') {
           const books = window.absBookGroups || {};
@@ -415,27 +471,73 @@
         }
       });
       
-      // Show the pre-selected section or first section by default
-      if (select.options.length > 0) {
-        const selectedOption = select.querySelector('option[selected]');
-        if (selectedOption) {
-          showSection(selectedOption.value);
-          select.value = selectedOption.value;
+      // Initialize based on URL parameters
+      function initializeFromURL() {
+        const params = getURLParams();
+        let targetLibraryIndex = null;
+        
+        // Determine which library to show based on URL parameters
+        if (params.service === 'abs') {
+          targetLibraryIndex = 'abs';
+        } else if (params.library) {
+          // Find the library index for the given library name
+          targetLibraryIndex = getLibraryIndexFromName(params.library);
+        }
+        
+        // If we found a valid library, show it
+        if (targetLibraryIndex && document.getElementById(targetLibraryIndex)) {
+          showSection(targetLibraryIndex);
+          select.value = targetLibraryIndex;
+          
+          // If there's a letter parameter, load that letter
+          if (params.letter) {
+            const libraryIndex = targetLibraryIndex === 'abs' ? 'abs' : targetLibraryIndex.replace('plex-', '');
+            const letterButton = document.querySelector(`.letter-button[data-letter="${params.letter}"][data-library-index="${libraryIndex}"]`);
+            if (letterButton) {
+              // Remove active class from all buttons in this navigation
+              const navigation = letterButton.closest('.letter-navigation');
+              navigation.querySelectorAll('.letter-button').forEach(btn => {
+                btn.classList.remove('active');
+              });
+              
+              // Add active class to the target button
+              letterButton.classList.add('active');
+              
+              // Load the letter content
+              loadPostersForLetter(libraryIndex, params.letter);
+            }
+          }
         } else {
-          showSection(select.options[0].value);
-          select.value = select.options[0].value;
+          // Fallback to default behavior
+          if (select.options.length > 0) {
+            const selectedOption = select.querySelector('option[selected]');
+            if (selectedOption) {
+              showSection(selectedOption.value);
+              select.value = selectedOption.value;
+            } else {
+              showSection(select.options[0].value);
+              select.value = select.options[0].value;
+            }
+          }
         }
       }
       
+      // Handle select changes
       select.addEventListener("change", function () {
         const selectedValue = this.value;
         showSection(selectedValue);
       });
+      
+      // Initialize the page
+      initializeFromURL();
     });
   </script>
 
   <!-- Navigation Script -->
   <script src="{{ url_for('static', filename='navigation.js') }}"></script>
+
+  <!-- Quick Access Panel Script -->
+  <script src="{{ url_for('static', filename='quick-access.js') }}"></script>
 
 </body>
 </html>

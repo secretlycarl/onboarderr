@@ -394,6 +394,29 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", function () {
+      // Make onboarding library items clickable on mobile
+      const libraryItems = document.querySelectorAll('.onboarding-library-item');
+      
+      libraryItems.forEach(item => {
+        item.addEventListener('click', function(e) {
+          // Don't trigger if clicking directly on the checkbox or its label
+          if (e.target.type === 'checkbox' || e.target.tagName === 'LABEL') {
+            return;
+          }
+          
+          // Find the checkbox within this item
+          const checkbox = this.querySelector('input[type="checkbox"]');
+          if (checkbox && !checkbox.disabled) {
+            checkbox.checked = !checkbox.checked;
+            // Trigger change event for form validation
+            checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        });
+        
+        // Add cursor pointer for better UX
+        item.style.cursor = 'pointer';
+      });
+
       // Row-based tab switching functionality
       const rowTabs = document.querySelectorAll('.row-tab');
       
@@ -1191,6 +1214,9 @@
 
   <!-- Smooth Background Extension Script -->
   <script src="{{ url_for('static', filename='smooth-background.js') }}"></script>
+
+  <!-- Quick Access Panel Script -->
+  <script src="{{ url_for('static', filename='quick-access.js') }}"></script>
 
 </body>
 </html>
