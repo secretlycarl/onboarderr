@@ -137,6 +137,26 @@ Alternatively, you can manually change the port by:
 2. Updating the port mapping in `compose.yml`
 3. Updating the `EXPOSE` directive in `Dockerfile`
 
+# Hosting on UNRAID (not ready yet)
+
+You can install this app directly from the Unraid Community Applications (CA) plugin:
+
+- On your Unraid server, open the Apps tab
+
+- Search for Onboarderr
+
+- Click Install, and adjust any configuration options (ports, volumes, variables)
+
+- Click Apply to start the container
+
+> **Note:** If you don't see it listed, you can manually add the template repository:
+
+- Go to **Apps > Settings > CA Settings > Add New Repository**
+
+- Paste this URL: [need to make xml file for repo]
+
+- After saving, return to the Apps tab and search again.
+
 # Restarting the App
 
 - **After setup or changing settings, the app will automatically restart itself to apply changes**
@@ -159,7 +179,7 @@ Create and activate a venv (conda or through system python), then:
 # Setup Form
 
 - First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1a_setup-desktop.png). Everything here can be changed afterwards from Settings on ```/services``` (recommended) or ```.env``` 
-- The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1
+- The library descriptions you write are saved to ```library_s.json```, and displayed on the Plex onboarding page in section 1
 - After submission, the app will restart to apply the new ```.env``` and direct you to `/login`
 - ```ADMIN_PASSWORD``` will take you to services page, but you can browse the others from the links at the top
 - ```SITE_PASSWORD``` will not allow access to admin page
@@ -169,7 +189,7 @@ Create and activate a venv (conda or through system python), then:
 # !!! Per-Host Tweaks !!!
 
 
-<!-- NOTES
+<!-- S
 USE https://dashboardicons.com/icons For icons. 
 https://github.com/homarr-labs/dashboard-icons/tree/main/webp has all icons. 
 -->
