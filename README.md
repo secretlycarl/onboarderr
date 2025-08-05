@@ -42,7 +42,7 @@ Big thanks to [@mon5termatt](https://github.com/mon5termatt) for many of the imp
 
 # Features
 
-- Docker & UNRAID support
+- Docker & UNRAID support (and Win/Mac/Linux)
 - Customizable branding
 - Setup instructions for Plex and Audiobookshelf users
 - User access request forms for Plex and ABS
