@@ -2021,19 +2021,41 @@ def is_poster_download_in_progress():
     with poster_download_lock:
         return len(poster_download_progress) > 0
 
+def strip_articles(title):
+    """Strip articles (A, An, The) from the beginning of a title for sorting purposes."""
+    if not title:
+        return title
+    
+    # Remove leading whitespace and convert to lowercase for comparison
+    title_clean = title.strip()
+    title_lower = title_clean.lower()
+    
+    # Check for articles at the beginning
+    if title_lower.startswith('the '):
+        return title_clean[4:].strip()  # Remove "The " and any trailing whitespace
+    elif title_lower.startswith('a '):
+        return title_clean[2:].strip()  # Remove "A " and any trailing whitespace
+    elif title_lower.startswith('an '):
+        return title_clean[3:].strip()  # Remove "An " and any trailing whitespace
+    
+    return title_clean
+
 def group_titles_by_letter(titles):
     groups = defaultdict(list)
     for title in titles:
-        # Check if title starts with a digit
-        if title and title[0].isdigit():
+        # Strip articles for sorting purposes
+        sort_title = strip_articles(title)
+        
+        # Check if sort_title starts with a digit
+        if sort_title and sort_title[0].isdigit():
             groups['0-9'].append(title)
         else:
-            # Find the first ASCII letter in the title
-            match = re.search(r'[A-Za-z]', title)
+            # Find the first ASCII letter in the sort_title
+            match = re.search(r'[A-Za-z]', sort_title)
             if match:
                 letter = match.group(0).upper()
                 groups[letter].append(title)
-            elif any(c.isdigit() for c in title):
+            elif any(c.isdigit() for c in sort_title):
                 groups['0-9'].append(title)
             else:
                 groups['Other'].append(title)
@@ -2041,41 +2063,47 @@ def group_titles_by_letter(titles):
     sorted_keys = sorted([k for k in groups if k != 'Other'], key=lambda x: (x != '0-9', x))
     if 'Other' in groups:
         sorted_keys.append('Other')
-    return OrderedDict((k, sorted(groups[k], key=str.casefold)) for k in sorted_keys)
+    return OrderedDict((k, sorted(groups[k], key=lambda t: strip_articles(t).casefold())) for k in sorted_keys)
 
 def group_posters_by_letter(posters):
     groups = defaultdict(list)
     for poster in posters:
         title = poster.get("title", "")
-        match = re.search(r'[A-Za-z]', title)
+        # Strip articles for sorting purposes
+        sort_title = strip_articles(title)
+        
+        match = re.search(r'[A-Za-z]', sort_title)
         if match:
             letter = match.group(0).upper()
             groups[letter].append(poster)
-        elif any(c.isdigit() for c in title):
+        elif any(c.isdigit() for c in sort_title):
             groups['0-9'].append(poster)
         else:
             groups['Other'].append(poster)
     sorted_keys = sorted([k for k in groups if k != 'Other'], key=lambda x: (x != '0-9', x))
     if 'Other' in groups:
         sorted_keys.append('Other')
-    return OrderedDict((k, sorted(groups[k], key=lambda p: p.get("title", "").casefold())) for k in sorted_keys)
+    return OrderedDict((k, sorted(groups[k], key=lambda p: strip_articles(p.get("title", "")).casefold())) for k in sorted_keys)
 
 def group_books_by_letter(books):
     groups = defaultdict(list)
     for book in books:
         title = book.get("title", "")
-        match = re.search(r'[A-Za-z]', title)
+        # Strip articles for sorting purposes
+        sort_title = strip_articles(title)
+        
+        match = re.search(r'[A-Za-z]', sort_title)
         if match:
             letter = match.group(0).upper()
             groups[letter].append(book)
-        elif any(c.isdigit() for c in title):
+        elif any(c.isdigit() for c in sort_title):
             groups['0-9'].append(book)
         else:
             groups['Other'].append(book)
     sorted_keys = sorted([k for k in groups if k != 'Other'], key=lambda x: (x != '0-9', x))
     if 'Other' in groups:
         sorted_keys.append('Other')
-    return OrderedDict((k, sorted(groups[k], key=lambda b: b.get("title", "").casefold())) for k in sorted_keys)
+    return OrderedDict((k, sorted(groups[k], key=lambda b: strip_articles(b.get("title", "")).casefold())) for k in sorted_keys)
 
 @app.route("/medialists")
 def medialists():
@@ -3153,8 +3181,8 @@ def ajax_load_all_items():
                         print(f"Error loading poster metadata from {meta_path}: {e}")
                     continue
         
-        # Sort items alphabetically by title
-        items_with_posters.sort(key=lambda x: x["title"].lower())
+        # Sort items alphabetically by title (stripping articles for sorting)
+        items_with_posters.sort(key=lambda x: strip_articles(x["title"]).lower())
         
         if debug_mode:
             print(f"DEBUG: Returning {len(items_with_posters)} items with posters")
@@ -3218,8 +3246,15 @@ def ajax_load_posters_by_letter():
                     
                     title = meta.get("title")
                     if title:
-                        # Filter by letter
-                        first_char = title[0].upper()
+                        # Strip articles for sorting purposes
+                        sort_title = strip_articles(title)
+                        
+                        # Filter by letter using the stripped title
+                        if sort_title:
+                            first_char = sort_title[0].upper()
+                        else:
+                            first_char = title[0].upper()  # Fallback to original title
+                        
                         letter_match = False
                         
                         if letter == "0-9" and first_char.isdigit():
@@ -3253,8 +3288,8 @@ def ajax_load_posters_by_letter():
                         print(f"Error loading poster metadata: {e}")
                     continue
         
-        # Sort items alphabetically by title
-        unified_items.sort(key=lambda x: x["title"].lower())
+        # Sort items alphabetically by title (stripping articles for sorting)
+        unified_items.sort(key=lambda x: strip_articles(x["title"]).lower())
         
         return jsonify({
             "success": True,
