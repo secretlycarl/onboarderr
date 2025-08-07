@@ -37,9 +37,16 @@
     
     <script>
         window.addEventListener('DOMContentLoaded', function() {
-            setTimeout(function() {
-                fetch('/trigger_restart', {method: 'POST'});
-            }, 1000);
+            // Check if restart was already triggered from backend
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromServices = urlParams.get('from_services');
+            
+            if (!fromServices) {
+                // Only trigger restart if not coming from services
+                setTimeout(function() {
+                    fetch('/trigger_restart', {method: 'POST'});
+                }, 1000);
+            }
 
             var totalSeconds = 15;
             var elapsed = 0;

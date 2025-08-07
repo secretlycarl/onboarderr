@@ -1,7 +1,7 @@
 # app.py
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, g
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 import requests
 import xml.etree.ElementTree as ET
 import os
@@ -38,6 +38,9 @@ import hmac
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+import schedule
 
 # Before load_dotenv()
 if not os.path.exists('.env') and os.path.exists('empty.env'):
@@ -49,6 +52,17 @@ poster_download_queue = queue.Queue()
 poster_download_lock = Lock()
 poster_download_running = False
 poster_download_progress = {}
+
+# Rate limiting state
+rate_limit_data = {
+    'failed_attempts': defaultdict(list),  # IP -> list of timestamps
+    'lockout_start_times': defaultdict(float),  # IP -> lockout start timestamp
+    'form_submissions': defaultdict(lambda: defaultdict(list)),  # IP -> form_type -> list of submission timestamps
+    'ip_monitoring': defaultdict(int),     # IP -> failed attempt count
+    'banned_ips': set(),                   # Set of banned IPs
+    'whitelisted_ips': set(),             # Set of whitelisted IPs
+    'rate_limit_notifications': defaultdict(int)  # IP -> notification count for rate limiting
+}
 
 def is_running_in_docker():
     """Detect if the application is running inside a Docker container"""
@@ -87,6 +101,384 @@ def open_browser_delayed():
         print(f"[WARN] Failed to open browser: {e}")
         print(f"[INFO] Please manually open: {get_app_url()}")
 
+# Rate limiting functions
+def get_client_ip():
+    """Get the client's IP address, handling proxies"""
+    try:
+        if request.headers.get('X-Forwarded-For'):
+            return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+        elif request.headers.get('X-Real-IP'):
+            return request.headers.get('X-Real-IP')
+        else:
+            return request.remote_addr
+    except RuntimeError:
+        # Handle case where request context is not available
+        return "127.0.0.1"
+
+def is_ip_whitelisted(ip):
+    """Check if IP is whitelisted"""
+    return ip in rate_limit_data['whitelisted_ips']
+
+def is_ip_banned(ip):
+    """Check if IP is banned"""
+    return ip in rate_limit_data['banned_ips']
+
+def add_ip_to_whitelist(ip):
+    """Add IP to whitelist"""
+    rate_limit_data['whitelisted_ips'].add(ip)
+    # Remove from banned list if present
+    if ip in rate_limit_data['banned_ips']:
+        rate_limit_data['banned_ips'].remove(ip)
+    # Persist to .env file
+    save_ip_lists_to_env()
+    log_security_event("ip_whitelisted", ip, "IP added to whitelist")
+
+def remove_ip_from_whitelist(ip):
+    """Remove IP from whitelist"""
+    if ip in rate_limit_data['whitelisted_ips']:
+        rate_limit_data['whitelisted_ips'].remove(ip)
+        # Persist to .env file
+        save_ip_lists_to_env()
+        log_security_event("ip_whitelist_removed", ip, "IP removed from whitelist")
+
+def add_ip_to_blacklist(ip):
+    """Add IP to blacklist (banned)"""
+    rate_limit_data['banned_ips'].add(ip)
+    # Remove from whitelist if present
+    if ip in rate_limit_data['whitelisted_ips']:
+        rate_limit_data['whitelisted_ips'].remove(ip)
+    # Persist to .env file
+    save_ip_lists_to_env()
+    log_security_event("ip_banned", ip, "IP added to blacklist")
+
+def remove_ip_from_blacklist(ip):
+    """Remove IP from blacklist"""
+    if ip in rate_limit_data['banned_ips']:
+        rate_limit_data['banned_ips'].remove(ip)
+        # Persist to .env file
+        save_ip_lists_to_env()
+        log_security_event("ip_blacklist_removed", ip, "IP removed from blacklist")
+
+def get_ip_lists():
+    """Get current IP whitelist and blacklist"""
+    return {
+        'whitelisted': list(rate_limit_data['whitelisted_ips']),
+        'banned': list(rate_limit_data['banned_ips'])
+    }
+
+def add_failed_attempt(ip, attempt_type="login"):
+    """Record a failed authentication attempt"""
+    if is_ip_whitelisted(ip):
+        return
+    
+    current_time = time.time()
+    rate_limit_data['failed_attempts'][ip].append(current_time)
+    rate_limit_data['ip_monitoring'][ip] += 1
+    
+    # Clean old attempts (older than 24 hours)
+    cutoff_time = current_time - 86400
+    rate_limit_data['failed_attempts'][ip] = [
+        t for t in rate_limit_data['failed_attempts'][ip] 
+        if t > cutoff_time
+    ]
+    
+    # Check if IP should be banned
+    failed_count = len(rate_limit_data['failed_attempts'][ip])
+    suspicious_threshold = int(os.getenv("RATE_LIMIT_IP_SUSPICIOUS_THRESHOLD", "20"))
+    ban_threshold = int(os.getenv("RATE_LIMIT_IP_BAN_THRESHOLD", "50"))
+    
+    if debug_mode:
+        print(f"[DEBUG] Failed attempt for IP {ip}: total attempts = {failed_count}")
+    
+    if failed_count >= ban_threshold:
+        rate_limit_data['banned_ips'].add(ip)
+        log_security_event("ip_banned", ip, f"IP banned after {failed_count} failed attempts")
+    elif failed_count >= suspicious_threshold:
+        log_security_event("ip_suspicious", ip, f"IP marked as suspicious after {failed_count} failed attempts")
+    
+    # Check if this failed attempt should trigger a lockout
+    max_attempts = int(os.getenv("RATE_LIMIT_LOGIN_ATTEMPTS", "5"))
+    
+    # Check recent attempts in last 15 minutes
+    recent_attempts = [t for t in rate_limit_data['failed_attempts'][ip] if t > current_time - 900]
+    
+    if len(recent_attempts) >= max_attempts and ip not in rate_limit_data['lockout_start_times']:
+        # Start lockout period based on recent attempts
+        rate_limit_data['lockout_start_times'][ip] = current_time
+        if debug_mode:
+            print(f"[DEBUG] IP {ip} locked out at {current_time} due to recent attempts")
+    elif failed_count >= max_attempts and ip not in rate_limit_data['lockout_start_times']:
+        # Check if we have enough attempts in the last hour to trigger lockout
+        hour_ago = current_time - 3600
+        attempts_in_last_hour = [t for t in rate_limit_data['failed_attempts'][ip] if t > hour_ago]
+        
+        if len(attempts_in_last_hour) >= max_attempts:
+            # Use the time of the max_attempts-th attempt as lockout start
+            sorted_attempts = sorted(attempts_in_last_hour)
+            lockout_start_time = sorted_attempts[-max_attempts]
+            rate_limit_data['lockout_start_times'][ip] = lockout_start_time
+            if debug_mode:
+                print(f"[DEBUG] IP {ip} locked out at {lockout_start_time} based on attempts in last hour")
+
+def check_rate_limit(ip, limit_type="login", form_type=None):
+    """Check if IP is rate limited"""
+    if is_ip_whitelisted(ip):
+        return False, 0
+    
+    if is_ip_banned(ip):
+        return True, 3600  # 1 hour ban
+    
+    # Clean up expired lockouts periodically
+    cleanup_expired_lockouts()
+    
+    current_time = time.time()
+    
+    if limit_type == "login":
+        # Check login rate limiting
+        lockout_duration = int(os.getenv("RATE_LIMIT_LOGIN_LOCKOUT_DURATION", "3600"))
+        
+        # Check if IP is currently locked out
+        if ip in rate_limit_data['lockout_start_times']:
+            lockout_start = rate_limit_data['lockout_start_times'][ip]
+            lockout_until = lockout_start + lockout_duration
+            remaining_time = max(0, lockout_until - current_time)
+            
+            if remaining_time > 0:
+                if debug_mode:
+                    print(f"[DEBUG] IP {ip} is rate limited, remaining time: {remaining_time} seconds")
+                return True, remaining_time
+            else:
+                # Lockout period has expired, clear it
+                del rate_limit_data['lockout_start_times'][ip]
+                if debug_mode:
+                    print(f"[DEBUG] IP {ip} lockout expired, cleared")
+        
+        # Check if IP should be locked out based on recent attempts
+        attempts = rate_limit_data['failed_attempts'][ip]
+        max_attempts = int(os.getenv("RATE_LIMIT_LOGIN_ATTEMPTS", "5"))
+        
+        # Count attempts in last 15 minutes
+        recent_attempts = [t for t in attempts if t > current_time - 900]  # 15 minutes
+        
+        if debug_mode:
+            print(f"[DEBUG] Rate limit check for IP {ip}: {len(recent_attempts)} recent attempts, max allowed: {max_attempts}")
+        
+        # Check if we have enough recent attempts to trigger a lockout
+        if len(recent_attempts) >= max_attempts:
+            # Start lockout period if not already locked out
+            if ip not in rate_limit_data['lockout_start_times']:
+                rate_limit_data['lockout_start_times'][ip] = current_time
+                if debug_mode:
+                    print(f"[DEBUG] IP {ip} lockout started at {current_time}")
+            
+            # Calculate remaining lockout time
+            lockout_start = rate_limit_data['lockout_start_times'][ip]
+            lockout_until = lockout_start + lockout_duration
+            remaining_time = max(0, lockout_until - current_time)
+            if debug_mode:
+                print(f"[DEBUG] IP {ip} is rate limited, remaining time: {remaining_time} seconds")
+            return True, remaining_time
+        
+        # If we don't have enough recent attempts, check if we should still be locked out
+        # based on the total number of attempts in the last hour
+        # This prevents the lockout from being cleared prematurely
+        hour_ago = current_time - 3600  # 1 hour
+        attempts_in_last_hour = [t for t in attempts if t > hour_ago]
+        
+        if len(attempts_in_last_hour) >= max_attempts:
+            # If we have enough attempts in the last hour, maintain the lockout
+            if ip not in rate_limit_data['lockout_start_times']:
+                # Find the time of the max_attempts-th attempt from the end
+                sorted_attempts = sorted(attempts_in_last_hour)
+                if len(sorted_attempts) >= max_attempts:
+                    # Use the time of the max_attempts-th attempt as lockout start
+                    lockout_start_time = sorted_attempts[-max_attempts]
+                    rate_limit_data['lockout_start_times'][ip] = lockout_start_time
+                    if debug_mode:
+                        print(f"[DEBUG] IP {ip} lockout started at {lockout_start_time} based on attempts in last hour")
+            
+            # Calculate remaining lockout time
+            lockout_start = rate_limit_data['lockout_start_times'][ip]
+            lockout_until = lockout_start + lockout_duration
+            remaining_time = max(0, lockout_until - current_time)
+            if debug_mode:
+                print(f"[DEBUG] IP {ip} is rate limited based on hour window, remaining time: {remaining_time} seconds")
+            return True, remaining_time
+    
+    elif limit_type == "form_submission":
+        # Check form submission rate limiting - separate by form type
+        if form_type is None:
+            return False, 0
+            
+        submissions = rate_limit_data['form_submissions'][ip][form_type]
+        max_submissions = int(os.getenv("RATE_LIMIT_FORM_SUBMISSIONS", "1"))
+        
+        # Count submissions in last hour
+        recent_submissions = [t for t in submissions if t > current_time - 3600]  # 1 hour
+        
+        if len(recent_submissions) >= max_submissions:
+            # Calculate remaining time until next submission allowed
+            oldest_submission = min(recent_submissions)
+            next_allowed = oldest_submission + 3600  # 1 hour
+            remaining_time = max(0, next_allowed - current_time)
+            return True, remaining_time
+    
+    return False, 0
+
+def add_form_submission(ip, form_type):
+    """Record a form submission"""
+    if is_ip_whitelisted(ip):
+        return
+    
+    current_time = time.time()
+    rate_limit_data['form_submissions'][ip][form_type].append(current_time)
+    
+    # Clean old submissions (older than 24 hours)
+    cutoff_time = current_time - 86400
+    rate_limit_data['form_submissions'][ip][form_type] = [
+        t for t in rate_limit_data['form_submissions'][ip][form_type] 
+        if t > cutoff_time
+    ]
+
+def log_security_event(event_type, ip, details):
+    """Log security events"""
+    if os.getenv("ENABLE_AUDIT_LOGGING", "yes") != "yes":
+        return
+    
+    log_entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
+        "event_type": event_type,
+        "ip_address": ip,
+        "user_agent": request.headers.get('User-Agent', ''),
+        "details": details
+    }
+    
+    try:
+        # Load existing logs
+        log_file = "security_log.json"
+        logs = load_json_file(log_file, [])
+        
+        # Add new log entry
+        logs.append(log_entry)
+        
+        # Keep only last 90 days of logs
+        retention_days = int(os.getenv("AUDIT_LOG_RETENTION_DAYS", "90"))
+        cutoff_time = datetime.now(timezone.utc).timestamp() - (retention_days * 86400)
+        
+        # Filter logs by timestamp (if they have one)
+        filtered_logs = []
+        for log in logs:
+            try:
+                log_timestamp = datetime.fromisoformat(log.get("timestamp", "").replace("Z", "+00:00")).timestamp()
+                if log_timestamp > cutoff_time:
+                    filtered_logs.append(log)
+            except:
+                # If timestamp parsing fails, keep the log
+                filtered_logs.append(log)
+        
+        # Save filtered logs
+        save_json_file(log_file, filtered_logs)
+        
+        # Send Discord notification for security events (with rate limiting)
+        if os.getenv("NOTIFY_ADMIN_ON_SECURITY_EVENTS", "yes") == "yes":
+            # Don't send notifications for form submissions (already handled by send_discord_notification)
+            if event_type not in ["form_submission"]:
+                current_time = time.time()
+                
+                # Handle rate-limited form submissions with daily aggregation
+                if event_type in ["form_rate_limited"]:
+                    # Check if this is the first rate-limited event for this IP today
+                    today_key = f"{ip}_form_rate_limited_{datetime.now(timezone.utc).strftime('%Y-%m-%d')}"
+                    if today_key not in rate_limit_data:
+                        # First rate-limited event today - send immediate notification
+                        send_discord_notification(f"Rate Limited: Form Submission", f"IP: {ip} - {details}", event_type="security")
+                        rate_limit_data[today_key] = {
+                            "first_notification_sent": True,
+                            "count": 1,
+                            "last_event": current_time
+                        }
+                    else:
+                        # Subsequent rate-limited event - increment count for daily report
+                        rate_limit_data[today_key]["count"] += 1
+                        rate_limit_data[today_key]["last_event"] = current_time
+                
+                # Handle other security events with hourly rate limiting
+                else:
+                    last_notification = rate_limit_data.get('rate_limit_notifications', {}).get(ip, 0)
+                    if current_time - last_notification > 3600:  # 1 hour
+                        send_discord_notification(f"Security Event: {event_type}", f"IP: {ip} - {details}", event_type="security")
+                        if 'rate_limit_notifications' not in rate_limit_data:
+                            rate_limit_data['rate_limit_notifications'] = {}
+                        rate_limit_data['rate_limit_notifications'][ip] = current_time
+            
+    except Exception as e:
+        if debug_mode:
+            print(f"Error logging security event: {e}")
+
+def format_time_remaining(seconds):
+    """Format remaining time in a human-readable format"""
+    if seconds < 60:
+        return f"{int(seconds)} seconds"
+    elif seconds < 3600:
+        minutes = int(seconds // 60)
+        return f"{minutes} minute{'s' if minutes != 1 else ''}"
+    else:
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        return f"{hours} hour{'s' if hours != 1 else ''} and {minutes} minute{'s' if minutes != 1 else ''}"
+
+def cleanup_expired_lockouts():
+    """Clean up expired lockouts from memory"""
+    current_time = time.time()
+    lockout_duration = int(os.getenv("RATE_LIMIT_LOGIN_LOCKOUT_DURATION", "3600"))
+    
+    expired_ips = []
+    for ip, lockout_start in rate_limit_data['lockout_start_times'].items():
+        if current_time - lockout_start >= lockout_duration:
+            expired_ips.append(ip)
+    
+    for ip in expired_ips:
+        del rate_limit_data['lockout_start_times'][ip]
+        if debug_mode:
+            print(f"[DEBUG] Cleaned up expired lockout for IP {ip}")
+
+def send_daily_security_report():
+    """Send daily security report with aggregated rate-limited events"""
+    try:
+        current_time = time.time()
+        today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+        
+        # Find all rate-limited events from today
+        aggregated_events = []
+        for key, value in rate_limit_data.items():
+            if key.endswith(f"_form_rate_limited_{today}") and isinstance(value, dict):
+                if value.get("count", 0) > 1:  # Only report if there were additional events after the first
+                    ip = key.split("_form_rate_limited_")[0]
+                    aggregated_events.append({
+                        "ip": ip,
+                        "count": value["count"] - 1,  # Subtract 1 since first event was already notified
+                        "last_event": value.get("last_event", 0)
+                    })
+        
+        if aggregated_events:
+            # Create daily report message
+            report_lines = ["📊 **Daily Security Report** - Additional Rate-Limited Events:"]
+            for event in aggregated_events:
+                time_ago = format_time_remaining(current_time - event["last_event"])
+                report_lines.append(f"• IP {event['ip']}: {event['count']} additional attempts (last: {time_ago} ago)")
+            
+            report_message = "\n".join(report_lines)
+            send_discord_notification("Daily Security Report", report_message, event_type="security")
+            
+            # Clean up old entries
+            for key in list(rate_limit_data.keys()):
+                if key.endswith(f"_form_rate_limited_{today}"):
+                    del rate_limit_data[key]
+                    
+    except Exception as e:
+        if debug_mode:
+            print(f"Error sending daily security report: {e}")
+
 # Ensure SECRET_KEY is set
 def ensure_secret_key():
     env_path = '.env'
@@ -116,6 +508,37 @@ debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24)
 csrf = CSRFProtect(app)
+
+# Initialize Flask-Limiter
+limiter = Limiter(
+    app=app,
+    key_func=get_client_ip,  # Use our custom IP detection function
+    default_limits=["200 per day", "50 per hour"]
+)
+
+# Schedule daily security report at 6 PM
+def schedule_daily_report():
+    """Schedule daily security report at 6 PM local time"""
+    import threading
+    import schedule
+    
+    def run_daily_report():
+        send_daily_security_report()
+    
+    # Schedule the report to run at 6 PM every day
+    schedule.every().day.at("18:00").do(run_daily_report)
+    
+    def run_scheduler():
+        while True:
+            schedule.run_pending()
+            time.sleep(60)  # Check every minute
+    
+    # Start scheduler in a separate thread
+    scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+    scheduler_thread.start()
+
+# Start the daily report scheduler
+schedule_daily_report()
 
 
 # Plex details
@@ -161,14 +584,46 @@ def inject_favicon_timestamp():
     return dict(favicon_timestamp=favicon_timestamp)
 
 def get_plex_libraries():
+    # Get Plex credentials directly from environment
+    plex_token = os.getenv("PLEX_TOKEN")
+    plex_url = os.getenv("PLEX_URL")
+    
     if debug_mode:
-        print("DEBUG: PLEX_URL =", PLEX_URL)
-    headers = {"X-Plex-Token": PLEX_TOKEN}
-    url = f"{PLEX_URL}/library/sections"
+        print("[DEBUG] Getting Plex libraries...")
+        print(f"[DEBUG] PLEX_URL = {plex_url}")
+        print(f"[DEBUG] PLEX_TOKEN = {plex_token[:10]}..." if plex_token else "[DEBUG] PLEX_TOKEN = None")
+    
+    if not plex_token or not plex_url:
+        if debug_mode:
+            print("[ERROR] Plex credentials not available")
+        return []
+    
+    headers = {"X-Plex-Token": plex_token}
+    
+    # Ensure plex_url has a scheme
+    if plex_url and not plex_url.startswith(('http://', 'https://')):
+        plex_url = f"http://{plex_url}"  # Default to http if no scheme provided
+        if debug_mode:
+            print(f"[DEBUG] Added scheme to PLEX_URL: {plex_url}")
+    
+    url = f"{plex_url}/library/sections"
     if debug_mode:
-        print("DEBUG: url =", url)
-    response = requests.get(url, headers=headers, timeout=5)
-    response.raise_for_status()
+        print(f"[DEBUG] Making request to: {url}")
+    
+    try:
+        response = requests.get(url, headers=headers, timeout=5)
+        if debug_mode:
+            print(f"[DEBUG] Plex API response status: {response.status_code}")
+        response.raise_for_status()
+    except requests.exceptions.MissingSchema as e:
+        if debug_mode:
+            print(f"[ERROR] Invalid Plex URL (missing scheme): {plex_url}")
+        raise
+    except requests.exceptions.RequestException as e:
+        if debug_mode:
+            print(f"[ERROR] Failed to connect to Plex: {e}")
+        raise
+    
     root = ET.fromstring(response.text)
     libraries = []
     for directory in root.findall(".//Directory"):
@@ -181,14 +636,22 @@ def get_plex_libraries():
                 "key": key, 
                 "media_type": media_type
             })
+            if debug_mode:
+                print(f"[DEBUG] Found library: {title} (ID: {key}, Type: {media_type})")
+    
+    if debug_mode:
+        print(f"[DEBUG] Total libraries found: {len(libraries)}")
     return libraries
 
 # --- File read/write: always use utf-8 encoding and os.path.join ---
 def load_library_notes():
+    if debug_mode:
+        print("[DEBUG] Loading library notes from file...")
     notes = load_json_file("library_notes.json", {})
     if debug_mode:
         print(f"[DEBUG] Loaded {len(notes)} library notes from file")
-    return notes
+        if notes:
+            print(f"[DEBUG] Library note keys: {list(notes.keys())}")
     
     # Check if we need to fetch missing library titles
     library_ids = os.getenv("LIBRARY_IDS", "")
@@ -267,7 +730,10 @@ def load_library_notes():
     return notes
 
 def save_library_notes(notes):
-    save_json_file("library_notes.json", notes)
+    print(f"[DEBUG] save_library_notes called with: {notes}")
+    result = save_json_file("library_notes.json", notes)
+    print(f"[DEBUG] save_json_file result: {result}")
+    return result
 
 def recreate_library_notes():
     """Update library notes on startup by fetching current library information from Plex, preserving existing descriptions"""
@@ -286,6 +752,16 @@ def recreate_library_notes():
         # Load existing library notes to preserve descriptions
         existing_notes = load_library_notes()
         
+        # Get selected library IDs from environment
+        selected_ids_str = os.getenv("LIBRARY_IDS", "")
+        selected_ids = []
+        if selected_ids_str:
+            # Split by comma and clean up whitespace
+            selected_ids = [id.strip() for id in selected_ids_str.split(",") if id.strip()]
+        
+        if debug_mode:
+            print(f"[DEBUG] Selected library IDs from environment: {selected_ids}")
+        
         headers = {"X-Plex-Token": plex_token}
         url = f"{plex_url}/library/sections"
         response = requests.get(url, headers=headers, timeout=5)
@@ -299,6 +775,12 @@ def recreate_library_notes():
             media_type = directory.attrib.get("type")
             
             if title and key:
+                # Only process libraries that are selected (in LIBRARY_IDS)
+                if selected_ids and key not in selected_ids:
+                    if debug_mode:
+                        print(f"[DEBUG] Skipping unselected library: {title} (ID: {key})")
+                    continue
+                
                 # Check if this library exists in our notes
                 if key in existing_notes:
                     # Update existing entry, preserving description
@@ -670,7 +1152,11 @@ def create_abs_user(username, password, user_type="user", permissions=None):
 
 @app.route("/onboarding", methods=["GET", "POST"])
 def onboarding():
+    if debug_mode:
+        print("[DEBUG] Onboarding route accessed")
     if not session.get("authenticated"):
+        if debug_mode:
+            print("[DEBUG] User not authenticated, redirecting to login")
         return redirect(url_for("login"))
 
     submitted = False
@@ -678,6 +1164,19 @@ def onboarding():
     selected_ids = [id.strip() for id in os.getenv("LIBRARY_IDS", "").split(",") if id.strip()]
 
     if request.method == "POST":
+        # Get client IP for rate limiting
+        client_ip = get_client_ip()
+        
+        # Check form submission rate limiting
+        is_rate_limited, remaining_time = check_rate_limit(client_ip, "form_submission", "plex")
+        if is_rate_limited:
+            time_remaining = format_time_remaining(remaining_time)
+            log_security_event("form_rate_limited", client_ip, f"Plex form submission rate limited, {time_remaining} remaining")
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({"success": False, "error": f"Too many submissions. Please try again in {time_remaining}."})
+            else:
+                return render_template("onboarding.html", error=f"Too many submissions. Please try again in {time_remaining}.")
+        
         email = request.form.get("email")
         selected_keys = request.form.getlist("libraries")
         explicit_content = request.form.get("explicit_content") == "yes"
@@ -691,12 +1190,17 @@ def onboarding():
                 "libraries_keys": selected_keys,
                 "libraries_titles": selected_titles,
                 "explicit_content": explicit_content,
-                "submitted_at": datetime.utcnow().isoformat() + "Z"
+                "submitted_at": datetime.now(timezone.utc).isoformat() + "Z"
             }
             submissions = load_json_file("plex_submissions.json", [])
             submissions.append(submission_entry)
             save_json_file("plex_submissions.json", submissions)
             submitted = True
+            
+            # Record successful form submission
+            add_form_submission(client_ip, "plex")
+            log_security_event("form_submission", client_ip, f"Plex form submitted by {email}")
+            
             send_discord_notification(email, "Plex", event_type="plex")
             # AJAX response
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
@@ -705,6 +1209,11 @@ def onboarding():
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             return jsonify({"success": False, "error": "Missing required fields."})
 
+    # Initialize variables to prevent UnboundLocalError
+    available_libraries = []
+    carousel_libraries = []
+    all_libraries = []
+    
     try:
         # Get all libraries from Plex
         all_libraries = get_plex_libraries()
@@ -730,6 +1239,7 @@ def onboarding():
         libraries = []
         all_libraries = []
         carousel_libraries = []
+        available_libraries = []
 
     # Build static poster URLs for each library (limit to 10 per library)
     library_posters = {}
@@ -790,8 +1300,19 @@ def onboarding():
     default_library = os.getenv("DEFAULT_LIBRARY", "all")
     
     # Get all libraries to map numbers to names
-    all_libraries = get_plex_libraries()
-    library_map = {lib["key"]: lib["title"] for lib in all_libraries}
+    if debug_mode:
+        print("[DEBUG] About to call get_plex_libraries() in onboarding route...")
+    try:
+        all_libraries = get_plex_libraries()
+        if debug_mode:
+            print(f"[DEBUG] Successfully got {len(all_libraries)} libraries from Plex API")
+        library_map = {lib["key"]: lib["title"] for lib in all_libraries}
+    except Exception as e:
+        if debug_mode:
+            print(f"[ERROR] Failed to get Plex libraries in onboarding route: {e}")
+        # Fallback to empty libraries if Plex is not available
+        all_libraries = []
+        library_map = {}
     
     # Check if any library has media_type of "artist" (music)
     # Only check currently available libraries that are actually shown in the UI
@@ -870,6 +1391,19 @@ def audiobookshelf():
     submitted = False
 
     if request.method == "POST":
+        # Get client IP for rate limiting
+        client_ip = get_client_ip()
+        
+        # Check form submission rate limiting
+        is_rate_limited, remaining_time = check_rate_limit(client_ip, "form_submission", "audiobookshelf")
+        if is_rate_limited:
+            time_remaining = format_time_remaining(remaining_time)
+            log_security_event("form_rate_limited", client_ip, f"Audiobookshelf form submission rate limited, {time_remaining} remaining")
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({"success": False, "error": f"Too many submissions. Please try again in {time_remaining}."})
+            else:
+                return render_template("audiobookshelf.html", error=f"Too many submissions. Please try again in {time_remaining}.")
+        
         email = request.form.get("email")
         username = request.form.get("username")
         password = request.form.get("password")
@@ -879,12 +1413,17 @@ def audiobookshelf():
                 "email": email,
                 "username": username,
                 "password": password,
-                "submitted_at": datetime.utcnow().isoformat() + "Z"
+                "submitted_at": datetime.now(timezone.utc).isoformat() + "Z"
             }
             submissions = load_json_file("audiobookshelf_submissions.json", [])
             submissions.append(submission_entry)
             save_json_file("audiobookshelf_submissions.json", submissions)
             submitted = True
+            
+            # Record successful form submission
+            add_form_submission(client_ip, "audiobookshelf")
+            log_security_event("form_submission", client_ip, f"Audiobookshelf form submitted by {email}")
+            
             send_discord_notification(email, "Audiobookshelf", event_type="abs")
             # AJAX response
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
@@ -926,6 +1465,16 @@ def admin_login():
     if not is_setup_complete():
         return jsonify({"success": False, "error": "Setup not complete"})
     
+    # Get client IP for rate limiting
+    client_ip = get_client_ip()
+    
+    # Check rate limiting
+    is_rate_limited, remaining_time = check_rate_limit(client_ip, "login")
+    if is_rate_limited:
+        time_remaining = format_time_remaining(remaining_time)
+        log_security_event("rate_limited", client_ip, f"Admin login attempt rate limited, {time_remaining} remaining")
+        return jsonify({"success": False, "error": f"Too many failed attempts. Please try again in {time_remaining}."})
+    
     entered_password = request.form.get("password")
     if not entered_password:
         return jsonify({"success": False, "error": "Password is required"})
@@ -952,15 +1501,32 @@ def admin_login():
     if admin_authenticated:
         session["authenticated"] = True
         session["admin_authenticated"] = True
+        log_security_event("login_success", client_ip, "Admin login successful via AJAX")
         return jsonify({"success": True})
     else:
+        # Record failed attempt
+        add_failed_attempt(client_ip, "login")
+        log_security_event("login_failed", client_ip, "Failed admin login attempt via AJAX")
         return jsonify({"success": False, "error": "Incorrect admin password"})
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if not is_setup_complete():
         return redirect(url_for("setup"))
+    
+    # Get client IP for rate limiting
+    client_ip = get_client_ip()
+    
+    # Check rate limiting for both GET and POST requests
+    is_rate_limited, remaining_time = check_rate_limit(client_ip, "login")
+    if is_rate_limited:
+        time_remaining = format_time_remaining(remaining_time)
+        if request.method == "POST":
+            log_security_event("rate_limited", client_ip, f"Login attempt rate limited, {time_remaining} remaining")
+        return render_template("login.html", error=f"Too many failed attempts. Please try again in {time_remaining}.")
+    
     if request.method == "POST":
+        
         entered_password = request.form.get("password")
         # Always reload from .env
         from dotenv import load_dotenv
@@ -995,13 +1561,27 @@ def login():
         if admin_authenticated:
             session["authenticated"] = True
             session["admin_authenticated"] = True
+            log_security_event("login_success", client_ip, "Admin login successful")
             return redirect(url_for("services"))
         elif site_authenticated:
             session["authenticated"] = True
             session["admin_authenticated"] = False
+            log_security_event("login_success", client_ip, "Site user login successful")
+            if debug_mode:
+                print("[DEBUG] Site user login successful, redirecting to onboarding")
             return redirect(url_for("onboarding"))
         else:
-            return render_template("login.html", error="Incorrect password")
+            # Record failed attempt
+            add_failed_attempt(client_ip, "login")
+            log_security_event("login_failed", client_ip, "Failed login attempt")
+            
+            # Check if this is an AJAX request by looking for X-Requested-With header
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                # AJAX request, return JSON response
+                return jsonify({"success": False, "error": "Incorrect password"}), 401
+            else:
+                # Regular form submission, return template with error
+                return render_template("login.html", error="Incorrect password")
 
     return render_template("login.html")
 
@@ -1032,7 +1612,8 @@ def services():
         "accent_color" in request.form or
         "quick_access_enabled" in request.form or
         "logo_file" in request.files or
-        "wordmark_file" in request.files
+        "wordmark_file" in request.files or
+        "ip_management" in request.form
     ):
         env_path = os.path.join(os.getcwd(), ".env")
         
@@ -1100,28 +1681,64 @@ def services():
         # Library IDs (checkboxes)
         library_ids = request.form.getlist("library_ids")
         current_library_ids = os.getenv("LIBRARY_IDS", "")
-        if library_ids and ",".join(library_ids) != current_library_ids:
-            safe_set_key(env_path, "LIBRARY_IDS", ",".join(library_ids))
-        # Library descriptions (optional)
+        
+        # Ensure library_ids are properly formatted (no commas within individual IDs)
+        cleaned_library_ids = []
+        for lib_id in library_ids:
+            # Remove any commas from individual library IDs
+            cleaned_id = lib_id.replace(",", "").strip()
+            if cleaned_id:
+                cleaned_library_ids.append(cleaned_id)
+        
+        if cleaned_library_ids and ",".join(cleaned_library_ids) != current_library_ids:
+            safe_set_key(env_path, "LIBRARY_IDS", ",".join(cleaned_library_ids))
+            if debug_mode:
+                print(f"[DEBUG] Services form - Updated LIBRARY_IDS to: {','.join(cleaned_library_ids)}")
+        
+        # Library descriptions (optional) - always process descriptions regardless of library_ids
         # Load existing library notes to preserve other data
         existing_notes = load_library_notes()
         
-        for lib_id in library_ids:
-            desc = request.form.get(f"library_desc_{lib_id}", "").strip()
-            
-            # Initialize library entry if it doesn't exist
-            if lib_id not in existing_notes:
-                existing_notes[lib_id] = {}
-            
-            if desc:
-                # Add or update description
-                existing_notes[lib_id]["description"] = desc
-            else:
-                # Remove description if field is empty
-                if "description" in existing_notes[lib_id]:
-                    del existing_notes[lib_id]["description"]
+        # Debug: Print all form data to see what's being submitted
+        print(f"[DEBUG] Services form submission - All form keys: {list(request.form.keys())}")
+        
+        # Process descriptions for all libraries that have description fields in the form
+        # This ensures we don't lose descriptions when libraries are deselected
+        for key, value in request.form.items():
+            if key.startswith("library_desc_"):
+                # Handle both visible inputs (library_desc_X) and hidden inputs (library_desc_hidden_X)
+                if key.startswith("library_desc_hidden_"):
+                    lib_id = key.replace("library_desc_hidden_", "")
+                else:
+                    lib_id = key.replace("library_desc_", "")
+                # Clean the library ID to remove any commas
+                lib_id = lib_id.replace(",", "").strip()
+                desc = value.strip()
+                
+                print(f"[DEBUG] Processing library description - Key: {key}, Lib ID: {lib_id}, Description: '{desc}'")
+                
+                # Skip if library ID is empty after cleaning
+                if not lib_id:
+                    print(f"[DEBUG] Skipping empty library ID")
+                    continue
+                
+                # Initialize library entry if it doesn't exist
+                if lib_id not in existing_notes:
+                    existing_notes[lib_id] = {}
+                    print(f"[DEBUG] Created new library entry for {lib_id}")
+                
+                if desc:
+                    # Add or update description
+                    existing_notes[lib_id]["description"] = desc
+                    print(f"[DEBUG] Updated description for library {lib_id}: '{desc}'")
+                else:
+                    # Remove description if field is empty
+                    if "description" in existing_notes[lib_id]:
+                        del existing_notes[lib_id]["description"]
+                        print(f"[DEBUG] Removed description for library {lib_id}")
         
         # Save the updated library notes
+        print(f"[DEBUG] Saving library notes: {existing_notes}")
         save_library_notes(existing_notes)
         # Discord settings
         discord_webhook = request.form.get("discord_webhook", "").strip()
@@ -1227,6 +1844,29 @@ def services():
             # Reload environment variables to apply the new accent color immediately
             load_dotenv(override=True)
 
+        # Handle IP management enabled setting
+        ip_management_enabled = request.form.get("ip_management_enabled", "no")
+        current_ip_management = os.getenv("IP_MANAGEMENT_ENABLED", "no")
+        if ip_management_enabled in ["yes", "no"] and ip_management_enabled != current_ip_management:
+            safe_set_key(env_path, "IP_MANAGEMENT_ENABLED", ip_management_enabled)
+            # Reload environment variables to reflect the change immediately
+            load_dotenv(override=True)
+
+        # Handle IP management
+        if "ip_management" in request.form:
+            action = request.form.get("ip_action")
+            ip_address = request.form.get("ip_address", "").strip()
+            
+            if ip_address and action:
+                if action == "whitelist":
+                    add_ip_to_whitelist(ip_address)
+                elif action == "remove_whitelist":
+                    remove_ip_from_whitelist(ip_address)
+                elif action == "blacklist":
+                    add_ip_to_blacklist(ip_address)
+                elif action == "remove_blacklist":
+                    remove_ip_from_blacklist(ip_address)
+
         # Trigger background poster refresh if library settings changed
         library_ids = request.form.getlist("library_ids")
         current_library_ids = os.getenv("LIBRARY_IDS", "")
@@ -1234,7 +1874,8 @@ def services():
             # Library selection changed, trigger poster refresh
             refresh_posters_on_demand()
 
-        return redirect(url_for("setup_complete"))
+        # Redirect to setup_complete to trigger restart and show countdown
+        return redirect(url_for("setup_complete", from_services="true"))
 
     # Handle Plex/Audiobookshelf request deletion
     if request.method == "POST":
@@ -1327,6 +1968,9 @@ def services():
     # Get template context
     context = get_template_context()
     
+    # Add IP management data to context
+    context['ip_lists'] = get_ip_lists()
+    
     # Handle Plex user invitation (parallel to ABS user creation)
     if request.method == "POST" and "invite_plex_users" in request.form:
         try:
@@ -1361,6 +2005,7 @@ def services():
     return render_template("services.html", **context)
 
 @app.route("/fetch-libraries", methods=["POST"])
+@limiter.exempt
 def fetch_libraries():
     data = request.get_json()
     plex_token = data.get("plex_token")
@@ -1445,6 +2090,98 @@ def ajax_delete_abs_request():
         if debug_mode:
             print(f"Error deleting Audiobookshelf submission: {e}")
         return jsonify({"success": False, "error": str(e)})
+
+@app.route("/ajax/ip-management", methods=["POST"])
+def ajax_ip_management():
+    """Handle IP management operations"""
+    # Allow access during setup or if admin authenticated
+    if not is_setup_complete() or session.get("admin_authenticated"):
+        pass
+    else:
+        return jsonify({"success": False, "error": "Unauthorized"})
+    
+    try:
+        data = request.get_json()
+        action = data.get("action")
+        ip_address = data.get("ip_address", "").strip()
+        
+        if not action or not ip_address:
+            return jsonify({"success": False, "error": "Missing action or IP address"})
+        
+        # Validate IP address format
+        import re
+        ip_pattern = r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+        if not re.match(ip_pattern, ip_address):
+            return jsonify({"success": False, "error": "Invalid IP address format"})
+        
+        if action == "whitelist":
+            add_ip_to_whitelist(ip_address)
+            return jsonify({"success": True})
+        elif action == "blacklist":
+            add_ip_to_blacklist(ip_address)
+            return jsonify({"success": True})
+        elif action == "remove_whitelist":
+            remove_ip_from_whitelist(ip_address)
+            return jsonify({"success": True})
+        elif action == "remove_blacklist":
+            remove_ip_from_blacklist(ip_address)
+            return jsonify({"success": True})
+        else:
+            return jsonify({"success": False, "error": "Invalid action"})
+            
+    except Exception as e:
+        if debug_mode:
+            print(f"Error in IP management: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/ajax/get-ip-lists", methods=["GET"])
+def ajax_get_ip_lists():
+    """Get current IP lists"""
+    # Allow access during setup or if admin authenticated
+    if not is_setup_complete() or session.get("admin_authenticated"):
+        pass
+    else:
+        return jsonify({"success": False, "error": "Unauthorized"})
+    
+    try:
+        ip_lists = get_ip_lists()
+        return jsonify({
+            "success": True,
+            "whitelisted": list(ip_lists["whitelisted"]),
+            "banned": list(ip_lists["banned"])
+        })
+    except Exception as e:
+        if debug_mode:
+            print(f"Error getting IP lists: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/ajax/check-rate-limit", methods=["GET"])
+def ajax_check_rate_limit():
+    """Check if current IP is rate limited for login"""
+    try:
+        client_ip = get_client_ip()
+        
+        # Check if IP is whitelisted or banned
+        if is_ip_whitelisted(client_ip):
+            return jsonify({"rate_limited": False})
+        
+        if is_ip_banned(client_ip):
+            return jsonify({"rate_limited": True, "time_remaining": 86400})  # 24 hours
+        
+        # Check login rate limit
+        rate_limited, time_remaining = check_rate_limit(client_ip, "login")
+        if rate_limited:
+            return jsonify({
+                "rate_limited": True,
+                "time_remaining": int(time_remaining)  # Ensure it's an integer for JavaScript
+            })
+        
+        return jsonify({"rate_limited": False})
+        
+    except Exception as e:
+        if debug_mode:
+            print(f"Error checking rate limit: {e}")
+        return jsonify({"rate_limited": False})
 
 @app.route("/ajax/invite-plex-users", methods=["POST"])
 def ajax_invite_plex_users():
@@ -1648,14 +2385,37 @@ def refresh_library_titles():
             print(f"[ERROR] Failed to refresh library titles: {e}")
         return jsonify({"success": False, "error": str(e)})
 
+@app.route("/ajax/get-library-notes", methods=["GET"])
+def ajax_get_library_notes():
+    """Get updated library notes for AJAX updates"""
+    if not session.get("admin_authenticated"):
+        return jsonify({"success": False, "error": "Unauthorized"})
+    
+    try:
+        library_notes = load_library_notes()
+        return jsonify({"success": True, "library_notes": library_notes})
+    except Exception as e:
+        if debug_mode:
+            print(f"[ERROR] Failed to get library notes: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
 # --- Use os.path.join for all file paths ---
 def download_and_cache_posters():
-    headers = {'X-Plex-Token': PLEX_TOKEN}
+    # Get Plex credentials directly from environment
+    plex_token = os.getenv("PLEX_TOKEN")
+    plex_url = os.getenv("PLEX_URL")
+    
+    if not plex_token or not plex_url:
+        if debug_mode:
+            print(f"[ERROR] Plex credentials not available for poster download")
+        return
+    
+    headers = {'X-Plex-Token': plex_token}
     audiobook_dir = os.path.join("static", "posters", "audiobooks")
     os.makedirs(audiobook_dir, exist_ok=True)
 
     def save_images(section_id, out_dir, tag, limit):
-        url = f"{PLEX_URL}/library/sections/{section_id}/all"
+        url = f"{plex_url}/library/sections/{section_id}/all"
         response = requests.get(url, headers=headers)
         if response.status_code != 200:
             if debug_mode:
@@ -1671,7 +2431,7 @@ def download_and_cache_posters():
             for author in root.findall(".//Directory"):
                 author_key = author.attrib.get("key")
                 if author_key:
-                    author_url = f"{PLEX_URL}{author_key}?X-Plex-Token={PLEX_TOKEN}"
+                    author_url = f"{plex_url}{author_key}?X-Plex-Token={plex_token}"
                     author_resp = requests.get(author_url, headers=headers)
                     if author_resp.status_code == 200:
                         author_root = ET.fromstring(author_resp.content)
@@ -1687,7 +2447,7 @@ def download_and_cache_posters():
         random.shuffle(posters)
 
         for i, rel_path in enumerate(posters[:limit]):
-            img_url = f"{PLEX_URL}{rel_path}?X-Plex-Token={PLEX_TOKEN}"
+            img_url = f"{plex_url}{rel_path}?X-Plex-Token={plex_token}"
             out_path = os.path.join(out_dir, f"{tag}{i+1}.webp")
             try:
                 r = requests.get(img_url, headers=headers)
@@ -1811,8 +2571,17 @@ def download_single_poster_with_metadata(item, lib_dir, index, headers):
             return True
     
     try:
+        # Get Plex credentials directly from environment
+        plex_token = os.getenv("PLEX_TOKEN")
+        plex_url = os.getenv("PLEX_URL")
+        
+        if not plex_token or not plex_url:
+            if debug_mode:
+                print(f"[ERROR] Plex credentials not available for poster download")
+            return False
+        
         # Download poster
-        img_url = f"{PLEX_URL}{item['thumb']}?X-Plex-Token={PLEX_TOKEN}"
+        img_url = f"{plex_url}{item['thumb']}?X-Plex-Token={plex_token}"
         r = requests.get(img_url, headers=headers, timeout=10)
         if r.status_code == 200:
             with open(out_path, "wb") as f:
@@ -1826,7 +2595,7 @@ def download_single_poster_with_metadata(item, lib_dir, index, headers):
         # Fetch metadata
         guids = {"imdb": None, "tmdb": None, "tvdb": None}
         try:
-            meta_url = f"{PLEX_URL}/library/metadata/{item['ratingKey']}"
+            meta_url = f"{plex_url}/library/metadata/{item['ratingKey']}"
             meta_resp = requests.get(meta_url, headers=headers, timeout=10)
             if meta_resp.status_code == 200:
                 meta_root = ET.fromstring(meta_resp.content)
@@ -1877,7 +2646,16 @@ def download_and_cache_posters_for_libraries(libraries, limit=None, background=F
     if debug_mode:
         print(f"[DEBUG] download_and_cache_posters_for_libraries called with {len(libraries)} libraries, background={background}")
     
-    headers = {"X-Plex-Token": PLEX_TOKEN}
+    # Get Plex credentials directly from environment to ensure latest values
+    plex_token = os.getenv("PLEX_TOKEN")
+    plex_url = os.getenv("PLEX_URL")
+    
+    if not plex_token or not plex_url:
+        if debug_mode:
+            print(f"[ERROR] Plex credentials not available: token={'set' if plex_token else 'not set'}, url={'set' if plex_url else 'not set'}")
+        return
+    
+    headers = {"X-Plex-Token": plex_token}
     
     def process_library(lib):
         section_id = lib["key"]
@@ -1886,7 +2664,7 @@ def download_and_cache_posters_for_libraries(libraries, limit=None, background=F
         
         try:
             # Fetch library items
-            url = f"{PLEX_URL}/library/sections/{section_id}/all"
+            url = f"{plex_url}/library/sections/{section_id}/all"
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
             root = ET.fromstring(response.content)
@@ -2117,8 +2895,18 @@ def medialists():
         titles = []
         if not section_id:
             return titles
-        headers = {"X-Plex-Token": PLEX_TOKEN}
-        url = f"{PLEX_URL}/library/sections/{section_id}/all"
+        
+        # Get Plex credentials directly from environment
+        plex_token = os.getenv("PLEX_TOKEN")
+        plex_url = os.getenv("PLEX_URL")
+        
+        if not plex_token or not plex_url:
+            if debug_mode:
+                print("[ERROR] Plex credentials not available for fetching titles")
+            return titles
+        
+        headers = {"X-Plex-Token": plex_token}
+        url = f"{plex_url}/library/sections/{section_id}/all"
         try:
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
@@ -2169,8 +2957,18 @@ def medialists():
             # Only fetch from Plex if ABS is disabled
             if not section_id:
                 return books
-            headers = {"X-Plex-Token": PLEX_TOKEN}
-            url = f"{PLEX_URL}/library/sections/{section_id}/all"
+            
+            # Get Plex credentials directly from environment
+            plex_token = os.getenv("PLEX_TOKEN")
+            plex_url = os.getenv("PLEX_URL")
+            
+            if not plex_token or not plex_url:
+                if debug_mode:
+                    print("[ERROR] Plex credentials not available for fetching audiobooks")
+                return books
+            
+            headers = {"X-Plex-Token": plex_token}
+            url = f"{plex_url}/library/sections/{section_id}/all"
             try:
                 response = requests.get(url, headers=headers, timeout=10)
                 response.raise_for_status()
@@ -2179,7 +2977,7 @@ def medialists():
                     author_name = author.attrib.get("title")
                     author_key = author.attrib.get("key")
                     if author_name and author_key:
-                        author_url = f"{PLEX_URL}{author_key}?X-Plex-Token={PLEX_TOKEN}"
+                        author_url = f"{plex_url}{author_key}?X-Plex-Token={plex_token}"
                         author_resp = requests.get(author_url, headers=headers)
                         if author_resp.status_code == 200:
                             author_root = ET.fromstring(author_resp.content)
@@ -2383,13 +3181,16 @@ def get_random_audiobook_covers_with_links():
     })
 
 def is_setup_complete():
+    # Always reload from .env to get the latest setup status
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
     return os.getenv("SETUP_COMPLETE") == "1"
 
 @app.before_request
 def check_setup():
-    allowed_endpoints = {"setup", "fetch_libraries", "static"}
+    allowed_endpoints = {"setup", "setup_complete", "fetch_libraries", "static", "ajax_check_rate_limit", "ajax_ip_management", "ajax_get_ip_lists"}
     if not is_setup_complete():
-        # Allow setup page, fetch-libraries API, and static files
+        # Allow setup page, setup_complete page, fetch-libraries API, static files, rate limit check, and IP management
         if request.endpoint not in allowed_endpoints and not request.path.startswith("/static"):
             return redirect(url_for("setup"))
 
@@ -2461,7 +3262,10 @@ def index():
 
     return render_template("login.html")
 
+
+
 @app.route("/setup", methods=["GET", "POST"])
+@limiter.exempt
 def setup():
     # If GET and SETUP_COMPLETE=0, show prompt for SITE_PASSWORD, ADMIN_PASSWORD, DRIVES
     if request.method == "GET" and not is_setup_complete():
@@ -2482,7 +3286,8 @@ def setup():
             site_password=site_password,
             admin_password=admin_password,
             drives=drives,
-            service_urls=service_urls
+            service_urls=service_urls,
+            ip_lists=get_ip_lists()
         )
     if is_setup_complete():
         return redirect(url_for("login"))
@@ -2504,44 +3309,84 @@ def setup():
             if not process_uploaded_wordmark(wordmark_file):
                 error_message = "Failed to process wordmark file. Please ensure it's a valid image file (.png, .webp, .jpg, .jpeg)."
 
-        # Save SITE_PASSWORD, ADMIN_PASSWORD, DRIVES from the top entry boxes if present
+        # Save SITE_PASSWORD, ADMIN_PASSWORD, DRIVES from the form
         site_password = form.get("site_password_box") or form.get("site_password")
         admin_password = form.get("admin_password_box") or form.get("admin_password")
         drives = form.get("drives_box") or form.get("drives")
-        if site_password is not None and admin_password is not None and drives is not None:
-            if not site_password or not admin_password or not drives:
-                error_message = "SITE_PASSWORD, ADMIN_PASSWORD, and DRIVES are required."
-                service_keys = [
-                    'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
-                    'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR', 'JELLYSEERR'
-                ]
-                service_urls = {key: os.getenv(key, "") for key in service_keys}
-                return render_template("setup.html", error_message=error_message, prompt_passwords=True, site_password=site_password, admin_password=admin_password, drives=drives, service_urls=service_urls)
-            if site_password == admin_password:
-                error_message = "SITE_PASSWORD and ADMIN_PASSWORD must be different."
-                service_keys = [
-                    'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
-                    'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR', 'JELLYSEERR'
-                ]
-                service_urls = {key: os.getenv(key, "") for key in service_keys}
-                return render_template("setup.html", error_message=error_message, prompt_passwords=True, site_password=site_password, admin_password=admin_password, drives=drives, service_urls=service_urls)
-            
-            # Hash passwords before saving
-            site_salt, site_hash = hash_password(site_password)
-            admin_salt, admin_hash = hash_password(admin_password)
-            
-            # Save hashed passwords and salts
-            safe_set_key(env_path, "SITE_PASSWORD_HASH", site_hash)
-            safe_set_key(env_path, "SITE_PASSWORD_SALT", site_salt)
-            safe_set_key(env_path, "ADMIN_PASSWORD_HASH", admin_hash)
-            safe_set_key(env_path, "ADMIN_PASSWORD_SALT", admin_salt)
-            
-            # Keep plain text passwords for backward compatibility during transition
-            safe_set_key(env_path, "SITE_PASSWORD", site_password)
-            safe_set_key(env_path, "ADMIN_PASSWORD", admin_password)
-            safe_set_key(env_path, "DRIVES", drives)
-
+        
+        # Get other required fields for validation
+        server_name = form.get("server_name", "").strip()
+        plex_token = form.get("plex_token", "").strip()
+        plex_url = form.get("plex_url", "").strip()
+        library_ids = request.form.getlist("library_ids")
+        
+        # Validate required fields
+        missing_fields = []
+        if not site_password:
+            missing_fields.append("Guest Password")
+        if not admin_password:
+            missing_fields.append("Admin Password")
+        if not drives:
+            missing_fields.append("Storage Drives")
+        if not server_name:
+            missing_fields.append("Server Name")
+        if not plex_token:
+            missing_fields.append("Plex Token")
+        if not plex_url:
+            missing_fields.append("Plex URL")
+        if not library_ids:
+            missing_fields.append("At least one Library")
+        
+        # Validate Audiobookshelf settings if enabled
         abs_enabled = form.get("abs_enabled", "")
+        if abs_enabled == "yes":
+            audiobooks_id = form.get("audiobooks_id", "").strip()
+            audiobookshelf_url = form.get("audiobookshelf_url", "").strip()
+            audiobookshelf_token = form.get("audiobookshelf_token", "").strip()
+            
+            if not audiobooks_id:
+                missing_fields.append("Audiobook Library ID")
+            if not audiobookshelf_url:
+                missing_fields.append("Audiobookshelf URL")
+            if not audiobookshelf_token:
+                missing_fields.append("Audiobookshelf API Token")
+        elif not abs_enabled:
+            missing_fields.append("Enable Audiobookshelf?")
+        
+        if missing_fields:
+            error_message = f"Some entries are missing: {', '.join(missing_fields)}"
+            service_keys = [
+                'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
+                'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR', 'JELLYSEERR'
+            ]
+            service_urls = {key: os.getenv(key, "") for key in service_keys}
+            return render_template("setup.html", error_message=error_message, prompt_passwords=True, site_password=site_password, admin_password=admin_password, drives=drives, service_urls=service_urls, ip_lists=get_ip_lists())
+        
+        if site_password == admin_password:
+            error_message = "Guest Password and Admin Password must be different."
+            service_keys = [
+                'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
+                'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR', 'JELLYSEERR'
+            ]
+            service_urls = {key: os.getenv(key, "") for key in service_keys}
+            return render_template("setup.html", error_message=error_message, prompt_passwords=True, site_password=site_password, admin_password=admin_password, drives=drives, service_urls=service_urls, ip_lists=get_ip_lists())
+        
+        # Hash passwords before saving
+        site_salt, site_hash = hash_password(site_password)
+        admin_salt, admin_hash = hash_password(admin_password)
+        
+        # Save hashed passwords and salts
+        safe_set_key(env_path, "SITE_PASSWORD_HASH", site_hash)
+        safe_set_key(env_path, "SITE_PASSWORD_SALT", site_salt)
+        safe_set_key(env_path, "ADMIN_PASSWORD_HASH", admin_hash)
+        safe_set_key(env_path, "ADMIN_PASSWORD_SALT", admin_salt)
+        
+        # Keep plain text passwords for backward compatibility during transition
+        safe_set_key(env_path, "SITE_PASSWORD", site_password)
+        safe_set_key(env_path, "ADMIN_PASSWORD", admin_password)
+        safe_set_key(env_path, "DRIVES", drives)
+
+        # Get other form data
         audiobooks_id = form.get("audiobooks_id", "").strip()
         audiobookshelf_url = form.get("audiobookshelf_url", "").strip()
         discord_webhook = form.get("discord_webhook", "").strip()
@@ -2609,8 +3454,20 @@ def setup():
         safe_set_key(env_path, "QA_JELLYSEERR_ENABLED", qa_jellyseerr_enabled)
         # Save selected library IDs and names
         library_ids = request.form.getlist("library_ids")
+        
+        # Clean library IDs (remove whitespace, no need to remove commas since we're using individual inputs)
+        cleaned_library_ids = []
+        for lib_id in library_ids:
+            cleaned_id = lib_id.strip()
+            if cleaned_id:
+                cleaned_library_ids.append(cleaned_id)
+        
         library_notes = {}
-        if library_ids:
+        if debug_mode:
+            print(f"[DEBUG] Setup form - library_ids from form: {library_ids}")
+            print(f"[DEBUG] Setup form - cleaned_library_ids: {cleaned_library_ids}")
+            print(f"[DEBUG] Setup form - all form data keys: {list(request.form.keys())}")
+        if cleaned_library_ids:
             plex_token = form.get("plex_token", "")
             plex_url = form.get("plex_url", "")
             headers = {"X-Plex-Token": plex_token}
@@ -2621,12 +3478,17 @@ def setup():
                 import xml.etree.ElementTree as ET
                 root = ET.fromstring(response.text)
                 id_to_title = {d.attrib.get("key"): d.attrib.get("title") for d in root.findall(".//Directory")}
-                selected_titles = [id_to_title.get(i, f"Unknown ({i})") for i in library_ids]
-                safe_set_key(env_path, "LIBRARY_IDS", ",".join(library_ids))
+                selected_titles = [id_to_title.get(i, f"Unknown ({i})") for i in cleaned_library_ids]
+                safe_set_key(env_path, "LIBRARY_IDS", ",".join(cleaned_library_ids))
                 safe_set_key(env_path, "LIBRARY_NAMES", ",".join([t or "" for t in selected_titles]))
+                if debug_mode:
+                    print(f"[DEBUG] Setup form - Saved LIBRARY_IDS: {','.join(cleaned_library_ids)}")
+                    print(f"[DEBUG] Setup form - Saved LIBRARY_NAMES: {','.join([t or '' for t in selected_titles])}")
                 # Save library notes with title and description
-                for lib_id in library_ids:
+                for lib_id in cleaned_library_ids:
                     desc = form.get(f"library_desc_{lib_id}", "")
+                    if debug_mode:
+                        print(f"[DEBUG] Setup form - Processing library {lib_id}, description from form: '{desc}'")
                     library_notes[lib_id] = {
                         "title": id_to_title.get(lib_id, f"Unknown ({lib_id})"),
                         "description": desc
@@ -2641,8 +3503,14 @@ def setup():
                     # If no carousels selected, set to empty to show all
                     safe_set_key(env_path, "LIBRARY_CAROUSELS", "")
             except Exception as e:
-                safe_set_key(env_path, "LIBRARY_IDS", ",".join(library_ids))
+                if debug_mode:
+                    print(f"[DEBUG] Setup form - API call failed, saving library IDs without names: {e}")
+                safe_set_key(env_path, "LIBRARY_IDS", ",".join(cleaned_library_ids))
                 safe_set_key(env_path, "LIBRARY_NAMES", "")
+                if debug_mode:
+                    print(f"[DEBUG] Setup form - Saved LIBRARY_IDS (fallback): {','.join(cleaned_library_ids)}")
+        if not cleaned_library_ids and debug_mode:
+            print(f"[DEBUG] Setup form - No library_ids found in form data")
         # Save service URLs
         service_keys = [
             'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
@@ -2651,10 +3519,15 @@ def setup():
         for key in service_keys:
             url_val = form.get(key, "").strip()
             safe_set_key(env_path, key, url_val)
+        
+        # Handle IP management enabled setting
+        ip_management_enabled = form.get("ip_management_enabled", "no")
+        safe_set_key(env_path, "IP_MANAGEMENT_ENABLED", ip_management_enabled)
+        
         safe_set_key(env_path, "SETUP_COMPLETE", "1")
         load_dotenv(override=True)
         return redirect(url_for("setup_complete"))
-    return render_template("setup.html", error_message=error_message)
+    return render_template("setup.html", error_message=error_message, ip_lists=get_ip_lists())
 
 def ensure_worker_running():
     """Ensure the background poster worker is running"""
@@ -2670,7 +3543,10 @@ def trigger_poster_downloads():
         # Ensure worker is running
         ensure_worker_running()
         
-        if os.getenv("SETUP_COMPLETE") == "1" and PLEX_TOKEN:
+        # Get Plex credentials directly from environment
+        plex_token = os.getenv("PLEX_TOKEN")
+        
+        if os.getenv("SETUP_COMPLETE") == "1" and plex_token:
             # Get selected libraries
             selected_ids = os.getenv("LIBRARY_IDS", "")
             selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
@@ -2693,10 +3569,21 @@ def trigger_poster_downloads():
             print(f"Warning: Could not trigger poster downloads: {e}")
 
 @app.route("/setup_complete")
+@limiter.exempt
 def setup_complete():
+    # Check if this is from services submission (trigger restart)
+    from_services = request.args.get('from_services', 'false').lower() == 'true'
+    
+    if from_services:
+        # Trigger restart for services changes
+        threading.Thread(target=restart_container_delayed, daemon=True).start()
+    
     # Trigger poster downloads immediately after setup completion
     try:
-        if os.getenv("SETUP_COMPLETE") == "1" and PLEX_TOKEN:
+        # Get Plex credentials directly from environment
+        plex_token = os.getenv("PLEX_TOKEN")
+        
+        if os.getenv("SETUP_COMPLETE") == "1" and plex_token:
             # Ensure worker is running
             ensure_worker_running()
             
@@ -2832,14 +3719,15 @@ def load_json_file(filename, default=None):
 def save_json_file(filename, data):
     """Utility function to save JSON files with consistent formatting"""
     try:
-        with open(os.path.join(os.getcwd(), filename), "w", encoding="utf-8") as f:
+        file_path = os.path.join(os.getcwd(), filename)
+        print(f"[DEBUG] Writing to file: {file_path}")
+        print(f"[DEBUG] Data to write: {data}")
+        with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
-        if debug_mode:
-            print(f"[DEBUG] Saved {len(data)} entries to {filename}")
+        print(f"[DEBUG] Successfully saved {len(data)} entries to {filename}")
         return True
     except Exception as e:
-        if debug_mode:
-            print(f"[DEBUG] Error writing {filename}: {e}")
+        print(f"[DEBUG] Error writing {filename}: {e}")
         return False
 
 def build_services_data():
@@ -2986,7 +3874,9 @@ def get_template_context():
         "QA_AUDIOBOOKSHELF_ENABLED": os.getenv("QA_AUDIOBOOKSHELF_ENABLED", "yes"),
         "QA_TAUTULLI_ENABLED": os.getenv("QA_TAUTULLI_ENABLED", "yes"),
         "QA_OVERSEERR_ENABLED": os.getenv("QA_OVERSEERR_ENABLED", "yes"),
-        "QA_JELLYSEERR_ENABLED": os.getenv("QA_JELLYSEERR_ENABLED", "yes")
+        "QA_JELLYSEERR_ENABLED": os.getenv("QA_JELLYSEERR_ENABLED", "yes"),
+        "IP_MANAGEMENT_ENABLED": os.getenv("IP_MANAGEMENT_ENABLED", "no"),
+        "ip_lists": get_ip_lists()
     }
 
 @app.route("/ajax/load-library-posters", methods=["POST"])
@@ -3017,8 +3907,18 @@ def ajax_load_library_posters():
         
         # First, get ALL titles from the library (same as fetch_titles_for_library)
         all_titles = []
-        headers = {"X-Plex-Token": PLEX_TOKEN}
-        url = f"{PLEX_URL}/library/sections/{section_id}/all"
+        
+        # Get Plex credentials directly from environment
+        plex_token = os.getenv("PLEX_TOKEN")
+        plex_url = os.getenv("PLEX_URL")
+        
+        if not plex_token or not plex_url:
+            if debug_mode:
+                print("[ERROR] Plex credentials not available for loading library posters")
+            return jsonify({"success": False, "error": "Plex credentials not available"})
+        
+        headers = {"X-Plex-Token": plex_token}
+        url = f"{plex_url}/library/sections/{section_id}/all"
         try:
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
@@ -3471,9 +4371,17 @@ def ajax_update_libraries():
         data = request.get_json()
         library_ids = data.get("library_ids", [])
         
+        # Ensure library_ids are properly formatted (no commas within individual IDs)
+        cleaned_library_ids = []
+        for lib_id in library_ids:
+            # Remove any commas from individual library IDs
+            cleaned_id = str(lib_id).replace(",", "").strip()
+            if cleaned_id:
+                cleaned_library_ids.append(cleaned_id)
+        
         # Update the LIBRARY_IDS environment variable
         env_path = os.path.join(os.getcwd(), ".env")
-        safe_set_key(env_path, "LIBRARY_IDS", ",".join(library_ids))
+        safe_set_key(env_path, "LIBRARY_IDS", ",".join(cleaned_library_ids))
         
         # Reload environment variables
         load_dotenv(override=True)
@@ -3503,7 +4411,7 @@ def ajax_update_libraries():
                 
                 # Update library notes with media types
                 updated = False
-                for lib_id in library_ids:
+                for lib_id in cleaned_library_ids:
                     if lib_id not in library_notes:
                         library_notes[lib_id] = {}
                     
@@ -3517,14 +4425,14 @@ def ajax_update_libraries():
                 if updated:
                     save_library_notes(library_notes)
                     if debug_mode:
-                        print(f"[INFO] Updated media types for {len(library_ids)} libraries")
+                        print(f"[INFO] Updated media types for {len(cleaned_library_ids)} libraries")
                         
         except Exception as e:
             if debug_mode:
                 print(f"[WARN] Failed to update library media types: {e}")
         
         if debug_mode:
-            print(f"[INFO] Updated library IDs to: {library_ids}")
+            print(f"[INFO] Updated library IDs to: {cleaned_library_ids}")
         
         return jsonify({"success": True})
         
@@ -3858,12 +4766,43 @@ def get_random_audiobook_posters():
         print(f"Error getting random audiobook posters: {e}")
         return jsonify({"error": "Failed to get audiobook posters"}), 500
 
+def load_ip_lists_from_env():
+    """Load IP lists from environment variables"""
+    env_path = '.env'
+    
+    # Load whitelisted IPs
+    whitelisted_str = os.getenv("IP_WHITELIST", "")
+    if whitelisted_str:
+        whitelisted_ips = [ip.strip() for ip in whitelisted_str.split(",") if ip.strip()]
+        rate_limit_data['whitelisted_ips'].update(whitelisted_ips)
+    
+    # Load blacklisted IPs
+    blacklisted_str = os.getenv("IP_BLACKLIST", "")
+    if blacklisted_str:
+        blacklisted_ips = [ip.strip() for ip in blacklisted_str.split(",") if ip.strip()]
+        rate_limit_data['banned_ips'].update(blacklisted_ips)
+
+def save_ip_lists_to_env():
+    """Save IP lists to environment variables"""
+    env_path = '.env'
+    
+    # Save whitelisted IPs
+    whitelisted_str = ",".join(list(rate_limit_data['whitelisted_ips']))
+    safe_set_key(env_path, "IP_WHITELIST", whitelisted_str)
+    
+    # Save blacklisted IPs
+    blacklisted_str = ",".join(list(rate_limit_data['banned_ips']))
+    safe_set_key(env_path, "IP_BLACKLIST", blacklisted_str)
+
 if __name__ == "__main__":
     # --- Dynamic configuration for section IDs ---
     global MOVIES_SECTION_ID, SHOWS_SECTION_ID, AUDIOBOOKS_SECTION_ID
     MOVIES_SECTION_ID = os.getenv("MOVIES_ID")
     SHOWS_SECTION_ID = os.getenv("SHOWS_ID")
     AUDIOBOOKS_SECTION_ID = os.getenv("AUDIOBOOKS_ID")
+    
+    # Load IP lists from environment variables
+    load_ip_lists_from_env()
     
     # Check if this is the first run (setup not complete)
     is_first_run = os.getenv("SETUP_COMPLETE", "0") != "1"
@@ -3878,7 +4817,9 @@ if __name__ == "__main__":
     
     try:
         if os.getenv("SETUP_COMPLETE") == "1":
-            if not PLEX_TOKEN:
+            # Get Plex credentials directly from environment
+            plex_token = os.getenv("PLEX_TOKEN")
+            if not plex_token:
                 if debug_mode:
                     print("[WARN] Skipping poster download: PLEX_TOKEN is not set.")
             else:

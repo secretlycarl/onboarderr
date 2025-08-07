@@ -1,9 +1,0 @@
-Flask>=2.0
-Flask-WTF>=1.0
-WTForms>=3.0
-requests>=2.25
-python-dotenv>=0.19
-psutil>=5.8
-Pillow>=9.0
-plexapi>=4.15
-cryptography>=3.4

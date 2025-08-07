@@ -6,6 +6,48 @@
   <title>{{ SERVER_NAME }} - Admin</title>
   <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}">
   <link rel="stylesheet" href="/static/modern-style.css">
+  <style>
+    /* IP Management Styles */
+    .ip-list-section {
+      margin-bottom: 1.5em;
+    }
+    
+    .ip-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5em;
+    }
+    
+    .ip-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5em;
+      background: var(--bg-secondary);
+      border-radius: 0.3em;
+      border: 1px solid var(--border);
+    }
+    
+    .ip-address {
+      font-family: monospace;
+      font-weight: 500;
+    }
+    
+    .btn-small {
+      padding: 0.2em 0.5em;
+      font-size: 0.8em;
+    }
+    
+    .btn-danger {
+      background: #f44336;
+      color: white;
+      border: none;
+    }
+    
+    .btn-danger:hover {
+      background: #d32f2f;
+    }
+  </style>
   <script>
     // Set accent color from environment variable
     document.addEventListener('DOMContentLoaded', function() {
@@ -146,10 +188,12 @@
         <span class="form-section-icon">📚</span>
         Audiobookshelf Requests
       </h2>
+      {% if audiobookshelf_submissions %}
       <div class="warning-box">
         <span>⚠️</span>
-        <span>Note: Passwords are censored for security. They are still available for user creation.</span>
+        <span>Passwords are censored for security. They are still available for user creation.</span>
       </div>
+      {% endif %}
       {% if audiobookshelf_submissions %}
         <div class="scrollable-table-container">
           <table class="admin-table">
@@ -311,197 +355,249 @@
       </div>
     </div>
 
+    <!-- Authentication Section -->
     <div class="onboarding-section">
       <h2 class="form-section-title">
-        <span class="form-section-icon">⚙️</span>
-        Settings
+        <span class="form-section-icon">🔐</span>
+        Authentication
       </h2>
-      <form method="post" id="admin-settings-form" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        
-        <div class="warning-box">
-          <span>🔑</span>
-          <span><strong>SITE_PASSWORD</strong> and <strong>ADMIN_PASSWORD</strong> must be different.</span>
+      
+      <div class="warning-box">
+        <span>🔑</span>
+        <span><strong>SITE_PASSWORD</strong> and <strong>ADMIN_PASSWORD</strong> must be different.</span>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">SITE_PASSWORD (for guests):</label>
+        <div class="input-with-icon">
+          <span class="input-icon">🔑</span>
+          <input type="text" name="site_password" id="admin_site_password_box" value="{{ SITE_PASSWORD or '' }}" class="form-input">
         </div>
-        <div class="muted" style="margin-bottom: 1.2em; font-size: 0.98em; margin-left: 2.1em;">
-          Leaving either field blank will keep the current password.
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">ADMIN_PASSWORD (for admin):</label>
+        <div class="input-with-icon">
+          <span class="input-icon">🔑</span>
+          <input type="text" name="admin_password" id="admin_admin_password_box" value="{{ ADMIN_PASSWORD or '' }}" class="form-input">
         </div>
-        
-        <div class="form-group">
-          <label class="form-label">SITE_PASSWORD (for guests):</label>
-          <div class="input-with-icon">
-            <span class="input-icon">🔑</span>
-            <input type="text" name="site_password" id="admin_site_password_box" value="{{ SITE_PASSWORD or '' }}" class="form-input">
-          </div>
-        </div>
-        
-        <div class="form-group">
-          <label class="form-label">ADMIN_PASSWORD (for admin):</label>
-          <div class="input-with-icon">
-            <span class="input-icon">🔑</span>
-            <input type="text" name="admin_password" id="admin_admin_password_box" value="{{ ADMIN_PASSWORD or '' }}" class="form-input">
-          </div>
-        </div>
-        
-        <div id="admin-passwords-error" class="error-box" style="display: none;"></div>
-        <hr class="section-divider">
-        <div class="form-group">
-          <h2 class="form-section-title">
-            <span class="form-section-icon">🎨</span>
-            Custom Branding
-          </h2>
-          <label class="form-label">Server Name:</label>
-          <div class="input-with-icon">
-            <img src="{{ url_for('static', filename=logo_filename) }}" alt="Server Name" class="input-icon-img">
-            <input type="text" name="server_name" id="server_name" value="{{ SERVER_NAME or '' }}" class="form-input">
-          </div>
-        </div>
-        
-        <div class="form-group">
-          <label class="form-label">Accent Color:</label>
-          <div class="color-picker-group">
-            <input type="color" name="accent_color" id="accent_color" value="{{ ACCENT_COLOR or '#d33fbc' }}" class="color-picker">
-            <input type="text" name="accent_color_text" id="accent_color_text" value="{{ ACCENT_COLOR or '#d33fbc' }}" placeholder="#d33fbc" class="form-input color-input">
-          </div>
-          <div class="color-help">Choose your theme color</div>
-        </div>
-        
-        <div class="form-group">          
-          <div class="form-group">
-            <label class="form-label">Select New Logo:</label>
-            <input type="file" name="logo_file" id="logo_file" accept=".png,.webp,.jpg,.jpeg" class="file-input">
-            <div class="file-help">
-              Transparent .png or .webp, ~350x350, 1:1<br>
-              This will replace the logo and automatically create a favicon.
-            </div>
-            <div class="info-box">
-              <span>💡</span>
-              <div>
-                <strong>Need a logo?</strong><br>
-                • <a href="https://vectorink.io/app/canvas" target="_blank" class="accent">Simple Vector Editor</a> - Create a custom logo<br>
-                • <a href="http://logobook.com/letter/a/" target="_blank" class="accent">Letter Logos</a> - Find a logo for any letter
-              </div>
-            </div>
-          </div>
-          
-          <div class="form-group">
-            <label class="form-label">Select New Wordmark:</label>
-            <input type="file" name="wordmark_file" id="wordmark_file" accept=".png,.webp,.jpg,.jpeg" class="file-input">
-            <div class="file-help">
-              Transparent .png or .webp, minimum dimensions ~1000x250, 4:1 or wider<br>
-              This will replace the wordmark image.
-            </div>
-            <div class="info-box">
-              <span>💡</span>
-              <div>
-                <strong>Need a wordmark?</strong><br>
-                • <a href="https://fontmeme.com/netflix-font/" target="_blank" class="accent">Wordmark Generator</a> - Create text-based wordmarks<br>
-                <span style="color: var(--text-secondary); font-size: 0.8em;">Try different fonts, make the output text as big as slider allows, and use the same hex as the accent.</span>
-              </div>
-            </div>
-          </div>
-        </div>
+      </div>
 
-        <hr class="section-divider">
+      <div class="file-help">
+        Leaving either field blank will keep the current password.
+      </div>
+      
+      <div id="admin-passwords-error" class="error-box" style="display: none;"></div>
+    </div>
 
+    <!-- Branding Configuration Section -->
+    <div class="onboarding-section">
+      <h2 class="form-section-title">
+        <span class="form-section-icon">🎨</span>
+        Branding Configuration
+      </h2>
+      
+      <div class="form-group">
+        <label class="form-label">Server Name:</label>
+        <div class="input-with-icon">
+          <img src="{{ url_for('static', filename=logo_filename) }}" alt="Server Name" class="input-icon-img">
+          <input type="text" name="server_name" id="server_name" value="{{ SERVER_NAME or '' }}" class="form-input">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Accent Color:</label>
+        <div class="color-picker-group">
+          <input type="color" name="accent_color" id="accent_color" value="{{ ACCENT_COLOR or '#d33fbc' }}" class="color-picker">
+          <input type="text" name="accent_color_text" id="accent_color_text" value="{{ ACCENT_COLOR or '#d33fbc' }}" placeholder="#d33fbc" class="form-input color-input">
+        </div>
+        <div class="color-help">Choose your theme color</div>
+      </div>
+      
+      <div class="form-group">          
         <div class="form-group">
-          <h2 class="form-section-title">
-            <span class="form-section-icon">🎬</span>
-            Plex Configuration
-          </h2>
-          <label class="form-label">Plex Token:</label>
-          <div class="input-with-icon">
-            <img src="{{ url_for('static', filename='plex.webp') }}" alt="Plex Token" class="input-icon-img">
-            <div class="password-input-group">
-              <input type="password" name="plex_token" id="plex_token" value="{{ PLEX_TOKEN or '' }}" class="form-input">
-              <button type="button" onclick="togglePasswordVisibility('plex_token')" class="password-toggle-btn">👁</button>
+          <label class="form-label">Select New Logo:</label>
+          <input type="file" name="logo_file" id="logo_file" accept=".png,.webp,.jpg,.jpeg" class="file-input">
+          <div class="file-help">
+            Transparent .png or .webp, ~350x350, 1:1<br>
+            This will replace the logo and automatically create a favicon.
+          </div>
+          <div class="info-box">
+            <span>💡</span>
+            <div>
+              <strong>Need a logo?</strong><br>
+              • <a href="https://vectorink.io/app/canvas" target="_blank" class="accent">Simple Vector Editor</a> - Create a custom logo<br>
+              • <a href="http://logobook.com/letter/a/" target="_blank" class="accent">Letter Logos</a> - Find a logo for any letter
             </div>
           </div>
         </div>
         
         <div class="form-group">
-          <label class="form-label">Plex URL:</label>
-          <div class="input-with-icon">
-            <img src="{{ url_for('static', filename='plex.webp') }}" alt="Plex URL" class="input-icon-img">
-            <input type="text" name="plex_url" id="plex_url" value="{{ PLEX_URL or '' }}" class="form-input">
+          <label class="form-label">Select New Wordmark:</label>
+          <input type="file" name="wordmark_file" id="wordmark_file" accept=".png,.webp,.jpg,.jpeg" class="file-input">
+          <div class="file-help">
+            Transparent .png or .webp, minimum dimensions ~1000x250, 4:1 or wider<br>
+            This will replace the wordmark image.
+          </div>
+          <div class="info-box">
+            <span>💡</span>
+            <div>
+              <strong>Need a wordmark?</strong><br>
+              • <a href="https://fontmeme.com/netflix-font/" target="_blank" class="accent">Wordmark Generator</a> - Create text-based wordmarks<br>
+              <span style="color: var(--text-secondary); font-size: 0.8em;">Try different fonts, make the output text as big as slider allows, and use the same hex as the accent.</span>
+            </div>
           </div>
         </div>
-        
-        <div class="form-group">
-          <button type="button" onclick="fetchLibrariesAdmin()" class="submit-btn">Fetch Plex Libraries</button>
-        </div>
+      </div>
+    </div>
 
-                
-        <div id="libraries-section-admin" class="library-section" style="display:none;">
-          <h3 class="form-section-title">
-            <span class="form-section-icon">📚</span>
-            Select Libraries
-          </h3>
-          <div class="form-group">
-            <label class="form-label">Select Libraries to make available:</label>
-            <div id="libraries-list-admin" class="library-list"></div>
+    <!-- Plex Configuration Section -->
+    <div class="onboarding-section">
+      <h2 class="form-section-title">
+        <span class="form-section-icon">🎬</span>
+        Plex Configuration
+      </h2>
+      
+      <div class="form-group">
+        <label class="form-label">Plex Token:</label>
+        <div class="input-with-icon">
+          <img src="{{ url_for('static', filename='plex.webp') }}" alt="Plex Token" class="input-icon-img">
+          <div class="password-input-group">
+            <input type="password" name="plex_token" id="plex_token" value="{{ PLEX_TOKEN or '' }}" class="form-input">
+            <button type="button" onclick="togglePasswordVisibility('plex_token')" class="password-toggle-btn">👁</button>
           </div>
         </div>
-        <hr class="section-divider">
-        <!-- Current Library Selection Display -->
-        {% if LIBRARY_IDS %}
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Plex URL:</label>
+        <div class="input-with-icon">
+          <img src="{{ url_for('static', filename='plex.webp') }}" alt="Plex URL" class="input-icon-img">
+          <input type="text" name="plex_url" id="plex_url" value="{{ PLEX_URL or '' }}" class="form-input">
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <button type="button" onclick="fetchLibrariesAdmin()" class="submit-btn">Fetch Plex Libraries</button>
+      </div>
+
+              
+      <div id="libraries-section-admin" class="library-section" style="display:none;">
+        <h3 class="form-section-title">
+          <span class="form-section-icon">📚</span>
+          Select Libraries
+        </h3>
+        <div class="form-group">
+          <label class="form-label">Select Libraries to make available:</label>
+          <div id="libraries-list-admin" class="library-list"></div>
+        </div>
+      </div>
+      
+      <!-- Current Library Selection Display -->
+      <div class="current-library-selection">
         <h3 class="form-section-title">
           <span class="form-section-icon">📚</span>
           Currently Selected Libraries
         </h3>
-        {% set selected_ids = LIBRARY_IDS.split(',') %}
-        {% for lib_id in selected_ids %}
-          {% if lib_id.strip() %}
-            <div class="selected-library-item">
-              <div class="library-title-section">
-                <strong>
-                  {% if library_notes[lib_id.strip()] and library_notes[lib_id.strip()]['title'] %}{{ library_notes[lib_id.strip()]['title'] }}{% else %}Unknown{% endif %} ({{ lib_id.strip() }})
-                </strong>
+        {% if LIBRARY_IDS %}
+          {% set selected_ids = LIBRARY_IDS.split(',') %}
+          {% for lib_id in selected_ids %}
+            {% if lib_id.strip() %}
+              {% set lib_id_clean = lib_id.strip() %}
+              <div class="selected-library-item" style="margin-bottom: 1em;">
+                <div class="library-title-section">
+                  <strong>
+                    {% if library_notes[lib_id_clean] and library_notes[lib_id_clean]['title'] %}
+                      {{ library_notes[lib_id_clean]['title'] }}
+                    {% else %}
+                      Unknown
+                    {% endif %}
+                    ({{ lib_id_clean }})
+                  </strong>
+                </div>
+                <div class="library-description-section" style="margin-top: 0.5em;">
+                  <label class="form-label">Description:</label>
+                  <input type="text" name="library_desc_{{ lib_id_clean }}" 
+                         value="{{ library_notes[lib_id_clean]['description'] if library_notes[lib_id_clean] and library_notes[lib_id_clean]['description'] else '' }}" 
+                         class="form-input library-description-input" 
+                         placeholder="Enter a description for this library (optional)"
+                         onchange="syncLibraryDescription(this, '{{ lib_id_clean }}')"
+                         oninput="syncLibraryDescription(this, '{{ lib_id_clean }}')">
+                </div>
               </div>
-              <div class="library-description-section">
-                <input type="text" 
-                       name="library_desc_{{ lib_id.strip() }}" 
-                       value="{% if library_notes[lib_id.strip()] and library_notes[lib_id.strip()]['description'] %}{{ library_notes[lib_id.strip()]['description'] }}{% endif %}" 
-                       class="form-input library-description-input" 
-                       placeholder="Enter a description for this library (optional)">
-              </div>
-            </div>
-          {% endif %}
-        {% endfor %}
-        <button type="button" onclick="refreshLibraryTitles()" class="submit-btn">Refresh Titles</button>
-        
-        <hr class="section-divider">
+            {% endif %}
+          {% endfor %}
+        {% else %}
+          <div style="color: #888; font-style: italic;">No libraries selected</div>
         {% endif %}
-          
-        <div id="library-carousels-section-admin" class="form-section" style="display:none;">
-          <h3 class="form-section-title">
-            <span class="form-section-icon">🎠</span>
-            Library Carousel Settings
-          </h3>
-          <div class="form-group">
-            <label class="form-label">Select which libraries should show their own carousel:</label>
-            <div class="info-box">
-              <span>ℹ️</span>
-              <span>Uncheck to hide the carousel for that library. Users can still request access and see its contents on Media Lists.</span>
-            </div>
-            <div class="notification-options" id="library-carousels-list-admin"></div>
+      </div>
+        
+      <div id="library-carousels-section-admin" class="form-section" style="display: {% if LIBRARY_IDS %}block{% else %}none{% endif %};">
+        <h3 class="form-section-title">
+          <span class="form-section-icon">🎠</span>
+          Library Carousel Settings
+        </h3>
+        <div class="form-group">
+          <label class="form-label">Select which libraries should show their own carousel:</label>
+          <div class="info-box">
+            <span>ℹ️</span>
+            <span>Uncheck to hide the carousel for that library. Users can still request access and see its contents on Media Lists.</span>
+          </div>
+          <div class="notification-options" id="library-carousels-list-admin">
+            {% if LIBRARY_IDS %}
+              {% set selected_ids = LIBRARY_IDS.split(',') %}
+              {% set carousel_ids = LIBRARY_CAROUSELS.split(',') if LIBRARY_CAROUSELS else [] %}
+              {% for lib_id in selected_ids %}
+                {% if lib_id.strip() %}
+                  {% set lib_id_clean = lib_id.strip() %}
+                  {% set library_title = library_notes[lib_id_clean]['title'] if library_notes[lib_id_clean] and library_notes[lib_id_clean]['title'] else 'Unknown' %}
+                  <label class="checkbox-option">
+                    <input type="checkbox" name="library_carousels" value="{{ lib_id_clean }}" 
+                           id="admin_carousel_{{ lib_id_clean }}" class="checkbox-input"
+                           {% if lib_id_clean in carousel_ids or carousel_ids|length == 0 %}checked{% endif %}>
+                    <span>{{ library_title }}</span>
+                  </label>
+                {% endif %}
+              {% endfor %}
+            {% endif %}
           </div>
         </div>
+      </div>
+    </div>
 
-        <h3 class="form-section-title">
-          <span class="form-section-icon">📚</span>
-          Audiobookshelf Configuration
-        </h3>
+    <!-- Audiobookshelf Configuration Section -->
+    <div class="onboarding-section">
+      <h2 class="form-section-title">
+        <span class="form-section-icon">📚</span>
+        Audiobookshelf Configuration
+      </h2>
+      
+      <div class="form-group">
+        <label class="form-label">Enable Audiobookshelf Configuration?</label>
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" name="abs_config_enabled" value="yes" id="abs_config_enabled_yes" onchange="toggleAbsConfig()" class="radio-input" {% if ABS_ENABLED == 'yes' %}checked{% endif %}>
+            <span>Yes</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="abs_config_enabled" value="no" id="abs_config_enabled_no" onchange="toggleAbsConfig()" class="radio-input" {% if ABS_ENABLED != 'yes' %}checked{% endif %}>
+            <span>No</span>
+          </label>
+        </div>
+      </div>
+      
+      <div id="abs-config-section" style="display: {% if ABS_ENABLED == 'yes' %}block{% else %}none{% endif %};">
         <div class="form-group">
           <label class="form-label">Audiobook Library ID:</label>
           <div class="input-with-icon">
             <img src="{{ url_for('static', filename='abs.webp') }}" alt="Audiobook Library ID" class="input-icon-img">
             <input type="text" name="audiobooks_id" id="audiobooks_id" value="{{ AUDIOBOOKS_ID or '' }}" class="form-input">
           </div>
+          <div class="file-help">You can get the ID string from the URL of your ABS homepage, .../audiobookshelf/library/[ID_STRING]</div>
         </div>
         
         <div class="form-group">
-          <label class="form-label">Audiobookshelf Server URL:</label>
+          <label class="form-label">Public Audiobookshelf Server URL:</label>
           <div class="input-with-icon">
             <img src="{{ url_for('static', filename='abs.webp') }}" alt="Audiobookshelf Server URL" class="input-icon-img">
             <input type="text" name="audiobookshelf_url" id="audiobookshelf_url_admin" value="{{ AUDIOBOOKSHELF_URL or '' }}" class="form-input">
@@ -513,25 +609,36 @@
           <div class="input-with-icon">
             <img src="{{ url_for('static', filename='abs.webp') }}" alt="Audiobookshelf API Token" class="input-icon-img">
             <div class="password-input-group">
-              <input type="password" name="audiobookshelf_token" id="audiobookshelf_token_admin" value="{{ AUDIOBOOKSHELF_TOKEN or '' }}" class="form-input">
+              <input type="password" name="audiobookshelf_token" id="audiobookshelf_token_admin" value="{{ AUDIOBOOKSHELF_TOKEN or '' }}" class="form-input" placeholder="Settings > API Keys > Add API Key">
               <button type="button" onclick="togglePasswordVisibility('audiobookshelf_token_admin')" class="password-toggle-btn">👁</button>
             </div>
           </div>
         </div>
-        
-        <div class="info-box">
-          <span>ℹ️</span>
-          <span>Leave all fields empty to disable Audiobookshelf integration. All fields are required.</span>
-        </div>
-        
-        <hr class="section-divider">
+      </div>
+    </div>
 
-        
-        <h3 class="form-section-title">
-          <span class="form-section-icon">📢</span>
-          Discord Notifications
-        </h3>
-        
+    <!-- Discord Notifications Section -->
+    <div class="onboarding-section">
+      <h2 class="form-section-title">
+        <span class="form-section-icon">📢</span>
+        Discord Notifications
+      </h2>
+      
+      <div class="form-group">
+        <label class="form-label">Enable Discord Notifications?</label>
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" name="discord_config_enabled" value="yes" id="discord_config_enabled_yes" onchange="toggleDiscordConfig()" class="radio-input" {% if DISCORD_WEBHOOK %}checked{% endif %}>
+            <span>Yes</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="discord_config_enabled" value="no" id="discord_config_enabled_no" onchange="toggleDiscordConfig()" class="radio-input" {% if not DISCORD_WEBHOOK %}checked{% endif %}>
+            <span>No</span>
+          </label>
+        </div>
+      </div>
+      
+      <div id="discord-config-section" style="display: {% if DISCORD_WEBHOOK %}block{% else %}none{% endif %};">
         <div class="form-group">
           <label class="form-label">Notification Events:</label>
           <div class="notification-options">
@@ -574,102 +681,251 @@
           <input type="text" name="onboarderr_url" id="onboarderr_url_admin" value="{{ ONBOARDERR_URL or '' }}" class="form-input" placeholder="https://your-onboarderr-domain.com">
           <div class="file-help">This URL will be used in Discord notifications to link back to the admin page. Leave blank to disable links.</div>
         </div>
-        
-        <hr class="section-divider">
-
-        <!-- Quick Access Configuration -->
-        <h3 class="form-section-title">
-          <span class="form-section-icon">⚡</span>
-           Quick Access Links
-        </h3>
-                
-         <div class="form-group">
-          <label class="form-label">Display Quick Access Links?</label>
-          <div class="radio-group">
-            <label class="radio-option">
-              <input type="radio" name="quick_access_enabled" value="yes" id="quick_access_enabled_yes" class="radio-input" {% if QUICK_ACCESS_ENABLED == 'yes' or not QUICK_ACCESS_ENABLED %}checked{% endif %}>
-              <span>Yes</span>
-            </label>
-             <label class="radio-option">
-              <input type="radio" name="quick_access_enabled" value="no" id="quick_access_enabled_no" class="radio-input" {% if QUICK_ACCESS_ENABLED == 'no' %}checked{% endif %}>
-              <span>No</span>
-            </label>
-          </div>
-           <div class="file-help">
-            Quick access links appear as a floating panel on desktop and in the mobile navigation menu. They provide direct access to your media and requesting services.
-           </div>
-         </div>
-
-        <!-- Quick Access Service Toggles -->
-        <div id="qa-service-toggles" class="form-group" style="display: none;">
-          <label class="form-label">Quick Access Services</label>
-          <div class="checkbox-group">
-            <label class="checkbox-option">
-              <input type="checkbox" name="qa_plex_enabled" value="yes" class="checkbox-input" {% if QA_PLEX_ENABLED != 'no' %}checked{% endif %}>
-              <span>Plex</span>
-            </label>
-            <label class="checkbox-option">
-              <input type="checkbox" name="qa_audiobookshelf_enabled" value="yes" class="checkbox-input" {% if QA_AUDIOBOOKSHELF_ENABLED != 'no' %}checked{% endif %}>
-              <span>Audiobookshelf</span>
-            </label>
-            <label class="checkbox-option">
-              <input type="checkbox" name="qa_tautulli_enabled" value="yes" class="checkbox-input" {% if QA_TAUTULLI_ENABLED != 'no' %}checked{% endif %}>
-              <span>Tautulli</span>
-            </label>
-            <label class="checkbox-option">
-              <input type="checkbox" name="qa_overseerr_enabled" value="yes" class="checkbox-input" {% if QA_OVERSEERR_ENABLED != 'no' %}checked{% endif %}>
-              <span>Overseerr</span>
-            </label>
-            <label class="checkbox-option">
-              <input type="checkbox" name="qa_jellyseerr_enabled" value="yes" class="checkbox-input" {% if QA_JELLYSEERR_ENABLED != 'no' %}checked{% endif %}>
-              <span>Jellyseerr</span>
-            </label>
-          </div>
-          <div class="file-help">
-            Select which services to show in the Quick Access panel. Services will only appear if they have a URL configured below.
-          </div>
-        </div>
-         <hr class="section-divider">
-        
-        <!-- Editable Service URLs -->
-        <h3 class="form-section-title">
-          <span class="form-section-icon">🔗</span>
-          Service URLs
-        </h3>
-        <div class="info-box">
-          <span>ℹ️</span>
-          <span><strong>Note:</strong> These URLs are used in the services panel at the top of this page, and a few populate the quick access panel when enabled. Default local URLs are provided for admin-only services. For user-facing ones, put a public link that remote users can access.</span>
-        </div>
-        {% for service in all_services %}
-          <div class="form-group">
-            <label class="form-label">{{ service.name }}:</label>
-            <div class="service-url-input">
-              <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" class="service-icon">
-              <input type="text" name="{{ service.env }}" value="{{ service.url }}" class="form-input">
-            </div>
-          </div>
-        {% endfor %}
-        
-        {% if error_message %}
-        <div id="admin-setup-message" class="error-box">{{ error_message }}</div>
-        {% else %}
-        <div id="admin-setup-message" class="error-box" style="display: none;"></div>
-        {% endif %}
-        <div class="warning-box" id="request-services-warning" style="display: none;">
-          <span>⚠️</span>
-          <span><strong>Request Services:</strong> You can only configure one of Pulsarr, Overseerr, or Jellyseerr. These are different versions of the same type of service.</span>
-        </div>
-        
-        <div class="submit-section">
-          <button type="submit" id="admin-submit-btn" class="submit-btn">Apply Settings</button>
-        </div>
-        
-        <div class="info-box">
-          <span>ℹ️</span>
-          <span><strong>Note:</strong> Changes will only take effect after you restart the server.</span>
-        </div>
-      </form>
+      </div>
     </div>
+
+    <!-- IP Management Section -->
+    <div class="onboarding-section">
+      <h2 class="form-section-title">
+        <span class="form-section-icon">🛡️</span>
+        IP Management
+      </h2>
+      
+      <div class="form-group">
+        <label class="form-label">Enable IP Management?</label>
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" name="ip_management_enabled" value="yes" id="ip_management_enabled_yes" class="radio-input" {% if IP_MANAGEMENT_ENABLED == 'yes' %}checked{% endif %}>
+            <span>Yes</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="ip_management_enabled" value="no" id="ip_management_enabled_no" class="radio-input" {% if IP_MANAGEMENT_ENABLED != 'yes' %}checked{% endif %}>
+            <span>No</span>
+          </label>
+        </div>
+        <div class="file-help">
+          IP Management allows you to whitelist trusted IPs and blacklist malicious ones. This helps control access and prevent abuse.
+        </div>
+      </div>
+
+      <!-- IP Management Section (shown when enabled) -->
+      <div id="ip-management-section" style="display: none;">
+        <div class="info-box">
+          <span>ℹ️</span>
+          <span><strong>IP Management:</strong> Whitelisted IPs bypass all rate limiting. Blacklisted IPs are completely blocked. Use with caution.</span>
+        </div>
+        
+        <!-- Add IP to Whitelist -->
+        <div class="form-group">
+          <label class="form-label">Add IP to Whitelist:</label>
+          <div class="input-with-icon">
+            <span class="input-icon">✅</span>
+            <input type="text" name="whitelist_ip" id="whitelist_ip" placeholder="192.168.1.100" class="form-input">
+          </div>
+          <div class="file-help">Enter an IP address to whitelist (bypasses all rate limiting)</div>
+          <button type="button" onclick="addToWhitelist()" class="btn btn-secondary" style="margin-top: 0.5em;">Add to Whitelist</button>
+        </div>
+        
+        <!-- Add IP to Blacklist -->
+        <div class="form-group">
+          <label class="form-label">Add IP to Blacklist:</label>
+          <div class="input-with-icon">
+            <span class="input-icon">❌</span>
+            <input type="text" name="blacklist_ip" id="blacklist_ip" placeholder="192.168.1.100" class="form-input">
+          </div>
+          <div class="file-help">Enter an IP address to blacklist (completely blocked)</div>
+          <button type="button" onclick="addToBlacklist()" class="btn btn-secondary" style="margin-top: 0.5em;">Add to Blacklist</button>
+        </div>
+        
+        <!-- Current IP Lists -->
+        <div class="form-group">
+          <label class="form-label">Current IP Lists:</label>
+          
+          <!-- Whitelisted IPs -->
+          <div class="ip-list-section">
+            <h4 style="margin-bottom: 0.5em; color: #4CAF50;">✅ Whitelisted IPs:</h4>
+            {% if ip_lists.whitelisted %}
+              <div class="ip-list">
+                {% for ip in ip_lists.whitelisted %}
+                  <div class="ip-item">
+                    <span class="ip-address">{{ ip }}</span>
+                    <button type="button" onclick="removeFromWhitelist('{{ ip }}')" class="btn btn-small btn-danger">Remove</button>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="muted">No whitelisted IPs</p>
+            {% endif %}
+          </div>
+          
+          <!-- Blacklisted IPs -->
+          <div class="ip-list-section">
+            <h4 style="margin-bottom: 0.5em; color: #f44336;">❌ Blacklisted IPs:</h4>
+            {% if ip_lists.banned %}
+              <div class="ip-list">
+                {% for ip in ip_lists.banned %}
+                  <div class="ip-item">
+                    <span class="ip-address">{{ ip }}</span>
+                    <button type="button" onclick="removeFromBlacklist('{{ ip }}')" class="btn btn-small btn-danger">Remove</button>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="muted">No blacklisted IPs</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Access Configuration Section -->
+    <div class="onboarding-section">
+      <h2 class="form-section-title">
+        <span class="form-section-icon">⚡</span>
+        Quick Access Links
+      </h2>
+              
+      <div class="form-group">
+        <label class="form-label">Display Quick Access Links?</label>
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" name="quick_access_enabled" value="yes" id="quick_access_enabled_yes" class="radio-input" {% if QUICK_ACCESS_ENABLED == 'yes' or not QUICK_ACCESS_ENABLED %}checked{% endif %}>
+            <span>Yes</span>
+          </label>
+           <label class="radio-option">
+            <input type="radio" name="quick_access_enabled" value="no" id="quick_access_enabled_no" class="radio-input" {% if QUICK_ACCESS_ENABLED == 'no' %}checked{% endif %}>
+            <span>No</span>
+          </label>
+        </div>
+         <div class="file-help">
+          Quick access links appear as a floating panel on desktop and in the mobile navigation menu. They provide direct access to your media and requesting services.
+         </div>
+       </div>
+
+      <!-- Quick Access Service Toggles -->
+      <div id="qa-service-toggles" class="form-group" style="display: none;">
+        <label class="form-label">Quick Access Services</label>
+        <div class="checkbox-group">
+          <label class="checkbox-option">
+            <input type="checkbox" name="qa_plex_enabled" value="yes" class="checkbox-input" {% if QA_PLEX_ENABLED != 'no' %}checked{% endif %}>
+            <span>Plex</span>
+          </label>
+          <label class="checkbox-option">
+            <input type="checkbox" name="qa_audiobookshelf_enabled" value="yes" class="checkbox-input" {% if QA_AUDIOBOOKSHELF_ENABLED != 'no' %}checked{% endif %}>
+            <span>Audiobookshelf</span>
+          </label>
+          <label class="checkbox-option">
+            <input type="checkbox" name="qa_tautulli_enabled" value="yes" class="checkbox-input" {% if QA_TAUTULLI_ENABLED != 'no' %}checked{% endif %}>
+            <span>Tautulli</span>
+          </label>
+          <label class="checkbox-option">
+            <input type="checkbox" name="qa_overseerr_enabled" value="yes" class="checkbox-input" {% if QA_OVERSEERR_ENABLED != 'no' %}checked{% endif %}>
+            <span>Overseerr</span>
+          </label>
+          <label class="checkbox-option">
+            <input type="checkbox" name="qa_jellyseerr_enabled" value="yes" class="checkbox-input" {% if QA_JELLYSEERR_ENABLED != 'no' %}checked{% endif %}>
+            <span>Jellyseerr</span>
+          </label>
+        </div>
+        <div class="file-help">
+          Select which services to show in the Quick Access panel. Services will only appear if they have a URL configured below.
+        </div>
+      </div>
+    </div>
+      
+    <!-- Service URLs Section -->
+    <div class="onboarding-section">
+      <h2 class="form-section-title">
+        <span class="form-section-icon">🔗</span>
+        Service URLs
+      </h2>
+      
+      <div class="info-box">
+        <span>ℹ️</span>
+        <span>These URLs are used in the services panel at the top of this page, and a few populate the quick access panel when enabled. Default local URLs are provided for admin-only services. For user-facing ones, put a public link that remote users can access.</span>
+      </div>
+      {% for service in all_services %}
+        <div class="form-group">
+          <label class="form-label">{{ service.name }}:</label>
+          <div class="service-url-input">
+            <img src="{{ url_for('static', filename=service.logo) }}" alt="{{ service.name }} logo" class="service-icon">
+            <input type="text" name="{{ service.env }}" value="{{ service.url }}" class="form-input">
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- Main Form with Hidden Inputs -->
+    <form method="post" id="admin-settings-form" enctype="multipart/form-data">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      
+      <!-- Hidden inputs to collect data from all sections -->
+      <input type="hidden" name="site_password" id="site_password_hidden">
+      <input type="hidden" name="admin_password" id="admin_password_hidden">
+      <input type="hidden" name="server_name" id="server_name_hidden">
+      <input type="hidden" name="accent_color_text" id="accent_color_text_hidden">
+      <input type="hidden" name="plex_token" id="plex_token_hidden">
+      <input type="hidden" name="plex_url" id="plex_url_hidden">
+      <input type="hidden" name="audiobooks_id" id="audiobooks_id_hidden">
+      <input type="hidden" name="audiobookshelf_url" id="audiobookshelf_url_hidden">
+      <input type="hidden" name="audiobookshelf_token" id="audiobookshelf_token_hidden">
+      <input type="hidden" name="discord_notify_plex" id="discord_notify_plex_hidden">
+      <input type="hidden" name="discord_notify_abs" id="discord_notify_abs_hidden">
+      <input type="hidden" name="discord_webhook" id="discord_webhook_hidden">
+      <input type="hidden" name="discord_username" id="discord_username_hidden">
+      <input type="hidden" name="discord_avatar" id="discord_avatar_hidden">
+      <input type="hidden" name="discord_color" id="discord_color_hidden">
+      <input type="hidden" name="onboarderr_url" id="onboarderr_url_hidden">
+      <input type="hidden" name="quick_access_enabled" id="quick_access_enabled_hidden">
+      <input type="hidden" name="qa_plex_enabled" id="qa_plex_enabled_hidden">
+      <input type="hidden" name="qa_audiobookshelf_enabled" id="qa_audiobookshelf_enabled_hidden">
+      <input type="hidden" name="qa_tautulli_enabled" id="qa_tautulli_enabled_hidden">
+      <input type="hidden" name="qa_overseerr_enabled" id="qa_overseerr_enabled_hidden">
+      <input type="hidden" name="qa_jellyseerr_enabled" id="qa_jellyseerr_enabled_hidden">
+      <input type="hidden" name="ip_management_enabled" id="ip_management_enabled_hidden">
+      
+      <!-- Service URLs hidden inputs -->
+      {% for service in all_services %}
+        <input type="hidden" name="{{ service.env }}" id="{{ service.env.lower() }}_hidden">
+      {% endfor %}
+      
+      <!-- File inputs -->
+      <input type="file" name="logo_file" id="logo_file_hidden" style="display: none;">
+      <input type="file" name="wordmark_file" id="wordmark_file_hidden" style="display: none;">
+      
+      <!-- Library Description Inputs -->
+      {% if LIBRARY_IDS %}
+        {% set selected_ids = LIBRARY_IDS.split(',') %}
+        {% for lib_id in selected_ids %}
+          {% if lib_id.strip() %}
+            {% set lib_id_clean = lib_id.strip() %}
+            <input type="text" name="library_desc_hidden_{{ lib_id_clean }}" 
+                   value="{{ library_notes[lib_id_clean]['description'] if library_notes[lib_id_clean] and library_notes[lib_id_clean]['description'] else '' }}" 
+                   style="display: none;">
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      
+      <!-- Submit Section -->
+      {% if error_message %}
+      <div id="admin-setup-message" class="error-box">{{ error_message }}</div>
+      {% else %}
+      <div id="admin-setup-message" class="error-box" style="display: none;"></div>
+      {% endif %}
+      <div class="warning-box" id="request-services-warning" style="display: none;">
+        <span>⚠️</span>
+        <span><strong>Request Services:</strong> You can only configure one of Pulsarr, Overseerr, or Jellyseerr. These are different versions of the same type of service.</span>
+      </div>
+    
+      <div class="info-box">
+        <span>ℹ️</span>
+        <span>Changes will only take effect after you restart the server.</span>
+      </div>
+
+      <div class="submit-section">
+        <button type="submit" id="admin-submit-btn" class="submit-btn">Apply Settings</button>
+      </div>
+    </form>
   </div>
 
   <!-- Navigation Script -->
@@ -692,6 +948,15 @@
           }
         });
       }
+      
+      // Initialize event listeners for existing library description inputs
+      var existingInputs = document.querySelectorAll('.library-description-input');
+      existingInputs.forEach(function(input) {
+        input.addEventListener('input', function() {
+          var libId = this.name.replace('library_desc_', '');
+          syncLibraryDescription(this, libId);
+        });
+      });
     });
   </script>
 
@@ -908,9 +1173,10 @@
                   checkbox.addEventListener('change', function() {
                       carouselLabel.style.display = checkbox.checked ? 'flex' : 'none';
                       updateLibrariesImmediately();
+                      updateCarouselSectionVisibility();
                   });
               });
-              carouselSection.style.display = 'block';
+              updateCarouselSectionVisibility();
           } else {
               section.style.display = 'none';
               carouselSection.style.display = 'none';
@@ -942,6 +1208,8 @@
           if (data.success) {
               // Update the current library display
               updateCurrentLibrariesDisplay(selectedLibraries);
+              // Update carousel section visibility
+              updateCarouselSectionVisibility();
               // Trigger poster refresh
               triggerPosterRefresh();
           } else {
@@ -955,38 +1223,157 @@
   function updateCurrentLibrariesDisplay(selectedLibraries) {
       var currentDisplay = document.querySelector('.current-library-selection');
       if (currentDisplay) {
-          var libraryNotes = {{ library_notes | tojson }};
-          var html = '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5em;">';
-          html += '<strong style="display:block;">Currently Selected Libraries:</strong>';
-          html += '<button type="button" onclick="refreshLibraryTitles()" class="submit-btn" style="padding: 0.3em 0.8em; font-size: 0.9em;">Refresh Titles</button>';
-          html += '</div>';
-          
           if (selectedLibraries.length === 0) {
-              html += '<div style="color: #888; font-style: italic;">No libraries selected</div>';
+              currentDisplay.innerHTML = '<h3 class="form-section-title"><span class="form-section-icon">📚</span>Currently Selected Libraries</h3><div style="color: #888; font-style: italic;">No libraries selected</div>';
           } else {
+              // Preserve current description input values before regenerating HTML
+              var currentDescriptions = {};
               selectedLibraries.forEach(function(libId) {
-                  var title = 'Unknown';
-                  var description = '';
-                  if (libraryNotes[libId] && libraryNotes[libId].title) {
-                      title = libraryNotes[libId].title;
+                  // Check for visible input first, then hidden input
+                  var existingInput = document.querySelector('input[name="library_desc_' + libId + '"]');
+                  if (!existingInput) {
+                      existingInput = document.querySelector('input[name="library_desc_hidden_' + libId + '"]');
                   }
-                  if (libraryNotes[libId] && libraryNotes[libId].description) {
-                      description = libraryNotes[libId].description;
+                  if (existingInput) {
+                      currentDescriptions[libId] = existingInput.value;
                   }
+              });
+              
+              // Fetch fresh library notes from the server
+              var csrfToken = document.querySelector('input[name="csrf_token"]').value;
+              fetch('/ajax/get-library-notes', {
+                  method: 'GET',
+                  headers: {
+                      'X-CSRFToken': csrfToken
+                  }
+              }).then(response => response.json()).then(data => {
+                  if (data.success) {
+                      var libraryNotes = data.library_notes;
+                      var html = '<h3 class="form-section-title"><span class="form-section-icon">📚</span>Currently Selected Libraries</h3>';
+                      
+                      selectedLibraries.forEach(function(libId) {
+                          var title = 'Unknown';
+                          var description = '';
+                          if (libraryNotes[libId] && libraryNotes[libId].title) {
+                              title = libraryNotes[libId].title;
+                          }
+                          // Use current input value if it exists, otherwise use saved description
+                          if (currentDescriptions[libId] !== undefined) {
+                              description = currentDescriptions[libId];
+                          } else if (libraryNotes[libId] && libraryNotes[libId].description) {
+                              description = libraryNotes[libId].description;
+                          }
+                          
+                          html += '<div class="selected-library-item" style="margin-bottom: 1em;">';
+                          html += '<div class="library-title-section">';
+                          html += '<strong>' + title + ' (' + libId + ')</strong>';
+                          html += '</div>';
+                          html += '<div class="library-description-section" style="margin-top: 0.5em;">';
+                          html += '<label class="form-label">Description:</label>';
+                                                html += '<input type="text" name="library_desc_' + libId + '" value="' + (description || '') + '" class="form-input library-description-input" placeholder="Enter a description for this library (optional)" onchange="syncLibraryDescription(this, \'' + libId + '\')" oninput="syncLibraryDescription(this, \'' + libId + '\')">';
+                      html += '</div>';
+                      html += '</div>';
+                  });
                   
-                  html += '<div class="library-item" style="margin-bottom: 1em;">';
-                  html += '<div class="library-title-section">';
-                  html += '<strong>' + title + ' (' + libId + ')</strong>';
-                  html += '</div>';
-                  html += '<div class="library-description-section" style="margin-top: 0.5em;">';
-                  html += '<label class="form-label">Description:</label>';
-                  html += '<input type="text" name="library_desc_' + libId + '" value="' + (description || '') + '" class="form-input library-description-input" placeholder="Enter a description for this library (optional)">';
-                  html += '</div>';
-                  html += '</div>';
+                  currentDisplay.innerHTML = html;
+                  
+                  // Update carousel section with new libraries
+                  // Extract library titles from libraryNotes
+                  var libraryTitles = {};
+                  if (libraryNotes) {
+                      selectedLibraries.forEach(function(libId) {
+                          if (libraryNotes[libId] && libraryNotes[libId].title) {
+                              libraryTitles[libId] = libraryNotes[libId].title;
+                          }
+                      });
+                  }
+                  updateCarouselSection(selectedLibraries, libraryTitles);
+                  
+                  // Add event listeners to sync with hidden inputs
+                  setTimeout(function() {
+                      var inputs = currentDisplay.querySelectorAll('.library-description-input');
+                      inputs.forEach(function(input) {
+                          input.addEventListener('input', function() {
+                              syncLibraryDescription(this, this.name.replace('library_desc_', ''));
+                          });
+                      });
+                  }, 100);
+                  } else {
+                      console.error('Failed to fetch library notes:', data.error);
+                      // Fallback to basic display without titles
+                      var html = '<h3 class="form-section-title"><span class="form-section-icon">📚</span>Currently Selected Libraries</h3>';
+                      selectedLibraries.forEach(function(libId) {
+                          var description = currentDescriptions[libId] || '';
+                          html += '<div class="selected-library-item" style="margin-bottom: 1em;">';
+                          html += '<div class="library-title-section">';
+                          html += '<strong>Unknown (' + libId + ')</strong>';
+                          html += '</div>';
+                          html += '<div class="library-description-section" style="margin-top: 0.5em;">';
+                          html += '<label class="form-label">Description:</label>';
+                          html += '<input type="text" name="library_desc_' + libId + '" value="' + description + '" class="form-input library-description-input" placeholder="Enter a description for this library (optional)" onchange="syncLibraryDescription(this, \'' + libId + '\')">';
+                          html += '</div>';
+                          html += '</div>';
+                      });
+                      currentDisplay.innerHTML = html;
+                      
+                      // Update carousel section with new libraries
+                      // No library titles available in this fallback case
+                      updateCarouselSection(selectedLibraries, {});
+                      
+                      // Add event listeners to sync with hidden inputs
+                      setTimeout(function() {
+                          var inputs = currentDisplay.querySelectorAll('.library-description-input');
+                          inputs.forEach(function(input) {
+                              input.addEventListener('input', function() {
+                                  syncLibraryDescription(this, this.name.replace('library_desc_', ''));
+                              });
+                          });
+                      }, 100);
+                  }
+              }).catch(error => {
+                  console.error('Error fetching library notes:', error);
+                  // Fallback to basic display without titles
+                  var html = '<h3 class="form-section-title"><span class="form-section-icon">📚</span>Currently Selected Libraries</h3>';
+                  selectedLibraries.forEach(function(libId) {
+                      var description = currentDescriptions[libId] || '';
+                      html += '<div class="selected-library-item" style="margin-bottom: 1em;">';
+                      html += '<div class="library-title-section">';
+                      html += '<strong>Unknown (' + libId + ')</strong>';
+                      html += '</div>';
+                      html += '<div class="library-description-section" style="margin-top: 0.5em;">';
+                      html += '<label class="form-label">Description:</label>';
+                      html += '<input type="text" name="library_desc_' + libId + '" value="' + description + '" class="form-input library-description-input" placeholder="Enter a description for this library (optional)" onchange="syncLibraryDescription(this, \'' + libId + '\')">';
+                      html += '</div>';
+                      html += '</div>';
+                  });
+                  currentDisplay.innerHTML = html;
+                  
+                  // Update carousel section with new libraries
+                  // No library titles available in this error case
+                  updateCarouselSection(selectedLibraries, {});
+                  
+                  // Add event listeners to sync with hidden inputs
+                  setTimeout(function() {
+                      var inputs = currentDisplay.querySelectorAll('.library-description-input');
+                      inputs.forEach(function(input) {
+                          input.addEventListener('input', function() {
+                              syncLibraryDescription(this, this.name.replace('library_desc_', ''));
+                          });
+                      });
+                  }, 100);
               });
           }
-          
-          currentDisplay.innerHTML = html;
+      }
+  }
+  
+  function syncLibraryDescription(input, libId) {
+      // Sync the visible input with the hidden input in the form
+      var hiddenInput = document.querySelector('input[name="library_desc_hidden_' + libId + '"]');
+      if (hiddenInput) {
+          hiddenInput.value = input.value;
+          console.log('Synced library description for ' + libId + ': "' + input.value + '"');
+      } else {
+          console.error('Hidden input not found for library ' + libId);
       }
   }
   
@@ -1009,35 +1396,62 @@
       });
   }
   
-  // Refresh library titles (kept for compatibility, but updateLibrariesImmediately is now primary)
-  function refreshLibraryTitles() {
-      const button = event.target;
-      const originalText = button.textContent;
-      button.textContent = 'Refreshing...';
-      button.disabled = true;
-      const csrfToken = document.querySelector('input[name="csrf_token"]').value;
-      fetch('/refresh-library-titles', {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': csrfToken
-          },
-          body: JSON.stringify({})
-      }).then(response => response.json()).then(data => {
-          if (data.success) {
-              window.location.reload();
-          } else {
-              alert('Failed to refresh library titles: ' + (data.error || 'Unknown error'));
-              button.textContent = originalText;
-              button.disabled = false;
-          }
-      }).catch(error => {
-          console.error('Error:', error);
-          alert('Failed to refresh library titles. Please check your Plex connection.');
-          button.textContent = originalText;
-          button.disabled = false;
-      });
+  function updateCarouselSectionVisibility() {
+      var carouselSection = document.getElementById('library-carousels-section-admin');
+      var carouselCheckboxes = document.querySelectorAll('input[name="library_carousels"]');
+      var selectedLibraryItems = document.querySelectorAll('.selected-library-item');
+      carouselSection.style.display = (carouselCheckboxes.length > 0 || selectedLibraryItems.length > 0) ? 'block' : 'none';
   }
+  
+  function updateCarouselSection(selectedLibraries, libraryTitles) {
+      var carouselList = document.getElementById('library-carousels-list-admin');
+      if (!carouselList) return;
+      
+      // Clear existing carousel checkboxes
+      carouselList.innerHTML = '';
+      
+      // Get current carousel settings
+      var currentCarousels = [];
+      {% if LIBRARY_CAROUSELS %}
+          {% set carousel_ids = LIBRARY_CAROUSELS.split(',') %}
+          {% for carousel_id in carousel_ids %}
+              {% if carousel_id.strip() %}
+                  currentCarousels.push('{{ carousel_id.strip() }}');
+              {% endif %}
+          {% endfor %}
+      {% endif %}
+      
+      // Create carousel checkboxes for selected libraries
+      selectedLibraries.forEach(function(libId) {
+          var carouselLabel = document.createElement('label');
+          carouselLabel.className = 'checkbox-option';
+          
+          var carouselCheckbox = document.createElement('input');
+          carouselCheckbox.type = 'checkbox';
+          carouselCheckbox.name = 'library_carousels';
+          carouselCheckbox.value = libId;
+          carouselCheckbox.id = 'admin_carousel_' + libId;
+          carouselCheckbox.className = 'checkbox-input';
+          
+          // Check if this library has carousel enabled
+          if (currentCarousels.includes(libId) || currentCarousels.length === 0) {
+              carouselCheckbox.checked = true;
+          }
+          
+          var carouselSpan = document.createElement('span');
+          // Use the library title if available, otherwise fall back to ID
+          var libraryTitle = libraryTitles && libraryTitles[libId] ? libraryTitles[libId] : 'Library ' + libId;
+          carouselSpan.textContent = libraryTitle;
+          
+          carouselLabel.appendChild(carouselCheckbox);
+          carouselLabel.appendChild(carouselSpan);
+          carouselList.appendChild(carouselLabel);
+      });
+      
+      // Update carousel section visibility
+      updateCarouselSectionVisibility();
+  }
+
   </script>
   
   <!-- AJAX Functions for Services Page -->
@@ -1458,6 +1872,368 @@
       }
     }
     
+    // IP Management section visibility
+    function toggleIPManagement() {
+      var ipEnabled = document.querySelector('input[name="ip_management_enabled"]:checked');
+      var ipSection = document.getElementById('ip-management-section');
+      
+      if (ipEnabled && ipEnabled.value === 'yes') {
+        ipSection.style.display = 'block';
+      } else {
+        ipSection.style.display = 'none';
+      }
+    }
+    
+    // Audiobookshelf Configuration section visibility
+    function toggleAbsConfig() {
+      var absEnabled = document.querySelector('input[name="abs_config_enabled"]:checked');
+      var absSection = document.getElementById('abs-config-section');
+      
+      if (absEnabled && absEnabled.value === 'yes') {
+        absSection.style.display = 'block';
+      } else {
+        absSection.style.display = 'none';
+      }
+    }
+    
+    // Discord Configuration section visibility
+    function toggleDiscordConfig() {
+      var discordEnabled = document.querySelector('input[name="discord_config_enabled"]:checked');
+      var discordSection = document.getElementById('discord-config-section');
+      
+      if (discordEnabled && discordEnabled.value === 'yes') {
+        discordSection.style.display = 'block';
+      } else {
+        discordSection.style.display = 'none';
+      }
+    }
+    
+    // Add IP to whitelist
+    async function addToWhitelist() {
+      const ipInput = document.getElementById('whitelist_ip');
+      const ip = ipInput.value.trim();
+      
+      if (!ip) {
+        alert('Please enter an IP address to whitelist.');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/ajax/ip-management', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+          },
+          body: JSON.stringify({ 
+            action: 'whitelist',
+            ip_address: ip
+          })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          alert('IP added to whitelist successfully.');
+          // Clear the input field
+          ipInput.value = '';
+          // Refresh the IP lists without reloading the page
+          refreshIPLists();
+        } else {
+          alert('Failed to add IP to whitelist: ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to add IP to whitelist. Please try again.');
+      }
+    }
+    
+    // Add IP to blacklist
+    async function addToBlacklist() {
+      const ipInput = document.getElementById('blacklist_ip');
+      const ip = ipInput.value.trim();
+      
+      if (!ip) {
+        alert('Please enter an IP address to blacklist.');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/ajax/ip-management', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+          },
+          body: JSON.stringify({ 
+            action: 'blacklist',
+            ip_address: ip
+          })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          alert('IP added to blacklist successfully.');
+          // Clear the input field
+          ipInput.value = '';
+          // Refresh the IP lists without reloading the page
+          refreshIPLists();
+        } else {
+          alert('Failed to add IP to blacklist: ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to add IP to blacklist. Please try again.');
+      }
+    }
+    
+    // Remove IP from whitelist
+    async function removeFromWhitelist(ip) {
+      if (!confirm(`Are you sure you want to remove ${ip} from the whitelist?`)) {
+        return;
+      }
+      
+      try {
+        const response = await fetch('/ajax/ip-management', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+          },
+          body: JSON.stringify({ 
+            action: 'remove_whitelist',
+            ip_address: ip
+          })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          alert('IP removed from whitelist successfully.');
+          // Refresh the IP lists without reloading the page
+          refreshIPLists();
+        } else {
+          alert('Failed to remove IP from whitelist: ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to remove IP from whitelist. Please try again.');
+      }
+    }
+    
+    // Remove IP from blacklist
+    async function removeFromBlacklist(ip) {
+      if (!confirm(`Are you sure you want to remove ${ip} from the blacklist?`)) {
+        return;
+      }
+      
+      try {
+        const response = await fetch('/ajax/ip-management', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+          },
+          body: JSON.stringify({ 
+            action: 'remove_blacklist',
+            ip_address: ip
+          })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          alert('IP removed from blacklist successfully.');
+          // Refresh the IP lists without reloading the page
+          refreshIPLists();
+        } else {
+          alert('Failed to remove IP from blacklist: ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Failed to remove IP from blacklist. Please try again.');
+      }
+    }
+    
+    // Refresh IP lists without reloading the page
+    async function refreshIPLists() {
+      try {
+        const response = await fetch('/ajax/get-ip-lists', {
+          method: 'GET',
+          headers: {
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+          }
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          // Update whitelisted IPs
+          const whitelistSection = document.querySelector('.ip-list-section:first-of-type');
+          
+          // Remove any existing content (both .ip-list divs and "No whitelisted IPs" paragraphs)
+          const existingWhitelistContent = whitelistSection.querySelector('.ip-list, p.muted');
+          if (existingWhitelistContent) {
+            existingWhitelistContent.remove();
+          }
+          
+          if (result.whitelisted && result.whitelisted.length > 0) {
+            const whitelistContainer = document.createElement('div');
+            whitelistContainer.className = 'ip-list';
+            whitelistContainer.innerHTML = result.whitelisted.map(ip => 
+              `<div class="ip-item">
+                <span class="ip-address">${ip}</span>
+                <button type="button" onclick="removeFromWhitelist('${ip}')" class="btn btn-small btn-danger">Remove</button>
+              </div>`
+            ).join('');
+            whitelistSection.appendChild(whitelistContainer);
+          } else {
+            const noWhitelistMsg = document.createElement('p');
+            noWhitelistMsg.className = 'muted';
+            noWhitelistMsg.textContent = 'No whitelisted IPs';
+            whitelistSection.appendChild(noWhitelistMsg);
+          }
+          
+          // Update blacklisted IPs
+          const blacklistSection = document.querySelector('.ip-list-section:last-of-type');
+          
+          // Remove any existing content (both .ip-list divs and "No blacklisted IPs" paragraphs)
+          const existingBlacklistContent = blacklistSection.querySelector('.ip-list, p.muted');
+          if (existingBlacklistContent) {
+            existingBlacklistContent.remove();
+          }
+          
+          if (result.banned && result.banned.length > 0) {
+            const blacklistContainer = document.createElement('div');
+            blacklistContainer.className = 'ip-list';
+            blacklistContainer.innerHTML = result.banned.map(ip => 
+              `<div class="ip-item">
+                <span class="ip-address">${ip}</span>
+                <button type="button" onclick="removeFromBlacklist('${ip}')" class="btn btn-small btn-danger">Remove</button>
+              </div>`
+            ).join('');
+            blacklistSection.appendChild(blacklistContainer);
+          } else {
+            const noBlacklistMsg = document.createElement('p');
+            noBlacklistMsg.className = 'muted';
+            noBlacklistMsg.textContent = 'No blacklisted IPs';
+            blacklistSection.appendChild(noBlacklistMsg);
+          }
+        }
+      } catch (error) {
+        console.error('Error refreshing IP lists:', error);
+      }
+    }
+    
+    // Function to collect all form data and populate hidden inputs
+    function collectFormData() {
+      // Authentication
+      document.getElementById('site_password_hidden').value = document.getElementById('admin_site_password_box').value;
+      document.getElementById('admin_password_hidden').value = document.getElementById('admin_admin_password_box').value;
+      
+      // Branding
+      document.getElementById('server_name_hidden').value = document.getElementById('server_name').value;
+      document.getElementById('accent_color_text_hidden').value = document.getElementById('accent_color_text').value;
+      
+      // Plex
+      document.getElementById('plex_token_hidden').value = document.getElementById('plex_token').value;
+      document.getElementById('plex_url_hidden').value = document.getElementById('plex_url').value;
+      
+      // Audiobookshelf
+      document.getElementById('audiobooks_id_hidden').value = document.getElementById('audiobooks_id').value;
+      document.getElementById('audiobookshelf_url_hidden').value = document.getElementById('audiobookshelf_url_admin').value;
+      document.getElementById('audiobookshelf_token_hidden').value = document.getElementById('audiobookshelf_token_admin').value;
+      
+      // Discord
+      document.getElementById('discord_notify_plex_hidden').value = document.getElementById('discord_notify_plex').checked ? '1' : '';
+      document.getElementById('discord_notify_abs_hidden').value = document.getElementById('discord_notify_abs').checked ? '1' : '';
+      document.getElementById('discord_webhook_hidden').value = document.getElementById('discord_webhook_admin').value;
+      document.getElementById('discord_username_hidden').value = document.getElementById('discord_username_admin').value;
+      document.getElementById('discord_avatar_hidden').value = document.getElementById('discord_avatar_admin').value;
+      document.getElementById('discord_color_hidden').value = document.getElementById('discord_color_admin').value;
+      document.getElementById('onboarderr_url_hidden').value = document.getElementById('onboarderr_url_admin').value;
+      
+      // Quick Access
+      var qaEnabled = '';
+      var qaRadios = document.getElementsByName('quick_access_enabled');
+      for (var i = 0; i < qaRadios.length; i++) {
+        if (qaRadios[i].checked) qaEnabled = qaRadios[i].value;
+      }
+      document.getElementById('quick_access_enabled_hidden').value = qaEnabled;
+      document.getElementById('qa_plex_enabled_hidden').value = document.querySelector('input[name="qa_plex_enabled"]').checked ? 'yes' : '';
+      document.getElementById('qa_audiobookshelf_enabled_hidden').value = document.querySelector('input[name="qa_audiobookshelf_enabled"]').checked ? 'yes' : '';
+      document.getElementById('qa_tautulli_enabled_hidden').value = document.querySelector('input[name="qa_tautulli_enabled"]').checked ? 'yes' : '';
+      document.getElementById('qa_overseerr_enabled_hidden').value = document.querySelector('input[name="qa_overseerr_enabled"]').checked ? 'yes' : '';
+      document.getElementById('qa_jellyseerr_enabled_hidden').value = document.querySelector('input[name="qa_jellyseerr_enabled"]').checked ? 'yes' : '';
+      
+      // IP Management
+      var ipEnabled = '';
+      var ipRadios = document.getElementsByName('ip_management_enabled');
+      for (var i = 0; i < ipRadios.length; i++) {
+        if (ipRadios[i].checked) ipEnabled = ipRadios[i].value;
+      }
+      document.getElementById('ip_management_enabled_hidden').value = ipEnabled;
+      
+      // Service URLs
+      {% for service in all_services %}
+        document.getElementById('{{ service.env.lower() }}_hidden').value = document.querySelector('input[name="{{ service.env }}"]').value;
+      {% endfor %}
+      
+      // Library Carousels - collect selected carousel checkboxes
+      var selectedCarouselIds = [];
+      var carouselCheckboxes = document.querySelectorAll('input[name="library_carousels"]:checked');
+      carouselCheckboxes.forEach(function(cb) {
+        selectedCarouselIds.push(cb.value);
+      });
+      
+      // Remove any existing library carousel hidden inputs (but not the visible checkboxes)
+      var existingCarouselInputs = document.querySelectorAll('input[name="library_carousels"][type="hidden"]');
+      existingCarouselInputs.forEach(function(input) {
+        if (input.id !== 'library_carousels_hidden') {
+          input.remove();
+        }
+      });
+      
+      // Create individual hidden inputs for each library carousel
+      selectedCarouselIds.forEach(function(libId) {
+        var hiddenInput = document.createElement('input');
+        hiddenInput.type = 'hidden';
+        hiddenInput.name = 'library_carousels';
+        hiddenInput.value = libId;
+        document.getElementById('admin-settings-form').appendChild(hiddenInput);
+      });
+      
+      // File inputs
+      var logoFile = document.getElementById('logo_file');
+      var logoFileHidden = document.getElementById('logo_file_hidden');
+      if (logoFile && logoFile.files.length > 0) {
+        logoFileHidden.files = logoFile.files;
+      }
+      
+      var wordmarkFile = document.getElementById('wordmark_file');
+      var wordmarkFileHidden = document.getElementById('wordmark_file_hidden');
+      if (wordmarkFile && wordmarkFile.files.length > 0) {
+        wordmarkFileHidden.files = wordmarkFile.files;
+      }
+    }
+    
+    // Form submission handler for admin settings form
+    document.addEventListener('DOMContentLoaded', function() {
+      var adminForm = document.getElementById('admin-settings-form');
+      if (adminForm) {
+        adminForm.addEventListener('submit', function(e) {
+          // Collect all form data first
+          collectFormData();
+          
+          // Check request services validation
+          if (!validateRequestServices()) {
+            e.preventDefault();
+            var warningDiv = document.getElementById('request-services-warning');
+            if (warningDiv) {
+              warningDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return false;
+          }
+        });
+      }
+    });
+    
     // Add event listeners for QA radio buttons
     document.addEventListener('DOMContentLoaded', function() {
       var qaRadios = document.querySelectorAll('input[name="quick_access_enabled"]');
@@ -1465,8 +2241,48 @@
         radio.addEventListener('change', toggleQAServiceToggles);
       });
       
-      // Initial toggle state
+      // Add event listeners for IP management radio buttons
+      var ipRadios = document.querySelectorAll('input[name="ip_management_enabled"]');
+      ipRadios.forEach(function(radio) {
+        radio.addEventListener('change', toggleIPManagement);
+      });
+      
+      // Add event listeners for ABS config radio buttons
+      var absConfigRadios = document.querySelectorAll('input[name="abs_config_enabled"]');
+      absConfigRadios.forEach(function(radio) {
+        radio.addEventListener('change', toggleAbsConfig);
+      });
+      
+      // Add event listeners for Discord config radio buttons
+      var discordConfigRadios = document.querySelectorAll('input[name="discord_config_enabled"]');
+      discordConfigRadios.forEach(function(radio) {
+        radio.addEventListener('change', toggleDiscordConfig);
+      });
+      
+      // Initial toggle states
       toggleQAServiceToggles();
+      toggleIPManagement();
+      toggleAbsConfig();
+      toggleDiscordConfig();
+      
+      // Initialize the "Currently Selected Libraries" section on page load
+      // The section is now server-side rendered, so we don't need to populate it via JavaScript
+      // But we still need to handle the case when libraries are updated via AJAX
+      var currentLibraryIds = '{{ LIBRARY_IDS }}';
+      if (currentLibraryIds && currentLibraryIds.trim() !== '') {
+        var selectedLibraries = currentLibraryIds.split(',').map(function(id) {
+          return id.trim();
+        }).filter(function(id) {
+          return id !== '';
+        });
+        // Only update if the section is empty (which shouldn't happen now, but just in case)
+        var currentDisplay = document.querySelector('.current-library-selection');
+        if (currentDisplay && currentDisplay.querySelector('.selected-library-item') === null) {
+          updateCurrentLibrariesDisplay(selectedLibraries);
+        }
+        // Initialize carousel section visibility
+        updateCarouselSectionVisibility();
+      }
     });
   </script>
 
