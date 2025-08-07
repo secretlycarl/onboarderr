@@ -386,37 +386,8 @@ def log_security_event(event_type, ip, details):
         # Save filtered logs
         save_json_file(log_file, filtered_logs)
         
-        # Send Discord notification for security events (with rate limiting)
-        if os.getenv("NOTIFY_ADMIN_ON_SECURITY_EVENTS", "yes") == "yes":
-            # Don't send notifications for form submissions (already handled by send_discord_notification)
-            if event_type not in ["form_submission"]:
-                current_time = time.time()
-                
-                # Handle rate-limited form submissions with daily aggregation
-                if event_type in ["form_rate_limited"]:
-                    # Check if this is the first rate-limited event for this IP today
-                    today_key = f"{ip}_form_rate_limited_{datetime.now(timezone.utc).strftime('%Y-%m-%d')}"
-                    if today_key not in rate_limit_data:
-                        # First rate-limited event today - send immediate notification
-                        send_discord_notification(f"Rate Limited: Form Submission", f"IP: {ip} - {details}", event_type="security")
-                        rate_limit_data[today_key] = {
-                            "first_notification_sent": True,
-                            "count": 1,
-                            "last_event": current_time
-                        }
-                    else:
-                        # Subsequent rate-limited event - increment count for daily report
-                        rate_limit_data[today_key]["count"] += 1
-                        rate_limit_data[today_key]["last_event"] = current_time
-                
-                # Handle other security events with hourly rate limiting
-                else:
-                    last_notification = rate_limit_data.get('rate_limit_notifications', {}).get(ip, 0)
-                    if current_time - last_notification > 3600:  # 1 hour
-                        send_discord_notification(f"Security Event: {event_type}", f"IP: {ip} - {details}", event_type="security")
-                        if 'rate_limit_notifications' not in rate_limit_data:
-                            rate_limit_data['rate_limit_notifications'] = {}
-                        rate_limit_data['rate_limit_notifications'][ip] = current_time
+        # Send Discord notification for security events using the new function
+        send_security_discord_notification(event_type, ip, details)
             
     except Exception as e:
         if debug_mode:
@@ -1058,6 +1029,54 @@ def send_discord_notification(email, service_type, event_type=None):
     except Exception as e:
         if debug_mode:
             print(f"Failed to send Discord notification: {e}")
+
+def send_security_discord_notification(event_type, ip, details):
+    """Send Discord notification for security events, respecting notification toggles"""
+    # Check if Discord notifications are enabled for this event type
+    if event_type == "rate_limited" and os.getenv("DISCORD_NOTIFY_RATE_LIMITING", "0") != "1":
+        return
+    if event_type in ["ip_whitelisted", "ip_whitelist_removed", "ip_banned", "ip_blacklist_removed"] and os.getenv("DISCORD_NOTIFY_IP_MANAGEMENT", "0") != "1":
+        return
+    if event_type in ["login_success", "login_failed"] and os.getenv("DISCORD_NOTIFY_LOGIN_ATTEMPTS", "0") != "1":
+        return
+    if event_type == "form_rate_limited" and os.getenv("DISCORD_NOTIFY_FORM_RATE_LIMITING", "0") != "1":
+        return
+    
+    webhook_url = os.getenv("DISCORD_WEBHOOK")
+    if not webhook_url:
+        return
+    
+    username = os.getenv("DISCORD_USERNAME", "Onboarderr Security")
+    avatar_url = os.getenv("DISCORD_AVATAR", url_for('static', filename=get_logo_filename(), _external=True))
+    color = os.getenv("DISCORD_COLOR", "#ff0000")  # Red for security events
+    
+    # Get Onboarderr URL for admin link
+    onboarderr_url = os.getenv("ONBOARDERR_URL", "")
+    
+    # Build description with optional admin link
+    description = f"**Security Event:** {event_type.replace('_', ' ').title()}\n**IP:** {ip}\n**Details:** {details}"
+    if onboarderr_url:
+        # Add linked text to admin page
+        admin_link = f"{onboarderr_url}/services"
+        description += f"\n\n[🔧 **View Admin Panel**]({admin_link})"
+    
+    payload = {
+        "username": username,
+        "embeds": [{
+            "title": "🚨 Security Alert",
+            "description": description,
+            "color": int(color.lstrip('#'), 16) if color.startswith('#') else 0,
+            "timestamp": datetime.now().isoformat()
+        }]
+    }
+    if avatar_url:
+        payload["avatar_url"] = avatar_url
+    
+    try:
+        requests.post(webhook_url, json=payload, timeout=5)
+    except Exception as e:
+        if debug_mode:
+            print(f"Failed to send security Discord notification: {e}")
 
 def create_abs_user(username, password, user_type="user", permissions=None):
     """Create a user in Audiobookshelf using the API"""
@@ -1826,6 +1845,35 @@ def services():
         current_discord_notify_abs = os.getenv("DISCORD_NOTIFY_ABS", "1")
         if discord_notify_abs in ["1", "0"] and discord_notify_abs != current_discord_notify_abs:
             safe_set_key(env_path, "DISCORD_NOTIFY_ABS", discord_notify_abs)
+
+        # Handle new security event notification settings
+        discord_notify_rate_limiting = request.form.get("discord_notify_rate_limiting")
+        if discord_notify_rate_limiting is None:
+            discord_notify_rate_limiting = "0"
+        current_discord_notify_rate_limiting = os.getenv("DISCORD_NOTIFY_RATE_LIMITING", "0")
+        if discord_notify_rate_limiting in ["1", "0"] and discord_notify_rate_limiting != current_discord_notify_rate_limiting:
+            safe_set_key(env_path, "DISCORD_NOTIFY_RATE_LIMITING", discord_notify_rate_limiting)
+
+        discord_notify_ip_management = request.form.get("discord_notify_ip_management")
+        if discord_notify_ip_management is None:
+            discord_notify_ip_management = "0"
+        current_discord_notify_ip_management = os.getenv("DISCORD_NOTIFY_IP_MANAGEMENT", "0")
+        if discord_notify_ip_management in ["1", "0"] and discord_notify_ip_management != current_discord_notify_ip_management:
+            safe_set_key(env_path, "DISCORD_NOTIFY_IP_MANAGEMENT", discord_notify_ip_management)
+
+        discord_notify_login_attempts = request.form.get("discord_notify_login_attempts")
+        if discord_notify_login_attempts is None:
+            discord_notify_login_attempts = "0"
+        current_discord_notify_login_attempts = os.getenv("DISCORD_NOTIFY_LOGIN_ATTEMPTS", "0")
+        if discord_notify_login_attempts in ["1", "0"] and discord_notify_login_attempts != current_discord_notify_login_attempts:
+            safe_set_key(env_path, "DISCORD_NOTIFY_LOGIN_ATTEMPTS", discord_notify_login_attempts)
+
+        discord_notify_form_rate_limiting = request.form.get("discord_notify_form_rate_limiting")
+        if discord_notify_form_rate_limiting is None:
+            discord_notify_form_rate_limiting = "0"
+        current_discord_notify_form_rate_limiting = os.getenv("DISCORD_NOTIFY_FORM_RATE_LIMITING", "0")
+        if discord_notify_form_rate_limiting in ["1", "0"] and discord_notify_form_rate_limiting != current_discord_notify_form_rate_limiting:
+            safe_set_key(env_path, "DISCORD_NOTIFY_FORM_RATE_LIMITING", discord_notify_form_rate_limiting)
 
         # Handle Quick Access setting
         quick_access_enabled = request.form.get("quick_access_enabled", "yes")
@@ -3504,6 +3552,27 @@ def setup():
             discord_notify_abs = "0"
         safe_set_key(env_path, "DISCORD_NOTIFY_ABS", discord_notify_abs)
         
+        # Save new security event notification settings
+        discord_notify_rate_limiting = form.get("discord_notify_rate_limiting")
+        if discord_notify_rate_limiting is None:
+            discord_notify_rate_limiting = "0"
+        safe_set_key(env_path, "DISCORD_NOTIFY_RATE_LIMITING", discord_notify_rate_limiting)
+        
+        discord_notify_ip_management = form.get("discord_notify_ip_management")
+        if discord_notify_ip_management is None:
+            discord_notify_ip_management = "0"
+        safe_set_key(env_path, "DISCORD_NOTIFY_IP_MANAGEMENT", discord_notify_ip_management)
+        
+        discord_notify_login_attempts = form.get("discord_notify_login_attempts")
+        if discord_notify_login_attempts is None:
+            discord_notify_login_attempts = "0"
+        safe_set_key(env_path, "DISCORD_NOTIFY_LOGIN_ATTEMPTS", discord_notify_login_attempts)
+        
+        discord_notify_form_rate_limiting = form.get("discord_notify_form_rate_limiting")
+        if discord_notify_form_rate_limiting is None:
+            discord_notify_form_rate_limiting = "0"
+        safe_set_key(env_path, "DISCORD_NOTIFY_FORM_RATE_LIMITING", discord_notify_form_rate_limiting)
+        
         # Save Quick Access setting
         quick_access_enabled = form.get("quick_access_enabled", "yes")
         safe_set_key(env_path, "QUICK_ACCESS_ENABLED", quick_access_enabled)
@@ -3964,6 +4033,10 @@ def get_template_context():
         "custom_services_url": os.getenv("CUSTOM_SERVICES_URL", "").strip(),
         "DISCORD_NOTIFY_PLEX": os.getenv("DISCORD_NOTIFY_PLEX", "1"),
         "DISCORD_NOTIFY_ABS": os.getenv("DISCORD_NOTIFY_ABS", "1"),
+        "DISCORD_NOTIFY_RATE_LIMITING": os.getenv("DISCORD_NOTIFY_RATE_LIMITING", "0"),
+        "DISCORD_NOTIFY_IP_MANAGEMENT": os.getenv("DISCORD_NOTIFY_IP_MANAGEMENT", "0"),
+        "DISCORD_NOTIFY_LOGIN_ATTEMPTS": os.getenv("DISCORD_NOTIFY_LOGIN_ATTEMPTS", "0"),
+        "DISCORD_NOTIFY_FORM_RATE_LIMITING": os.getenv("DISCORD_NOTIFY_FORM_RATE_LIMITING", "0"),
         "QUICK_ACCESS_ENABLED": os.getenv("QUICK_ACCESS_ENABLED", "yes"),
         "QA_PLEX_ENABLED": os.getenv("QA_PLEX_ENABLED", "yes"),
         "QA_AUDIOBOOKSHELF_ENABLED": os.getenv("QA_AUDIOBOOKSHELF_ENABLED", "yes"),

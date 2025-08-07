@@ -306,6 +306,26 @@
                         <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
                         <span>Notify on new Audiobookshelf user request</span>
                     </label>
+                    <label class="checkbox-option">
+                        <input type="checkbox" name="discord_notify_rate_limiting" id="discord_notify_rate_limiting" value="1" class="checkbox-input">
+                        <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
+                        <span>Notify on rate limiting events</span>
+                    </label>
+                    <label class="checkbox-option">
+                        <input type="checkbox" name="discord_notify_ip_management" id="discord_notify_ip_management" value="1" class="checkbox-input">
+                        <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
+                        <span>Notify on IP management events</span>
+                    </label>
+                    <label class="checkbox-option">
+                        <input type="checkbox" name="discord_notify_login_attempts" id="discord_notify_login_attempts" value="1" class="checkbox-input">
+                        <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
+                        <span>Notify on login attempts (success/failure)</span>
+                    </label>
+                    <label class="checkbox-option">
+                        <input type="checkbox" name="discord_notify_form_rate_limiting" id="discord_notify_form_rate_limiting" value="1" class="checkbox-input">
+                        <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
+                        <span>Notify on form submission rate limiting</span>
+                    </label>
                 </div>
             </div>
             
@@ -555,6 +575,10 @@
         <input type="hidden" name="discord_enabled" id="discord_enabled_hidden">
         <input type="hidden" name="discord_notify_plex" id="discord_notify_plex_hidden">
         <input type="hidden" name="discord_notify_abs" id="discord_notify_abs_hidden">
+        <input type="hidden" name="discord_notify_rate_limiting" id="discord_notify_rate_limiting_hidden">
+        <input type="hidden" name="discord_notify_ip_management" id="discord_notify_ip_management_hidden">
+        <input type="hidden" name="discord_notify_login_attempts" id="discord_notify_login_attempts_hidden">
+        <input type="hidden" name="discord_notify_form_rate_limiting" id="discord_notify_form_rate_limiting_hidden">
         <input type="hidden" name="discord_webhook" id="discord_webhook_hidden">
         <input type="hidden" name="discord_username" id="discord_username_hidden">
         <input type="hidden" name="discord_avatar" id="discord_avatar_hidden">
@@ -998,6 +1022,10 @@
             document.getElementById('discord_enabled_hidden').value = discordEnabled;
             document.getElementById('discord_notify_plex_hidden').value = document.getElementById('discord_notify_plex').checked ? '1' : '';
             document.getElementById('discord_notify_abs_hidden').value = document.getElementById('discord_notify_abs').checked ? '1' : '';
+            document.getElementById('discord_notify_rate_limiting_hidden').value = document.getElementById('discord_notify_rate_limiting').checked ? '1' : '';
+            document.getElementById('discord_notify_ip_management_hidden').value = document.getElementById('discord_notify_ip_management').checked ? '1' : '';
+            document.getElementById('discord_notify_login_attempts_hidden').value = document.getElementById('discord_notify_login_attempts').checked ? '1' : '';
+            document.getElementById('discord_notify_form_rate_limiting_hidden').value = document.getElementById('discord_notify_form_rate_limiting').checked ? '1' : '';
             document.getElementById('discord_webhook_hidden').value = document.getElementById('discord_webhook').value;
             document.getElementById('discord_username_hidden').value = document.getElementById('discord_username').value;
             document.getElementById('discord_avatar_hidden').value = document.getElementById('discord_avatar').value;
