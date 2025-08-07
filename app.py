@@ -54,7 +54,7 @@ poster_download_running = False
 poster_download_progress = {}
 
 # Library caching infrastructure
-LIBRARY_CACHE_TTL = 7200  # 2 hour cache (libraries don't change often)
+LIBRARY_CACHE_TTL = 86400  # 24 hour cache (libraries don't change often)
 POSTER_REFRESH_INTERVAL = 86400  # 24 hours
 library_cache = {}
 library_cache_timestamp = 0
@@ -802,43 +802,47 @@ def recreate_library_notes():
             print(f"[DEBUG] Selected library IDs from environment: {selected_ids}")
         
         headers = {"X-Plex-Token": plex_token}
-        url = f"{plex_url}/library/sections"
-        response = requests.get(url, headers=headers, timeout=5)
-        response.raise_for_status()
-        root = ET.fromstring(response.text)
-        
         updated_count = 0
-        for directory in root.findall(".//Directory"):
-            title = directory.attrib.get("title")
-            key = directory.attrib.get("key")
-            media_type = directory.attrib.get("type")
-            
-            if title and key:
-                # Only process libraries that are selected (in LIBRARY_IDS)
-                if selected_ids and key not in selected_ids:
-                    if debug_mode:
-                        print(f"[DEBUG] Skipping unselected library: {title} (ID: {key})")
-                    continue
+        
+        # Only fetch selected libraries individually to avoid processing unselected ones
+        for lib_id in selected_ids:
+            url = f"{plex_url}/library/sections/{lib_id}"
+            try:
+                response = requests.get(url, headers=headers, timeout=5)
+                response.raise_for_status()
+                root = ET.fromstring(response.text)
                 
-                # Check if this library exists in our notes
-                if key in existing_notes:
-                    # Update existing entry, preserving description
-                    existing_entry = existing_notes[key]
-                    existing_entry["title"] = title
-                    existing_entry["media_type"] = media_type
-                    # Keep existing description if it exists
-                    if debug_mode:
-                        print(f"[DEBUG] Updated existing library: {title} (ID: {key}, Type: {media_type})")
-                else:
-                    # Create new entry
-                    existing_notes[key] = {
-                        "title": title,
-                        "media_type": media_type
-                    }
-                    if debug_mode:
-                        print(f"[DEBUG] Added new library: {title} (ID: {key}, Type: {media_type})")
-                
-                updated_count += 1
+                directory = root.find(".//Directory")
+                if directory is not None:
+                    title = directory.attrib.get("title")
+                    key = directory.attrib.get("key")
+                    media_type = directory.attrib.get("type")
+                    
+                    if title and key:
+                        # Check if this library exists in our notes
+                        if key in existing_notes:
+                            # Update existing entry, preserving description
+                            existing_entry = existing_notes[key]
+                            existing_entry["title"] = title
+                            existing_entry["media_type"] = media_type
+                            # Keep existing description if it exists
+                            if debug_mode:
+                                print(f"[DEBUG] Updated existing library: {title} (ID: {key}, Type: {media_type})")
+                        else:
+                            # Create new entry
+                            existing_notes[key] = {
+                                "title": title,
+                                "media_type": media_type
+                            }
+                            if debug_mode:
+                                print(f"[DEBUG] Added new library: {title} (ID: {key}, Type: {media_type})")
+                        
+                        updated_count += 1
+                        
+            except Exception as e:
+                if debug_mode:
+                    print(f"[WARN] Failed to fetch library {lib_id}: {e}")
+                continue
         
         # Save the updated library notes
         save_library_notes(existing_notes)
@@ -1240,8 +1244,7 @@ def onboarding():
         add_form_submission(client_ip, "plex")
         log_security_event("form_submission", client_ip, f"Plex form submitted by {email}")
         
-        # Clear library cache since new user was added
-        clear_library_cache()
+        # No need to clear cache since we're using local files now
         
         send_discord_notification(email, "Plex", event_type="plex")
         # AJAX response
@@ -3105,22 +3108,12 @@ def medialists():
         
         return abs_books
 
-    # Get all libraries - use cached data for better performance
+    # Get all libraries - use local files for better performance (no Plex API calls)
     try:
-        # Check if we have valid cached data first
-        current_time = time.time()
-        if library_cache and (current_time - library_cache_timestamp) < LIBRARY_CACHE_TTL:
-            if debug_mode:
-                print(f"[DEBUG] Using cached library data for medialists (age: {current_time - library_cache_timestamp:.1f}s)")
-            libraries = library_cache
-        else:
-            # Only fetch from Plex API if cache is invalid
-            if debug_mode:
-                print("[DEBUG] Cache invalid, fetching libraries from Plex API for medialists")
-            libraries = get_plex_libraries(force_refresh=False)
+        libraries = get_libraries_from_local_files()
     except Exception as e:
         if debug_mode:
-            print(f"Failed to get Plex libraries: {e}")
+            print(f"Failed to get libraries from local files: {e}")
         libraries = []
 
     # Only include libraries specified in LIBRARY_IDS
@@ -3994,18 +3987,8 @@ def ajax_load_library_posters():
         if library_index is None:
             return jsonify({"success": False, "error": "Library index required"})
         
-        # Get the library info - use cached data for better performance
-        # Check if we have valid cached data first
-        current_time = time.time()
-        if library_cache and (current_time - library_cache_timestamp) < LIBRARY_CACHE_TTL:
-            if debug_mode:
-                print(f"[DEBUG] Using cached library data for load-library-posters (age: {current_time - library_cache_timestamp:.1f}s)")
-            libraries = library_cache
-        else:
-            # Only fetch from Plex API if cache is invalid
-            if debug_mode:
-                print("[DEBUG] Cache invalid, fetching libraries from Plex API for load-library-posters")
-            libraries = get_plex_libraries(force_refresh=False)
+        # Get the library info - use local files for better performance
+        libraries = get_libraries_from_local_files()
         selected_ids = os.getenv("LIBRARY_IDS", "")
         selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
         filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
@@ -4141,18 +4124,8 @@ def ajax_load_all_items():
         except (ValueError, TypeError):
             return jsonify({"success": False, "error": "Invalid library index format"})
         
-        # Get all libraries - use cached data for better performance
-        # Check if we have valid cached data first
-        current_time = time.time()
-        if library_cache and (current_time - library_cache_timestamp) < LIBRARY_CACHE_TTL:
-            if debug_mode:
-                print(f"[DEBUG] Using cached library data for load-all-items (age: {current_time - library_cache_timestamp:.1f}s)")
-            libraries = library_cache
-        else:
-            # Only fetch from Plex API if cache is invalid
-            if debug_mode:
-                print("[DEBUG] Cache invalid, fetching libraries from Plex API for load-all-items")
-            libraries = get_plex_libraries(force_refresh=False)
+        # Get all libraries - use local files for better performance
+        libraries = get_libraries_from_local_files()
         selected_ids = os.getenv("LIBRARY_IDS", "")
         selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
         filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
@@ -4239,18 +4212,8 @@ def ajax_load_posters_by_letter():
         except (ValueError, TypeError):
             return jsonify({"success": False, "error": "Invalid library index format"})
         
-        # Get the library info - use cached data for better performance
-        # Check if we have valid cached data first
-        current_time = time.time()
-        if library_cache and (current_time - library_cache_timestamp) < LIBRARY_CACHE_TTL:
-            if debug_mode:
-                print(f"[DEBUG] Using cached library data for load-posters-by-letter (age: {current_time - library_cache_timestamp:.1f}s)")
-            libraries = library_cache
-        else:
-            # Only fetch from Plex API if cache is invalid
-            if debug_mode:
-                print("[DEBUG] Cache invalid, fetching libraries from Plex API for load-posters-by-letter")
-            libraries = get_plex_libraries(force_refresh=False)
+        # Get the library info - use local files for better performance
+        libraries = get_libraries_from_local_files()
         selected_ids = os.getenv("LIBRARY_IDS", "")
         selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
         filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
@@ -4597,18 +4560,8 @@ def get_random_posters():
         print("Library name is empty")
         return jsonify({"error": "Library name required"}), 400
     
-    # Find the library by name - use cached data for better performance
-    # Check if we have valid cached data first
-    current_time = time.time()
-    if library_cache and (current_time - library_cache_timestamp) < LIBRARY_CACHE_TTL:
-        if debug_mode:
-            print(f"[DEBUG] Using cached library data for get-random-posters (age: {current_time - library_cache_timestamp:.1f}s)")
-        libraries = library_cache
-    else:
-        # Only fetch from Plex API if cache is invalid
-        if debug_mode:
-            print("[DEBUG] Cache invalid, fetching libraries from Plex API for get-random-posters")
-        libraries = get_plex_libraries(force_refresh=False)
+    # Find the library by name - use local files for better performance
+    libraries = get_libraries_from_local_files()
     library = None
     for lib in libraries:
         if lib["title"] == library_name:
@@ -4943,15 +4896,31 @@ if __name__ == "__main__":
     SHOWS_SECTION_ID = os.getenv("SHOWS_ID")
     AUDIOBOOKS_SECTION_ID = os.getenv("AUDIOBOOKS_ID")
     
+    # Define debug mode early so it's available for startup operations
+    debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
+    
     # Load IP lists from environment variables
     load_ip_lists_from_env()
     
     # Check if this is the first run (setup not complete)
     is_first_run = os.getenv("SETUP_COMPLETE", "0") != "1"
     
-    # Recreate library notes on startup only if setup is complete (only in main process, not reloader)
+    # Only recreate library notes if they don't exist or are incomplete (only in main process, not reloader)
     if os.environ.get('WERKZEUG_RUN_MAIN') != 'true' and os.getenv("SETUP_COMPLETE") == "1":
-        recreate_library_notes()
+        # Check if library notes exist and are complete
+        existing_notes = load_library_notes()
+        selected_ids_str = os.getenv("LIBRARY_IDS", "")
+        selected_ids = [id.strip() for id in selected_ids_str.split(",") if id.strip()]
+        
+        # Only recreate if we're missing notes for any selected libraries
+        missing_notes = [lib_id for lib_id in selected_ids if lib_id not in existing_notes]
+        if missing_notes:
+            if debug_mode:
+                print(f"[INFO] Missing library notes for {len(missing_notes)} libraries, updating from Plex API...")
+            recreate_library_notes()
+        else:
+            if debug_mode:
+                print("[DEBUG] All library notes are up to date, skipping update")
     
     # Start background poster worker (only in main process, not reloader)
     if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
@@ -4972,16 +4941,14 @@ if __name__ == "__main__":
                 selected_ids = os.getenv("LIBRARY_IDS", "")
                 selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
                 
-                # Only get libraries if we have cached data, otherwise skip for now
-                current_time = time.time()
-                if library_cache and (current_time - library_cache_timestamp) < LIBRARY_CACHE_TTL:
-                    all_libraries = library_cache
+                # Use local files for startup instead of relying on cache
+                try:
+                    all_libraries = get_libraries_from_local_files()
                     if debug_mode:
-                        print(f"[DEBUG] Using cached library data for startup (age: {current_time - library_cache_timestamp:.1f}s)")
-                else:
-                    # Skip library fetch on startup if no cache available
+                        print(f"[DEBUG] Using local files for startup, found {len(all_libraries)} libraries")
+                except Exception as e:
                     if debug_mode:
-                        print("[DEBUG] No valid cache available, skipping library fetch on startup")
+                        print(f"[DEBUG] Error getting libraries from local files: {e}")
                     all_libraries = []
                 
                 libraries = [lib for lib in all_libraries if lib["key"] in selected_ids]
@@ -5011,9 +4978,6 @@ if __name__ == "__main__":
     except Exception as e:
         if debug_mode:
             print(f"Warning: Could not queue poster downloads: {e}")
-    
-    # After initial poster download
-    debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
     
     # Start browser opening thread if this is the first run
     # Only open browser in the main process (not the reloader)
