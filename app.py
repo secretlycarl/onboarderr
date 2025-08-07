@@ -53,6 +53,13 @@ poster_download_lock = Lock()
 poster_download_running = False
 poster_download_progress = {}
 
+# Library caching infrastructure
+LIBRARY_CACHE_TTL = 7200  # 2 hour cache (libraries don't change often)
+POSTER_REFRESH_INTERVAL = 86400  # 24 hours
+library_cache = {}
+library_cache_timestamp = 0
+library_cache_lock = Lock()
+
 # Rate limiting state
 rate_limit_data = {
     'failed_attempts': defaultdict(list),  # IP -> list of timestamps
@@ -583,7 +590,75 @@ def inject_favicon_timestamp():
         favicon_timestamp = int(time.time())
     return dict(favicon_timestamp=favicon_timestamp)
 
-def get_plex_libraries():
+def get_libraries_from_local_files():
+    """
+    Get library information from local files only (no Plex API calls).
+    Returns library data from library_notes.json and poster directories.
+    """
+    if debug_mode:
+        print("[DEBUG] Getting libraries from local files only...")
+    
+    libraries = []
+    library_notes = load_library_notes()
+    
+    # Get all library IDs from library_notes.json
+    for lib_id, note_data in library_notes.items():
+        title = note_data.get("title", f"Library {lib_id}")
+        # Check if poster directory exists to determine media type
+        poster_dir = os.path.join("static", "posters", lib_id)
+        media_type = "show"  # Default to show
+        
+        if os.path.exists(poster_dir):
+            # Try to determine media type from existing posters
+            poster_files = [f for f in os.listdir(poster_dir) if f.lower().endswith(('.webp', '.jpg', '.jpeg', '.png'))]
+            if poster_files:
+                # Check first poster's metadata to determine media type
+                first_poster = poster_files[0]
+                json_path = os.path.join(poster_dir, first_poster.rsplit('.', 1)[0] + '.json')
+                if os.path.exists(json_path):
+                    try:
+                        with open(json_path, 'r', encoding='utf-8') as f:
+                            meta = json.load(f)
+                            # Check if it's a music artist
+                            if meta.get('type') == 'artist' or 'artist' in meta.get('title', '').lower():
+                                media_type = "artist"
+                            elif meta.get('type') == 'movie':
+                                media_type = "movie"
+                            elif meta.get('type') == 'show':
+                                media_type = "show"
+                    except (IOError, json.JSONDecodeError):
+                        pass
+        
+        libraries.append({
+            "title": title,
+            "key": lib_id,
+            "media_type": media_type
+        })
+        
+        if debug_mode:
+            print(f"[DEBUG] Found local library: {title} (ID: {lib_id}, Type: {media_type})")
+    
+    if debug_mode:
+        print(f"[DEBUG] Total libraries from local files: {len(libraries)}")
+    
+    return libraries
+
+def get_plex_libraries(force_refresh=False):
+    """
+    Get Plex libraries with caching support.
+    Args:
+        force_refresh: If True, bypass cache and fetch fresh data
+    """
+    global library_cache, library_cache_timestamp
+    
+    current_time = time.time()
+    
+    # Check if we have valid cached data
+    if not force_refresh and library_cache and (current_time - library_cache_timestamp) < LIBRARY_CACHE_TTL:
+        if debug_mode:
+            print(f"[DEBUG] Using cached library data (age: {current_time - library_cache_timestamp:.1f}s)")
+        return library_cache
+    
     # Get Plex credentials directly from environment
     plex_token = os.getenv("PLEX_TOKEN")
     plex_url = os.getenv("PLEX_URL")
@@ -641,9 +716,45 @@ def get_plex_libraries():
     
     if debug_mode:
         print(f"[DEBUG] Total libraries found: {len(libraries)}")
+    
+    # Update cache with thread safety
+    with library_cache_lock:
+        library_cache = libraries
+        library_cache_timestamp = current_time
+    
     return libraries
 
 # --- File read/write: always use utf-8 encoding and os.path.join ---
+def should_refresh_posters(library_id):
+    """
+    Check if posters for a library need refreshing based on age.
+    Returns True if posters should be refreshed, False otherwise.
+    """
+    poster_dir = os.path.join("static", "posters", str(library_id))
+    if not os.path.exists(poster_dir):
+        return True
+    
+    # Check if any poster files exist
+    poster_files = [f for f in os.listdir(poster_dir) if f.lower().endswith(('.webp', '.jpg', '.jpeg', '.png'))]
+    if not poster_files:
+        return True
+    
+    # Check the age of the most recent poster file
+    most_recent_time = max(os.path.getmtime(os.path.join(poster_dir, f)) for f in poster_files)
+    current_time = time.time()
+    
+    # Return True if posters are older than POSTER_REFRESH_INTERVAL
+    return (current_time - most_recent_time) > POSTER_REFRESH_INTERVAL
+
+def clear_library_cache():
+    """Clear the library cache to force fresh data on next request"""
+    global library_cache, library_cache_timestamp
+    with library_cache_lock:
+        library_cache = {}
+        library_cache_timestamp = 0
+    if debug_mode:
+        print("[DEBUG] Library cache cleared")
+
 def load_library_notes():
     if debug_mode:
         print("[DEBUG] Loading library notes from file...")
@@ -653,80 +764,8 @@ def load_library_notes():
         if notes:
             print(f"[DEBUG] Library note keys: {list(notes.keys())}")
     
-    # Check if we need to fetch missing library titles
-    library_ids = os.getenv("LIBRARY_IDS", "")
-    if library_ids:
-        selected_ids = [i.strip() for i in library_ids.split(",") if i.strip()]
-        missing_titles = []
-        
-        for lib_id in selected_ids:
-            if lib_id not in notes or not notes[lib_id].get('title') or notes[lib_id].get('title') == f"Unknown ({lib_id})":
-                missing_titles.append(lib_id)
-        
-        if missing_titles:
-            if debug_mode:
-                print(f"[DEBUG] Found {len(missing_titles)} libraries with missing titles: {missing_titles}")
-            # Try to fetch missing titles from Plex
-            try:
-                plex_token = os.getenv("PLEX_TOKEN")
-                plex_url = os.getenv("PLEX_URL")
-                if plex_token and plex_url:
-                    headers = {"X-Plex-Token": plex_token}
-                    url = f"{plex_url}/library/sections"
-                    response = requests.get(url, headers=headers, timeout=5)
-                    response.raise_for_status()
-                    root = ET.fromstring(response.text)
-                    id_to_title = {d.attrib.get("key"): d.attrib.get("title") for d in root.findall(".//Directory")}
-                    
-                    if debug_mode:
-                        print(f"[DEBUG] Fetched {len(id_to_title)} libraries from Plex")
-                    
-                    # Update missing titles and media types
-                    updated = False
-                    for lib_id in missing_titles:
-                        title = id_to_title.get(lib_id)
-                        if title:
-                            if lib_id not in notes:
-                                notes[lib_id] = {}
-                            notes[lib_id]['title'] = title
-                            
-                            # Also get the media type for this library
-                            try:
-                                # Get detailed info for this specific library
-                                lib_url = f"{plex_url}/library/sections/{lib_id}"
-                                lib_response = requests.get(lib_url, headers=headers, timeout=5)
-                                if lib_response.status_code == 200:
-                                    lib_root = ET.fromstring(lib_response.text)
-                                    directory = lib_root.find(".//Directory")
-                                    if directory is not None:
-                                        media_type = directory.attrib.get("type")
-                                        if media_type:
-                                            notes[lib_id]['media_type'] = media_type
-                                            if debug_mode:
-                                                print(f"[DEBUG] Updated media type for library {lib_id}: {media_type}")
-                            except Exception as e:
-                                if debug_mode:
-                                    print(f"[DEBUG] Failed to get media type for library {lib_id}: {e}")
-                            
-                            updated = True
-                            if debug_mode:
-                                print(f"[DEBUG] Updated title for library {lib_id}: {title}")
-                    
-                    # Save updated notes if we found any titles
-                    if updated:
-                        save_library_notes(notes)
-                        if debug_mode:
-                            print(f"[INFO] Updated {len([lib_id for lib_id in missing_titles if notes.get(lib_id, {}).get('title')])} library titles")
-                    else:
-                        if debug_mode:
-                            print(f"[DEBUG] No library titles were found for the missing IDs")
-                else:
-                    if debug_mode:
-                        print(f"[DEBUG] Plex token or URL not configured, cannot fetch titles")
-            except Exception as e:
-                if debug_mode:
-                    print(f"[WARN] Failed to fetch missing library titles: {e}")
-    
+    # Only load from file - no API calls
+    # Missing titles should be handled by recreate_library_notes() during setup/admin actions
     return notes
 
 def save_library_notes(notes):
@@ -1182,7 +1221,7 @@ def onboarding():
         explicit_content = request.form.get("explicit_content") == "yes"
 
         if email and selected_keys:
-            all_libraries = get_plex_libraries()
+            all_libraries = get_libraries_from_local_files()  # Use local files for form submission
             key_to_title = {lib["key"]: lib["title"] for lib in all_libraries}
             selected_titles = [key_to_title.get(key, f"Unknown ({key})") for key in selected_keys]
             submission_entry = {
@@ -1197,14 +1236,17 @@ def onboarding():
             save_json_file("plex_submissions.json", submissions)
             submitted = True
             
-            # Record successful form submission
-            add_form_submission(client_ip, "plex")
-            log_security_event("form_submission", client_ip, f"Plex form submitted by {email}")
-            
-            send_discord_notification(email, "Plex", event_type="plex")
-            # AJAX response
-            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-                return jsonify({"success": True})
+                    # Record successful form submission
+        add_form_submission(client_ip, "plex")
+        log_security_event("form_submission", client_ip, f"Plex form submitted by {email}")
+        
+        # Clear library cache since new user was added
+        clear_library_cache()
+        
+        send_discord_notification(email, "Plex", event_type="plex")
+        # AJAX response
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"success": True})
         # AJAX error response
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             return jsonify({"success": False, "error": "Missing required fields."})
@@ -1215,8 +1257,8 @@ def onboarding():
     all_libraries = []
     
     try:
-        # Get all libraries from Plex
-        all_libraries = get_plex_libraries()
+        # Get all libraries from local files only (no Plex API calls for onboarding)
+        all_libraries = get_libraries_from_local_files()
         
         # Filter libraries for access requests (only selected ones from LIBRARY_IDS)
         # Convert both sides to strings to ensure proper comparison
@@ -1235,7 +1277,7 @@ def onboarding():
         libraries = available_libraries  # This is used for the "get access" checkboxes
     except Exception as e:
         if debug_mode:
-            print(f"Failed to get Plex libraries: {e}")
+            print(f"Failed to get libraries from local files: {e}")
         libraries = []
         all_libraries = []
         carousel_libraries = []
@@ -1299,20 +1341,9 @@ def onboarding():
     # Get default library setting
     default_library = os.getenv("DEFAULT_LIBRARY", "all")
     
-    # Get all libraries to map numbers to names
-    if debug_mode:
-        print("[DEBUG] About to call get_plex_libraries() in onboarding route...")
-    try:
-        all_libraries = get_plex_libraries()
-        if debug_mode:
-            print(f"[DEBUG] Successfully got {len(all_libraries)} libraries from Plex API")
-        library_map = {lib["key"]: lib["title"] for lib in all_libraries}
-    except Exception as e:
-        if debug_mode:
-            print(f"[ERROR] Failed to get Plex libraries in onboarding route: {e}")
-        # Fallback to empty libraries if Plex is not available
-        all_libraries = []
-        library_map = {}
+    # Get all libraries to map numbers to names (use local data)
+    # Note: We already have all_libraries from earlier in the function, so reuse it
+    library_map = {lib["key"]: lib["title"] for lib in all_libraries}
     
     # Check if any library has media_type of "artist" (music)
     # Only check currently available libraries that are actually shown in the UI
@@ -2659,6 +2690,14 @@ def download_and_cache_posters_for_libraries(libraries, limit=None, background=F
     
     def process_library(lib):
         section_id = lib["key"]
+        library_name = lib["title"]
+        
+        # Check if posters need refreshing
+        if not should_refresh_posters(section_id):
+            if debug_mode:
+                print(f"[DEBUG] Skipping poster download for {library_name} - posters are recent")
+            return 0
+        
         lib_dir = os.path.join("static", "posters", section_id)
         os.makedirs(lib_dir, exist_ok=True)
         
@@ -2896,32 +2935,58 @@ def medialists():
         if not section_id:
             return titles
         
-        # Get Plex credentials directly from environment
-        plex_token = os.getenv("PLEX_TOKEN")
-        plex_url = os.getenv("PLEX_URL")
+        # Use cached poster metadata instead of live Plex queries
+        poster_dir = os.path.join("static", "posters", section_id)
+        if os.path.exists(poster_dir):
+            # Get all JSON files
+            json_files = [f for f in os.listdir(poster_dir) if f.endswith(".json")]
+            
+            for fname in json_files:
+                meta_path = os.path.join(poster_dir, fname)
+                try:
+                    with open(meta_path, "r", encoding="utf-8") as f:
+                        meta = json.load(f)
+                    
+                    title = meta.get("title")
+                    if title and title not in titles:
+                        titles.append(title)
+                except Exception as e:
+                    if debug_mode:
+                        print(f"Error loading cached metadata from {meta_path}: {e}")
+                    continue
         
-        if not plex_token or not plex_url:
+        # If no cached data available, fall back to Plex API (but this should be rare)
+        if not titles:
             if debug_mode:
-                print("[ERROR] Plex credentials not available for fetching titles")
-            return titles
+                print(f"[DEBUG] No cached data for section {section_id}, falling back to Plex API")
+            
+            # Get Plex credentials directly from environment
+            plex_token = os.getenv("PLEX_TOKEN")
+            plex_url = os.getenv("PLEX_URL")
+            
+            if not plex_token or not plex_url:
+                if debug_mode:
+                    print("[ERROR] Plex credentials not available for fetching titles")
+                return titles
+            
+            headers = {"X-Plex-Token": plex_token}
+            url = f"{plex_url}/library/sections/{section_id}/all"
+            try:
+                response = requests.get(url, headers=headers, timeout=10)
+                response.raise_for_status()
+                root = ET.fromstring(response.content)
+                for el in root.findall(".//Video"):
+                    title = el.attrib.get("title")
+                    if title:
+                        titles.append(title)
+                for el in root.findall(".//Directory"):
+                    title = el.attrib.get("title")
+                    if title and title not in titles:
+                        titles.append(title)
+            except Exception as e:
+                if debug_mode:
+                    print(f"Error fetching titles for section {section_id}: {e}")
         
-        headers = {"X-Plex-Token": plex_token}
-        url = f"{plex_url}/library/sections/{section_id}/all"
-        try:
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            root = ET.fromstring(response.content)
-            for el in root.findall(".//Video"):
-                title = el.attrib.get("title")
-                if title:
-                    titles.append(title)
-            for el in root.findall(".//Directory"):
-                title = el.attrib.get("title")
-                if title and title not in titles:
-                    titles.append(title)
-        except Exception as e:
-            if debug_mode:
-                print(f"Error fetching titles for section {section_id}: {e}")
         return titles
 
     def fetch_audiobooks(section_id):
@@ -3040,9 +3105,19 @@ def medialists():
         
         return abs_books
 
-    # Get all libraries
+    # Get all libraries - use cached data for better performance
     try:
-        libraries = get_plex_libraries()
+        # Check if we have valid cached data first
+        current_time = time.time()
+        if library_cache and (current_time - library_cache_timestamp) < LIBRARY_CACHE_TTL:
+            if debug_mode:
+                print(f"[DEBUG] Using cached library data for medialists (age: {current_time - library_cache_timestamp:.1f}s)")
+            libraries = library_cache
+        else:
+            # Only fetch from Plex API if cache is invalid
+            if debug_mode:
+                print("[DEBUG] Cache invalid, fetching libraries from Plex API for medialists")
+            libraries = get_plex_libraries(force_refresh=False)
     except Exception as e:
         if debug_mode:
             print(f"Failed to get Plex libraries: {e}")
@@ -3547,11 +3622,20 @@ def trigger_poster_downloads():
         plex_token = os.getenv("PLEX_TOKEN")
         
         if os.getenv("SETUP_COMPLETE") == "1" and plex_token:
-            # Get selected libraries
+            # Get selected libraries - no need to fetch from Plex API since we already have the IDs
             selected_ids = os.getenv("LIBRARY_IDS", "")
             selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
-            all_libraries = get_plex_libraries()
-            libraries = [lib for lib in all_libraries if lib["key"] in selected_ids]
+            
+            # Create library objects from the IDs we already have
+            libraries = []
+            for lib_id in selected_ids:
+                # Get library name from environment or use ID as fallback
+                lib_name = os.getenv(f"LIBRARY_NAME_{lib_id}", f"Library {lib_id}")
+                libraries.append({
+                    "key": lib_id,
+                    "title": lib_name,
+                    "type": "show"  # Default type, could be enhanced if needed
+                })
             
             if libraries:
                 # Queue poster downloads
@@ -3587,11 +3671,20 @@ def setup_complete():
             # Ensure worker is running
             ensure_worker_running()
             
-            # Get selected libraries
+            # Get selected libraries - no need to fetch from Plex API since we already have the IDs
             selected_ids = os.getenv("LIBRARY_IDS", "")
             selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
-            all_libraries = get_plex_libraries()
-            libraries = [lib for lib in all_libraries if lib["key"] in selected_ids]
+            
+            # Create library objects from the IDs we already have
+            libraries = []
+            for lib_id in selected_ids:
+                # Get library name from environment or use ID as fallback
+                lib_name = os.getenv(f"LIBRARY_NAME_{lib_id}", f"Library {lib_id}")
+                libraries.append({
+                    "key": lib_id,
+                    "title": lib_name,
+                    "type": "show"  # Default type, could be enhanced if needed
+                })
             
             if libraries:
                 # Queue poster downloads with a small delay to ensure worker is ready
@@ -3634,8 +3727,17 @@ def refresh_posters_on_demand(libraries=None):
     if libraries is None:
         selected_ids = os.getenv("LIBRARY_IDS", "")
         selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
-        all_libraries = get_plex_libraries()
-        libraries = [lib for lib in all_libraries if lib["key"] in selected_ids]
+        
+        # Create library objects from the IDs we already have - no need to fetch from Plex API
+        libraries = []
+        for lib_id in selected_ids:
+            # Get library name from environment or use ID as fallback
+            lib_name = os.getenv(f"LIBRARY_NAME_{lib_id}", f"Library {lib_id}")
+            libraries.append({
+                "key": lib_id,
+                "title": lib_name,
+                "type": "show"  # Default type, could be enhanced if needed
+            })
     
     if libraries:
         # Queue for background processing
@@ -3892,8 +3994,18 @@ def ajax_load_library_posters():
         if library_index is None:
             return jsonify({"success": False, "error": "Library index required"})
         
-        # Get the library info
-        libraries = get_plex_libraries()
+        # Get the library info - use cached data for better performance
+        # Check if we have valid cached data first
+        current_time = time.time()
+        if library_cache and (current_time - library_cache_timestamp) < LIBRARY_CACHE_TTL:
+            if debug_mode:
+                print(f"[DEBUG] Using cached library data for load-library-posters (age: {current_time - library_cache_timestamp:.1f}s)")
+            libraries = library_cache
+        else:
+            # Only fetch from Plex API if cache is invalid
+            if debug_mode:
+                print("[DEBUG] Cache invalid, fetching libraries from Plex API for load-library-posters")
+            libraries = get_plex_libraries(force_refresh=False)
         selected_ids = os.getenv("LIBRARY_IDS", "")
         selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
         filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
@@ -4029,8 +4141,18 @@ def ajax_load_all_items():
         except (ValueError, TypeError):
             return jsonify({"success": False, "error": "Invalid library index format"})
         
-        # Get all libraries
-        libraries = get_plex_libraries()
+        # Get all libraries - use cached data for better performance
+        # Check if we have valid cached data first
+        current_time = time.time()
+        if library_cache and (current_time - library_cache_timestamp) < LIBRARY_CACHE_TTL:
+            if debug_mode:
+                print(f"[DEBUG] Using cached library data for load-all-items (age: {current_time - library_cache_timestamp:.1f}s)")
+            libraries = library_cache
+        else:
+            # Only fetch from Plex API if cache is invalid
+            if debug_mode:
+                print("[DEBUG] Cache invalid, fetching libraries from Plex API for load-all-items")
+            libraries = get_plex_libraries(force_refresh=False)
         selected_ids = os.getenv("LIBRARY_IDS", "")
         selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
         filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
@@ -4117,8 +4239,18 @@ def ajax_load_posters_by_letter():
         except (ValueError, TypeError):
             return jsonify({"success": False, "error": "Invalid library index format"})
         
-        # Get the library info
-        libraries = get_plex_libraries()
+        # Get the library info - use cached data for better performance
+        # Check if we have valid cached data first
+        current_time = time.time()
+        if library_cache and (current_time - library_cache_timestamp) < LIBRARY_CACHE_TTL:
+            if debug_mode:
+                print(f"[DEBUG] Using cached library data for load-posters-by-letter (age: {current_time - library_cache_timestamp:.1f}s)")
+            libraries = library_cache
+        else:
+            # Only fetch from Plex API if cache is invalid
+            if debug_mode:
+                print("[DEBUG] Cache invalid, fetching libraries from Plex API for load-posters-by-letter")
+            libraries = get_plex_libraries(force_refresh=False)
         selected_ids = os.getenv("LIBRARY_IDS", "")
         selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
         filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
@@ -4316,10 +4448,10 @@ def trigger_poster_downloads_route():
         # Ensure worker is running
         ensure_worker_running()
         
-        # Get current library selection
+        # Get current library selection - use cached data for better performance
         selected_ids = os.getenv("LIBRARY_IDS", "")
         selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
-        all_libraries = get_plex_libraries()
+        all_libraries = get_plex_libraries(force_refresh=False)  # Use cached data for admin function
         libraries = [lib for lib in all_libraries if lib["key"] in selected_ids]
         
         if libraries:
@@ -4465,8 +4597,18 @@ def get_random_posters():
         print("Library name is empty")
         return jsonify({"error": "Library name required"}), 400
     
-    # Find the library by name
-    libraries = get_plex_libraries()
+    # Find the library by name - use cached data for better performance
+    # Check if we have valid cached data first
+    current_time = time.time()
+    if library_cache and (current_time - library_cache_timestamp) < LIBRARY_CACHE_TTL:
+        if debug_mode:
+            print(f"[DEBUG] Using cached library data for get-random-posters (age: {current_time - library_cache_timestamp:.1f}s)")
+        libraries = library_cache
+    else:
+        # Only fetch from Plex API if cache is invalid
+        if debug_mode:
+            print("[DEBUG] Cache invalid, fetching libraries from Plex API for get-random-posters")
+        libraries = get_plex_libraries(force_refresh=False)
     library = None
     for lib in libraries:
         if lib["title"] == library_name:
@@ -4569,8 +4711,8 @@ def get_random_posters_all():
     print(f"Requested posters from all libraries, count: {count}, include_music: {include_music}")
     
     try:
-        # Get all libraries
-        all_libraries = get_plex_libraries()
+        # Get all libraries from local files only (no Plex API calls)
+        all_libraries = get_libraries_from_local_files()
         
         # First filter by LIBRARY_IDS to get only available libraries (same logic as onboarding route)
         selected_ids = [id.strip() for id in os.getenv("LIBRARY_IDS", "").split(",") if id.strip()]
@@ -4807,8 +4949,8 @@ if __name__ == "__main__":
     # Check if this is the first run (setup not complete)
     is_first_run = os.getenv("SETUP_COMPLETE", "0") != "1"
     
-    # Recreate library notes on startup (only in main process, not reloader)
-    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+    # Recreate library notes on startup only if setup is complete (only in main process, not reloader)
+    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true' and os.getenv("SETUP_COMPLETE") == "1":
         recreate_library_notes()
     
     # Start background poster worker (only in main process, not reloader)
@@ -4829,7 +4971,19 @@ if __name__ == "__main__":
                 # Queue poster downloads for background processing instead of blocking startup
                 selected_ids = os.getenv("LIBRARY_IDS", "")
                 selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
-                all_libraries = get_plex_libraries()
+                
+                # Only get libraries if we have cached data, otherwise skip for now
+                current_time = time.time()
+                if library_cache and (current_time - library_cache_timestamp) < LIBRARY_CACHE_TTL:
+                    all_libraries = library_cache
+                    if debug_mode:
+                        print(f"[DEBUG] Using cached library data for startup (age: {current_time - library_cache_timestamp:.1f}s)")
+                else:
+                    # Skip library fetch on startup if no cache available
+                    if debug_mode:
+                        print("[DEBUG] No valid cache available, skipping library fetch on startup")
+                    all_libraries = []
+                
                 libraries = [lib for lib in all_libraries if lib["key"] in selected_ids]
                 
                 if libraries:
