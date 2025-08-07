@@ -236,12 +236,15 @@
         let html = '<ul>';
         for (const book of allBooks) {
           html += '<li>';
-          html += `<img src="${book.cover || '{{ url_for("static", filename=logo_filename) }}'}" alt="${book.title} cover" onerror="this.onerror=null;this.src='{{ url_for("static", filename=logo_filename) }}';" />`;
+          const goodreadsUrl = `https://www.goodreads.com/search?q=${encodeURIComponent((book.author || '') + ' ' + book.title)}`;
+          html += `<a href="${goodreadsUrl}" target="_blank" style="display: block;">`;
+          html += `<img src="${book.cover || '{{ url_for("static", filename=logo_filename) }}'}" alt="${book.title} cover" style="cursor: pointer;" onerror="this.onerror=null;this.src='{{ url_for("static", filename=logo_filename) }}';" />`;
+          html += '</a>';
           if (book.author) {
             html += `<div style="font-size: 0.9em; color: #aaa; margin-bottom: 0.25rem;">${book.author}</div>`;
           }
           html += `<div style="font-weight: bold; margin-bottom: 0.25rem;">${book.title}</div>`;
-          html += `<a href="https://www.goodreads.com/search?q=${encodeURIComponent((book.author || '') + ' ' + book.title)}" target="_blank" class="accent">Goodreads</a>`;
+          html += `<a href="${goodreadsUrl}" target="_blank" class="accent">Goodreads</a>`;
           html += '</li>';
         }
         html += '</ul>';
@@ -281,12 +284,27 @@
             
             for (const item of data.items) {
               html += '<li>';
+              
+              // Determine the primary link for the poster
+              let posterLink = null;
+              if (item.imdb) {
+                posterLink = `https://www.imdb.com/title/${item.imdb}`;
+              } else if (item.lastfm_url && item.is_artist === true) {
+                posterLink = item.lastfm_url;
+              }
+              
               if (item.poster) {
-                html += `<img src="${item.poster}" alt="${item.title} poster" />`;
+                if (posterLink) {
+                  html += `<a href="${posterLink}" target="_blank" style="display: block;">`;
+                  html += `<img src="${item.poster}" alt="${item.title} poster" style="cursor: pointer;" />`;
+                  html += '</a>';
+                } else {
+                  html += `<img src="${item.poster}" alt="${item.title} poster" />`;
+                }
               }
               html += `<div style="font-weight: bold; margin-bottom: 0.25rem;">${item.title}</div>`;
               
-              // Add external links
+              // Add external links (keep the text links for accessibility)
               const links = [];
               if (item.imdb) {
                 links.push(`<a href="https://www.imdb.com/title/${item.imdb}" target="_blank" class="accent">IMDB</a>`);
@@ -359,10 +377,13 @@
           let html = '<ul>';
           for (const book of letterBooks) {
             html += '<li>';
-            html += `<img src="${book.cover || '{{ url_for("static", filename=logo_filename) }}'}" alt="${book.title} cover" onerror="this.onerror=null;this.src='{{ url_for("static", filename=logo_filename) }}';" />`;
+            const goodreadsUrl = `https://www.goodreads.com/search?q=${encodeURIComponent((book.author || '') + ' ' + book.title)}`;
+            html += `<a href="${goodreadsUrl}" target="_blank" style="display: block;">`;
+            html += `<img src="${book.cover || '{{ url_for("static", filename=logo_filename) }}'}" alt="${book.title} cover" style="cursor: pointer;" onerror="this.onerror=null;this.src='{{ url_for("static", filename=logo_filename) }}';" />`;
+            html += '</a>';
             html += `<div style="font-size: 0.9em; color: #aaa; margin-bottom: 0.25rem;">${book.author}</div>`;
             html += `<div style="font-weight: bold; margin-bottom: 0.25rem;">${book.title}</div>`;
-            html += `<a href="https://www.goodreads.com/search?q=${encodeURIComponent((book.author || '') + ' ' + book.title)}" target="_blank" class="accent">Goodreads</a>`;
+            html += `<a href="${goodreadsUrl}" target="_blank" class="accent">Goodreads</a>`;
             html += '</li>';
           }
           html += '</ul>';
@@ -405,12 +426,27 @@
             
             for (const item of data.items) {
               html += '<li>';
+              
+              // Determine the primary link for the poster
+              let posterLink = null;
+              if (item.imdb) {
+                posterLink = `https://www.imdb.com/title/${item.imdb}`;
+              } else if (item.lastfm_url && item.is_artist === true) {
+                posterLink = item.lastfm_url;
+              }
+              
               if (item.poster) {
-                html += `<img src="${item.poster}" alt="${item.title} poster" />`;
+                if (posterLink) {
+                  html += `<a href="${posterLink}" target="_blank" style="display: block;">`;
+                  html += `<img src="${item.poster}" alt="${item.title} poster" style="cursor: pointer;" />`;
+                  html += '</a>';
+                } else {
+                  html += `<img src="${item.poster}" alt="${item.title} poster" />`;
+                }
               }
               html += `<div style="font-weight: bold; margin-bottom: 0.25rem;">${item.title}</div>`;
               
-              // Add external links
+              // Add external links (keep the text links for accessibility)
               const links = [];
               if (item.imdb) {
                 links.push(`<a href="https://www.imdb.com/title/${item.imdb}" target="_blank" class="accent">IMDB</a>`);

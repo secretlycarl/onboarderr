@@ -4415,20 +4415,26 @@ def ajax_load_posters_by_letter():
                         # Strip articles for sorting purposes
                         sort_title = strip_articles(title)
                         
-                        # Filter by letter using the stripped title
-                        if sort_title:
-                            first_char = sort_title[0].upper()
-                        else:
-                            first_char = title[0].upper()  # Fallback to original title
-                        
+                        # Use the same letter extraction logic as group_titles_by_letter
                         letter_match = False
                         
-                        if letter == "0-9" and first_char.isdigit():
-                            letter_match = True
-                        elif letter == "Other" and not first_char.isalpha() and not first_char.isdigit():
-                            letter_match = True
-                        elif first_char == letter:
-                            letter_match = True
+                        if sort_title and sort_title[0].isdigit():
+                            # Check if sort_title starts with a digit
+                            if letter == "0-9":
+                                letter_match = True
+                        else:
+                            # Find the first ASCII letter in the sort_title
+                            match = re.search(r'[A-Za-z]', sort_title)
+                            if match:
+                                extracted_letter = match.group(0).upper()
+                                if letter == extracted_letter:
+                                    letter_match = True
+                            elif any(c.isdigit() for c in sort_title):
+                                if letter == "0-9":
+                                    letter_match = True
+                            else:
+                                if letter == "Other":
+                                    letter_match = True
                         
                         if letter_match:
                             poster_file = meta.get("poster")
