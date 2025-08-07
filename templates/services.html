@@ -47,6 +47,54 @@
     .btn-danger:hover {
       background: #d32f2f;
     }
+    
+    /* Jump to Section Navigation Styles */
+    .jump-nav-links {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.8rem;
+      margin-top: 1rem;
+    }
+    
+    .jump-nav-link {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.8rem 1rem;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 0.4rem;
+      text-decoration: none;
+      color: var(--text-primary);
+      transition: all 0.2s ease;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    
+    .jump-nav-link:hover {
+      background: var(--accent-color);
+      color: white;
+      border-color: var(--accent-color);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .jump-nav-icon {
+      font-size: 1.1rem;
+    }
+    
+    /* Mobile responsive adjustments */
+    @media (max-width: 768px) {
+      .jump-nav-links {
+        grid-template-columns: 1fr;
+        gap: 0.6rem;
+      }
+      
+      .jump-nav-link {
+        padding: 0.7rem 0.9rem;
+        font-size: 0.85rem;
+      }
+    }
   </style>
   <script>
     // Set accent color from environment variable
@@ -54,12 +102,86 @@
       const accentColor = '{{ ACCENT_COLOR or "#d33fbc" }}';
       document.documentElement.style.setProperty('--accent-color', accentColor);
     });
+    
+    // Smooth scroll to section function
+    function scrollToSection(sectionId) {
+      const element = document.getElementById(sectionId);
+      if (element) {
+        // Add offset to account for any fixed headers
+        const offset = 20;
+        const elementPosition = element.offsetTop - offset;
+        
+        window.scrollTo({
+          top: elementPosition,
+          behavior: 'smooth'
+        });
+      }
+    }
   </script>
 </head>
 <body>
   {% include "_bottom_nav.html" %}
 
   <div class="onboarding-content">
+    <!-- Jump to Section Navigation -->
+    <div class="onboarding-section">
+      <h2 class="form-section-title">
+        <span class="form-section-icon">🦘</span>
+        Jump to Section
+      </h2>
+      <div class="jump-nav-links">
+        <a href="#services-section" class="jump-nav-link" onclick="scrollToSection('services-section')">
+          <span class="jump-nav-icon">🔗</span>
+          <span>Services</span>
+        </a>
+        <a href="#plex-requests-section" class="jump-nav-link" onclick="scrollToSection('plex-requests-section')">
+          <span class="jump-nav-icon">📺</span>
+          <span>Plex Requests</span>
+        </a>
+        {% if ABS_ENABLED == 'yes' %}
+        <a href="#audiobookshelf-requests-section" class="jump-nav-link" onclick="scrollToSection('audiobookshelf-requests-section')">
+          <span class="jump-nav-icon">📚</span>
+          <span>Audiobookshelf Requests</span>
+        </a>
+        {% endif %}
+        <a href="#storage-section" class="jump-nav-link" onclick="scrollToSection('storage-section')">
+          <span class="jump-nav-icon">💾</span>
+          <span>Storage</span>
+        </a>
+        <a href="#authentication-section" class="jump-nav-link" onclick="scrollToSection('authentication-section')">
+          <span class="jump-nav-icon">🔐</span>
+          <span>Authentication</span>
+        </a>
+        <a href="#branding-section" class="jump-nav-link" onclick="scrollToSection('branding-section')">
+          <span class="jump-nav-icon">🎨</span>
+          <span>Branding Configuration</span>
+        </a>
+        <a href="#plex-config-section" class="jump-nav-link" onclick="scrollToSection('plex-config-section')">
+          <span class="jump-nav-icon">🎬</span>
+          <span>Plex Configuration</span>
+        </a>
+        <a href="#audiobookshelf-config-section" class="jump-nav-link" onclick="scrollToSection('audiobookshelf-config-section')">
+          <span class="jump-nav-icon">📚</span>
+          <span>Audiobookshelf Configuration</span>
+        </a>
+        <a href="#discord-section" class="jump-nav-link" onclick="scrollToSection('discord-section')">
+          <span class="jump-nav-icon">📢</span>
+          <span>Discord Notifications</span>
+        </a>
+        <a href="#ip-management-section" class="jump-nav-link" onclick="scrollToSection('ip-management-section')">
+          <span class="jump-nav-icon">🛡️</span>
+          <span>IP Management</span>
+        </a>
+        <a href="#quick-access-section" class="jump-nav-link" onclick="scrollToSection('quick-access-section')">
+          <span class="jump-nav-icon">⚡</span>
+          <span>Quick Access Links</span>
+        </a>
+        <a href="#service-urls-section" class="jump-nav-link" onclick="scrollToSection('service-urls-section')">
+          <span class="jump-nav-icon">🔗</span>
+          <span>Service URLs</span>
+        </a>
+      </div>
+    </div>
     {% if custom_services_url %}
       <div class="onboarding-section">
         <div class="info-box">
@@ -70,7 +192,7 @@
         <iframe src="{{ custom_services_url }}" style="width:100%;height:600px;border:1px solid var(--border);margin-top:1em;border-radius: 0.5rem;"></iframe>
       </div>
     {% elif show_services %}
-      <div class="onboarding-section">
+      <div class="onboarding-section" id="services-section">
         <h2 class="form-section-title">
           <span class="form-section-icon">🔗</span>
           Services
@@ -88,7 +210,7 @@
       </div>
     {% endif %}
 
-    <div class="onboarding-section">
+    <div class="onboarding-section" id="plex-requests-section">
       <h2 class="form-section-title">
         <span class="form-section-icon">📺</span>
         Plex Requests
@@ -183,7 +305,7 @@
     </div>
 
     {% if ABS_ENABLED == 'yes' %}
-    <div class="onboarding-section">
+    <div class="onboarding-section" id="audiobookshelf-requests-section">
       <h2 class="form-section-title">
         <span class="form-section-icon">📚</span>
         Audiobookshelf Requests
@@ -335,7 +457,7 @@
     </div>
     {% endif %}
 
-    <div class="onboarding-section">
+    <div class="onboarding-section" id="storage-section">
       <h2 class="form-section-title">
         <span class="form-section-icon">💾</span>
         Storage
@@ -356,7 +478,7 @@
     </div>
 
     <!-- Authentication Section -->
-    <div class="onboarding-section">
+    <div class="onboarding-section" id="authentication-section">
       <h2 class="form-section-title">
         <span class="form-section-icon">🔐</span>
         Authentication
@@ -391,7 +513,7 @@
     </div>
 
     <!-- Branding Configuration Section -->
-    <div class="onboarding-section">
+    <div class="onboarding-section" id="branding-section">
       <h2 class="form-section-title">
         <span class="form-section-icon">🎨</span>
         Branding Configuration
@@ -452,7 +574,7 @@
     </div>
 
     <!-- Plex Configuration Section -->
-    <div class="onboarding-section">
+    <div class="onboarding-section" id="plex-config-section">
       <h2 class="form-section-title">
         <span class="form-section-icon">🎬</span>
         Plex Configuration
@@ -480,8 +602,7 @@
       <div class="form-group">
         <button type="button" onclick="fetchLibrariesAdmin()" class="submit-btn">Fetch Plex Libraries</button>
       </div>
-
-              
+             
       <div id="libraries-section-admin" class="library-section" style="display:none;">
         <h3 class="form-section-title">
           <span class="form-section-icon">📚</span>
@@ -530,6 +651,10 @@
         {% else %}
           <div style="color: #888; font-style: italic;">No libraries selected</div>
         {% endif %}
+        <div class="form-group">
+          <button type="button" onclick="refreshLibraryTitles()" class="btn btn-secondary" style="margin-left: 0.5em;">Refresh Library Titles</button>
+        </div>
+  
       </div>
         
       <div id="library-carousels-section-admin" class="form-section" style="display: {% if LIBRARY_IDS %}block{% else %}none{% endif %};">
@@ -566,7 +691,7 @@
     </div>
 
     <!-- Audiobookshelf Configuration Section -->
-    <div class="onboarding-section">
+    <div class="onboarding-section" id="audiobookshelf-config-section">
       <h2 class="form-section-title">
         <span class="form-section-icon">📚</span>
         Audiobookshelf Configuration
@@ -600,7 +725,7 @@
           <label class="form-label">Public Audiobookshelf Server URL:</label>
           <div class="input-with-icon">
             <img src="{{ url_for('static', filename='abs.webp') }}" alt="Audiobookshelf Server URL" class="input-icon-img">
-            <input type="text" name="audiobookshelf_url" id="audiobookshelf_url_admin" value="{{ AUDIOBOOKSHELF_URL or '' }}" class="form-input">
+            <input type="text" name="audiobookshelf_url" id="audiobookshelf_url_admin" value="{{ AUDIOBOOKSHELF_URL or '' }}" class="form-input" oninput="syncABSURLAdmin()">
           </div>
         </div>
         
@@ -618,7 +743,7 @@
     </div>
 
     <!-- Discord Notifications Section -->
-    <div class="onboarding-section">
+    <div class="onboarding-section" id="discord-section">
       <h2 class="form-section-title">
         <span class="form-section-icon">📢</span>
         Discord Notifications
@@ -684,102 +809,8 @@
       </div>
     </div>
 
-    <!-- IP Management Section -->
-    <div class="onboarding-section">
-      <h2 class="form-section-title">
-        <span class="form-section-icon">🛡️</span>
-        IP Management
-      </h2>
-      
-      <div class="form-group">
-        <label class="form-label">Enable IP Management?</label>
-        <div class="radio-group">
-          <label class="radio-option">
-            <input type="radio" name="ip_management_enabled" value="yes" id="ip_management_enabled_yes" class="radio-input" {% if IP_MANAGEMENT_ENABLED == 'yes' %}checked{% endif %}>
-            <span>Yes</span>
-          </label>
-          <label class="radio-option">
-            <input type="radio" name="ip_management_enabled" value="no" id="ip_management_enabled_no" class="radio-input" {% if IP_MANAGEMENT_ENABLED != 'yes' %}checked{% endif %}>
-            <span>No</span>
-          </label>
-        </div>
-        <div class="file-help">
-          IP Management allows you to whitelist trusted IPs and blacklist malicious ones. This helps control access and prevent abuse.
-        </div>
-      </div>
-
-      <!-- IP Management Section (shown when enabled) -->
-      <div id="ip-management-section" style="display: none;">
-        <div class="info-box">
-          <span>ℹ️</span>
-          <span><strong>IP Management:</strong> Whitelisted IPs bypass all rate limiting. Blacklisted IPs are completely blocked. Use with caution.</span>
-        </div>
-        
-        <!-- Add IP to Whitelist -->
-        <div class="form-group">
-          <label class="form-label">Add IP to Whitelist:</label>
-          <div class="input-with-icon">
-            <span class="input-icon">✅</span>
-            <input type="text" name="whitelist_ip" id="whitelist_ip" placeholder="192.168.1.100" class="form-input">
-          </div>
-          <div class="file-help">Enter an IP address to whitelist (bypasses all rate limiting)</div>
-          <button type="button" onclick="addToWhitelist()" class="btn btn-secondary" style="margin-top: 0.5em;">Add to Whitelist</button>
-        </div>
-        
-        <!-- Add IP to Blacklist -->
-        <div class="form-group">
-          <label class="form-label">Add IP to Blacklist:</label>
-          <div class="input-with-icon">
-            <span class="input-icon">❌</span>
-            <input type="text" name="blacklist_ip" id="blacklist_ip" placeholder="192.168.1.100" class="form-input">
-          </div>
-          <div class="file-help">Enter an IP address to blacklist (completely blocked)</div>
-          <button type="button" onclick="addToBlacklist()" class="btn btn-secondary" style="margin-top: 0.5em;">Add to Blacklist</button>
-        </div>
-        
-        <!-- Current IP Lists -->
-        <div class="form-group">
-          <label class="form-label">Current IP Lists:</label>
-          
-          <!-- Whitelisted IPs -->
-          <div class="ip-list-section">
-            <h4 style="margin-bottom: 0.5em; color: #4CAF50;">✅ Whitelisted IPs:</h4>
-            {% if ip_lists.whitelisted %}
-              <div class="ip-list">
-                {% for ip in ip_lists.whitelisted %}
-                  <div class="ip-item">
-                    <span class="ip-address">{{ ip }}</span>
-                    <button type="button" onclick="removeFromWhitelist('{{ ip }}')" class="btn btn-small btn-danger">Remove</button>
-                  </div>
-                {% endfor %}
-              </div>
-            {% else %}
-              <p class="muted">No whitelisted IPs</p>
-            {% endif %}
-          </div>
-          
-          <!-- Blacklisted IPs -->
-          <div class="ip-list-section">
-            <h4 style="margin-bottom: 0.5em; color: #f44336;">❌ Blacklisted IPs:</h4>
-            {% if ip_lists.banned %}
-              <div class="ip-list">
-                {% for ip in ip_lists.banned %}
-                  <div class="ip-item">
-                    <span class="ip-address">{{ ip }}</span>
-                    <button type="button" onclick="removeFromBlacklist('{{ ip }}')" class="btn btn-small btn-danger">Remove</button>
-                  </div>
-                {% endfor %}
-              </div>
-            {% else %}
-              <p class="muted">No blacklisted IPs</p>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Quick Access Configuration Section -->
-    <div class="onboarding-section">
+    <div class="onboarding-section" id="quick-access-section">
       <h2 class="form-section-title">
         <span class="form-section-icon">⚡</span>
         Quick Access Links
@@ -832,9 +863,103 @@
         </div>
       </div>
     </div>
+
+        <!-- IP Management Section -->
+        <div class="onboarding-section" id="ip-management-section">
+          <h2 class="form-section-title">
+            <span class="form-section-icon">🛡️</span>
+            IP Management
+          </h2>
+          
+          <div class="form-group">
+            <label class="form-label">Enable IP Management?</label>
+            <div class="radio-group">
+              <label class="radio-option">
+                <input type="radio" name="ip_management_enabled" value="yes" id="ip_management_enabled_yes" class="radio-input" {% if IP_MANAGEMENT_ENABLED == 'yes' %}checked{% endif %}>
+                <span>Yes</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="ip_management_enabled" value="no" id="ip_management_enabled_no" class="radio-input" {% if IP_MANAGEMENT_ENABLED != 'yes' %}checked{% endif %}>
+                <span>No</span>
+              </label>
+            </div>
+            <div class="file-help">
+              IP Management allows you to whitelist trusted IPs and blacklist malicious ones. This helps control access and prevent abuse.
+            </div>
+          </div>
+    
+          <!-- IP Management Section (shown when enabled) -->
+          <div id="ip-management-content" style="display: none;">
+            <div class="info-box">
+              <span>ℹ️</span>
+              <span><strong>IP Management:</strong> Whitelisted IPs bypass all rate limiting. Blacklisted IPs are completely blocked. Use with caution.</span>
+            </div>
+            
+            <!-- Add IP to Whitelist -->
+            <div class="form-group">
+              <label class="form-label">Add IP to Whitelist:</label>
+              <div class="input-with-icon">
+                <span class="input-icon">✅</span>
+                <input type="text" name="whitelist_ip" id="whitelist_ip" placeholder="192.168.1.100" class="form-input">
+              </div>
+              <div class="file-help">Enter an IP address to whitelist (bypasses all rate limiting)</div>
+              <button type="button" onclick="addToWhitelist()" class="btn btn-secondary" style="margin-top: 0.5em;">Add to Whitelist</button>
+            </div>
+            
+            <!-- Add IP to Blacklist -->
+            <div class="form-group">
+              <label class="form-label">Add IP to Blacklist:</label>
+              <div class="input-with-icon">
+                <span class="input-icon">❌</span>
+                <input type="text" name="blacklist_ip" id="blacklist_ip" placeholder="192.168.1.100" class="form-input">
+              </div>
+              <div class="file-help">Enter an IP address to blacklist (completely blocked)</div>
+              <button type="button" onclick="addToBlacklist()" class="btn btn-secondary" style="margin-top: 0.5em;">Add to Blacklist</button>
+            </div>
+            
+            <!-- Current IP Lists -->
+            <div class="form-group">
+              <label class="form-label">Current IP Lists:</label>
+              
+              <!-- Whitelisted IPs -->
+              <div class="ip-list-section">
+                <h4 style="margin-bottom: 0.5em; color: #4CAF50;">✅ Whitelisted IPs:</h4>
+                {% if ip_lists.whitelisted %}
+                  <div class="ip-list">
+                    {% for ip in ip_lists.whitelisted %}
+                      <div class="ip-item">
+                        <span class="ip-address">{{ ip }}</span>
+                        <button type="button" onclick="removeFromWhitelist('{{ ip }}')" class="btn btn-small btn-danger">Remove</button>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <p class="muted">No whitelisted IPs</p>
+                {% endif %}
+              </div>
+              
+              <!-- Blacklisted IPs -->
+              <div class="ip-list-section">
+                <h4 style="margin-bottom: 0.5em; color: #f44336;">❌ Blacklisted IPs:</h4>
+                {% if ip_lists.banned %}
+                  <div class="ip-list">
+                    {% for ip in ip_lists.banned %}
+                      <div class="ip-item">
+                        <span class="ip-address">{{ ip }}</span>
+                        <button type="button" onclick="removeFromBlacklist('{{ ip }}')" class="btn btn-small btn-danger">Remove</button>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <p class="muted">No blacklisted IPs</p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
       
     <!-- Service URLs Section -->
-    <div class="onboarding-section">
+    <div class="onboarding-section" id="service-urls-section">
       <h2 class="form-section-title">
         <span class="form-section-icon">🔗</span>
         Service URLs
@@ -932,6 +1057,16 @@
   <script src="{{ url_for('static', filename='navigation.js') }}"></script>
 
   <script>
+    // Function to sync ABS URL to service URLs section (admin page)
+    function syncABSURLAdmin() {
+      const absUrlInput = document.getElementById('audiobookshelf_url_admin');
+      const absServiceInput = document.querySelector('input[name="AUDIOBOOKSHELF"]');
+      
+      if (absUrlInput && absServiceInput) {
+        absServiceInput.value = absUrlInput.value;
+      }
+    }
+    
     // Form submission handler for admin settings form
     document.addEventListener('DOMContentLoaded', function() {
       var adminForm = document.getElementById('admin-settings-form');
@@ -957,6 +1092,9 @@
           syncLibraryDescription(this, libId);
         });
       });
+      
+      // Initialize ABS URL sync on page load
+      syncABSURLAdmin();
     });
   </script>
 
@@ -1451,6 +1589,28 @@
       // Update carousel section visibility
       updateCarouselSectionVisibility();
   }
+  
+  function refreshLibraryTitles() {
+      var csrfToken = document.querySelector('input[name="csrf_token"]').value;
+      fetch('/refresh-library-titles', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken
+          }
+      }).then(response => response.json()).then(data => {
+          if (data.success) {
+              alert('Library titles refreshed successfully!');
+              // Reload the page to show updated titles
+              window.location.reload();
+          } else {
+              alert('Failed to refresh library titles: ' + (data.error || 'Unknown error'));
+          }
+      }).catch(error => {
+          console.error('Error refreshing library titles:', error);
+          alert('Failed to refresh library titles. Please try again.');
+      });
+  }
 
   </script>
   
@@ -1875,7 +2035,7 @@
     // IP Management section visibility
     function toggleIPManagement() {
       var ipEnabled = document.querySelector('input[name="ip_management_enabled"]:checked');
-      var ipSection = document.getElementById('ip-management-section');
+      var ipSection = document.getElementById('ip-management-content');
       
       if (ipEnabled && ipEnabled.value === 'yes') {
         ipSection.style.display = 'block';

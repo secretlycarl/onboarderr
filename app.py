@@ -4496,20 +4496,34 @@ def ajax_update_libraries():
                 response.raise_for_status()
                 root = ET.fromstring(response.text)
                 
-                # Create a mapping of library IDs to their media types
+                # Create a mapping of library IDs to their titles and media types
+                id_to_title = {}
                 id_to_media_type = {}
                 for directory in root.findall(".//Directory"):
                     key = directory.attrib.get("key")
+                    title = directory.attrib.get("title")
                     media_type = directory.attrib.get("type")
-                    if key and media_type:
-                        id_to_media_type[key] = media_type
+                    if key:
+                        if title:
+                            id_to_title[key] = title
+                        if media_type:
+                            id_to_media_type[key] = media_type
                 
-                # Update library notes with media types
+                # Update library notes with titles and media types
                 updated = False
                 for lib_id in cleaned_library_ids:
                     if lib_id not in library_notes:
                         library_notes[lib_id] = {}
                     
+                    # Update title if available
+                    title = id_to_title.get(lib_id)
+                    if title and library_notes[lib_id].get('title') != title:
+                        library_notes[lib_id]['title'] = title
+                        updated = True
+                        if debug_mode:
+                            print(f"[DEBUG] Updated title for library {lib_id}: {title}")
+                    
+                    # Update media type if available
                     media_type = id_to_media_type.get(lib_id)
                     if media_type and library_notes[lib_id].get('media_type') != media_type:
                         library_notes[lib_id]['media_type'] = media_type
@@ -4520,7 +4534,7 @@ def ajax_update_libraries():
                 if updated:
                     save_library_notes(library_notes)
                     if debug_mode:
-                        print(f"[INFO] Updated media types for {len(cleaned_library_ids)} libraries")
+                        print(f"[INFO] Updated titles and media types for {len(cleaned_library_ids)} libraries")
                         
         except Exception as e:
             if debug_mode:

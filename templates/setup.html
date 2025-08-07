@@ -258,7 +258,7 @@
             
             <div class="form-group">
                 <label class="form-label">Public Audiobookshelf Server URL:</label>
-                <input type="text" name="audiobookshelf_url" id="audiobookshelf_url" class="form-input" placeholder="Public URL for users">
+                <input type="text" name="audiobookshelf_url" id="audiobookshelf_url" class="form-input" placeholder="Public URL for users" oninput="syncABSURL()">
             </div>
             
             <div class="form-group">
@@ -1116,10 +1116,23 @@
             msgDiv.style.display = 'none';
         });
         
+        // Function to sync ABS URL to service URLs section
+        function syncABSURL() {
+            const absUrlInput = document.getElementById('audiobookshelf_url');
+            const absServiceInput = document.querySelector('input[name="AUDIOBOOKSHELF"]');
+            
+            if (absUrlInput && absServiceInput) {
+                absServiceInput.value = absUrlInput.value;
+            }
+        }
+        
         // Initialize visibility and validation on page load
         toggleABS();
         toggleDiscord();
         validateSetupForm();
+        
+        // Initialize ABS URL sync on page load
+        syncABSURL();
         
         // Also validate after a short delay to ensure all elements are loaded
         setTimeout(function() {
