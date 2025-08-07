@@ -252,5 +252,6 @@ Thanks for your interest in my project! I hope you find it useful. If you want t
 
 [ko-fi.com/secretlycarl](https://ko-fi.com/secretlycarl)
 
+## Star History
 
-<iframe style="width:100%;height:auto;min-width:600px;min-height:400px;" src="https://www.star-history.com/embed?secret=Z2l0aHViX3BhdF8xMUFLNkw2S1kwc2xINWJZNndIVFhOX240YXNicHpmU3FjNlE4QUVHVDFIRjlGRmxxY1lOa1U5WHRQM1h3T1JDWmFDNEJUUTdTN25zZmlwSVhR#secretlycarl/onboarderr&Date" frameBorder="0"></iframe>
+[![Star History Chart](https://api.star-history.com/svg?repos=secretlycarl/onboarderr&type=Date)](https://www.star-history.com/#secretlycarl/onboarderr&Date)
