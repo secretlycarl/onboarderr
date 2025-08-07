@@ -254,4 +254,10 @@ Thanks for your interest in my project! I hope you find it useful. If you want t
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=secretlycarl/onboarderr&type=Date)](https://www.star-history.com/#secretlycarl/onboarderr&Date)
+<a href="https://www.star-history.com/#secretlycarl/onboarderr&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=secretlycarl/onboarderr&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=secretlycarl/onboarderr&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=secretlycarl/onboarderr&type=Date" />
+ </picture>
+</a>
