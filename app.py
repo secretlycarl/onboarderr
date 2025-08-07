@@ -717,6 +717,27 @@ def should_refresh_posters(library_id):
     # Return True if posters are older than POSTER_REFRESH_INTERVAL
     return (current_time - most_recent_time) > POSTER_REFRESH_INTERVAL
 
+def should_refresh_abs_posters():
+    """
+    Check if ABS audiobook posters need refreshing based on age.
+    Returns True if posters should be refreshed, False otherwise.
+    """
+    audiobook_dir = os.path.join("static", "posters", "audiobooks")
+    if not os.path.exists(audiobook_dir):
+        return True
+    
+    # Check if any poster files exist
+    poster_files = [f for f in os.listdir(audiobook_dir) if f.lower().endswith(('.webp', '.jpg', '.jpeg', '.png'))]
+    if not poster_files:
+        return True
+    
+    # Check the age of the most recent poster file
+    most_recent_time = max(os.path.getmtime(os.path.join(audiobook_dir, f)) for f in poster_files)
+    current_time = time.time()
+    
+    # Return True if posters are older than POSTER_REFRESH_INTERVAL
+    return (current_time - most_recent_time) > POSTER_REFRESH_INTERVAL
+
 def clear_library_cache():
     """Clear the library cache to force fresh data on next request"""
     global library_cache, library_cache_timestamp
@@ -2556,6 +2577,12 @@ def download_abs_audiobook_posters():
     if not abs_url:
         if debug_mode:
             print("[WARN] ABS enabled but AUDIOBOOKSHELF_URL not set")
+        return
+    
+    # Check if posters need refreshing
+    if not should_refresh_abs_posters():
+        if debug_mode:
+            print("[DEBUG] Skipping ABS poster download - posters are recent")
         return
     
     audiobook_dir = os.path.join("static", "posters", "audiobooks")
