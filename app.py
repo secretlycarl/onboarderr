@@ -41,6 +41,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 import schedule
+import ipaddress
 
 # Before load_dotenv()
 if not os.path.exists('.env') and os.path.exists('empty.env'):
@@ -122,49 +123,107 @@ def get_client_ip():
         # Handle case where request context is not available
         return "127.0.0.1"
 
+def is_valid_ip_range(ip_range):
+    """Validate IP range format (e.g., 192.168.1.0/24)"""
+    import re
+    import ipaddress
+    
+    try:
+        # Check if it's a valid IP range
+        ipaddress.ip_network(ip_range, strict=False)
+        return True
+    except ValueError:
+        return False
+
+def is_valid_single_ip(ip):
+    """Validate single IP address format"""
+    import re
+    ip_pattern = r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+    return bool(re.match(ip_pattern, ip))
+
+def is_valid_ip_or_range(ip_or_range):
+    """Validate if input is either a single IP or IP range"""
+    return is_valid_single_ip(ip_or_range) or is_valid_ip_range(ip_or_range)
+
+def ip_in_range(client_ip, ip_range):
+    """Check if client IP is within the specified IP range"""
+    import ipaddress
+    try:
+        network = ipaddress.ip_network(ip_range, strict=False)
+        client_ip_obj = ipaddress.ip_address(client_ip)
+        return client_ip_obj in network
+    except ValueError:
+        return False
+
 def is_ip_whitelisted(ip):
-    """Check if IP is whitelisted"""
-    return ip in rate_limit_data['whitelisted_ips']
+    """Check if IP is whitelisted (supports both single IPs and ranges)"""
+    # First check for exact matches
+    if ip in rate_limit_data['whitelisted_ips']:
+        return True
+    
+    # Then check if IP is within any whitelisted ranges
+    for whitelisted_item in rate_limit_data['whitelisted_ips']:
+        if '/' in whitelisted_item:  # This is an IP range
+            if ip_in_range(ip, whitelisted_item):
+                return True
+    
+    return False
 
 def is_ip_banned(ip):
-    """Check if IP is banned"""
-    return ip in rate_limit_data['banned_ips']
+    """Check if IP is banned (supports both single IPs and ranges)"""
+    # First check for exact matches
+    if ip in rate_limit_data['banned_ips']:
+        return True
+    
+    # Then check if IP is within any banned ranges
+    for banned_item in rate_limit_data['banned_ips']:
+        if '/' in banned_item:  # This is an IP range
+            if ip_in_range(ip, banned_item):
+                return True
+    
+    return False
 
-def add_ip_to_whitelist(ip):
-    """Add IP to whitelist"""
-    rate_limit_data['whitelisted_ips'].add(ip)
+def add_ip_to_whitelist(ip_or_range):
+    """Add IP or IP range to whitelist"""
+    if not is_valid_ip_or_range(ip_or_range):
+        raise ValueError(f"Invalid IP or IP range format: {ip_or_range}")
+    
+    rate_limit_data['whitelisted_ips'].add(ip_or_range)
     # Remove from banned list if present
-    if ip in rate_limit_data['banned_ips']:
-        rate_limit_data['banned_ips'].remove(ip)
+    if ip_or_range in rate_limit_data['banned_ips']:
+        rate_limit_data['banned_ips'].remove(ip_or_range)
     # Persist to .env file
     save_ip_lists_to_env()
-    log_security_event("ip_whitelisted", ip, "IP added to whitelist")
+    log_security_event("ip_whitelisted", ip_or_range, "IP/IP range added to whitelist")
 
-def remove_ip_from_whitelist(ip):
-    """Remove IP from whitelist"""
-    if ip in rate_limit_data['whitelisted_ips']:
-        rate_limit_data['whitelisted_ips'].remove(ip)
+def remove_ip_from_whitelist(ip_or_range):
+    """Remove IP or IP range from whitelist"""
+    if ip_or_range in rate_limit_data['whitelisted_ips']:
+        rate_limit_data['whitelisted_ips'].remove(ip_or_range)
         # Persist to .env file
         save_ip_lists_to_env()
-        log_security_event("ip_whitelist_removed", ip, "IP removed from whitelist")
+        log_security_event("ip_whitelist_removed", ip_or_range, "IP/IP range removed from whitelist")
 
-def add_ip_to_blacklist(ip):
-    """Add IP to blacklist (banned)"""
-    rate_limit_data['banned_ips'].add(ip)
+def add_ip_to_blacklist(ip_or_range):
+    """Add IP or IP range to blacklist (banned)"""
+    if not is_valid_ip_or_range(ip_or_range):
+        raise ValueError(f"Invalid IP or IP range format: {ip_or_range}")
+    
+    rate_limit_data['banned_ips'].add(ip_or_range)
     # Remove from whitelist if present
-    if ip in rate_limit_data['whitelisted_ips']:
-        rate_limit_data['whitelisted_ips'].remove(ip)
+    if ip_or_range in rate_limit_data['whitelisted_ips']:
+        rate_limit_data['whitelisted_ips'].remove(ip_or_range)
     # Persist to .env file
     save_ip_lists_to_env()
-    log_security_event("ip_banned", ip, "IP added to blacklist")
+    log_security_event("ip_banned", ip_or_range, "IP/IP range added to blacklist")
 
-def remove_ip_from_blacklist(ip):
-    """Remove IP from blacklist"""
-    if ip in rate_limit_data['banned_ips']:
-        rate_limit_data['banned_ips'].remove(ip)
+def remove_ip_from_blacklist(ip_or_range):
+    """Remove IP or IP range from blacklist"""
+    if ip_or_range in rate_limit_data['banned_ips']:
+        rate_limit_data['banned_ips'].remove(ip_or_range)
         # Persist to .env file
         save_ip_lists_to_env()
-        log_security_event("ip_blacklist_removed", ip, "IP removed from blacklist")
+        log_security_event("ip_blacklist_removed", ip_or_range, "IP/IP range removed from blacklist")
 
 def get_ip_lists():
     """Get current IP whitelist and blacklist"""
@@ -1961,14 +2020,25 @@ def services():
             ip_address = request.form.get("ip_address", "").strip()
             
             if ip_address and action:
-                if action == "whitelist":
-                    add_ip_to_whitelist(ip_address)
-                elif action == "remove_whitelist":
-                    remove_ip_from_whitelist(ip_address)
-                elif action == "blacklist":
-                    add_ip_to_blacklist(ip_address)
-                elif action == "remove_blacklist":
-                    remove_ip_from_blacklist(ip_address)
+                # Validate IP address or IP range format
+                if not is_valid_ip_or_range(ip_address):
+                    context = get_template_context()
+                    context["error_message"] = f"Invalid IP address or IP range format: {ip_address}. Use single IP (e.g., 192.168.1.1) or IP range (e.g., 192.168.1.0/24)"
+                    return render_template("services.html", **context)
+                
+                try:
+                    if action == "whitelist":
+                        add_ip_to_whitelist(ip_address)
+                    elif action == "remove_whitelist":
+                        remove_ip_from_whitelist(ip_address)
+                    elif action == "blacklist":
+                        add_ip_to_blacklist(ip_address)
+                    elif action == "remove_blacklist":
+                        remove_ip_from_blacklist(ip_address)
+                except ValueError as e:
+                    context = get_template_context()
+                    context["error_message"] = str(e)
+                    return render_template("services.html", **context)
 
         # Trigger background poster refresh if library settings changed
         library_ids = request.form.getlist("library_ids")
@@ -2211,26 +2281,27 @@ def ajax_ip_management():
         if not action or not ip_address:
             return jsonify({"success": False, "error": "Missing action or IP address"})
         
-        # Validate IP address format
-        import re
-        ip_pattern = r'^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
-        if not re.match(ip_pattern, ip_address):
-            return jsonify({"success": False, "error": "Invalid IP address format"})
+        # Validate IP address or IP range format
+        if not is_valid_ip_or_range(ip_address):
+            return jsonify({"success": False, "error": "Invalid IP address or IP range format. Use single IP (e.g., 192.168.1.1) or IP range (e.g., 192.168.1.0/24)"})
         
-        if action == "whitelist":
-            add_ip_to_whitelist(ip_address)
-            return jsonify({"success": True})
-        elif action == "blacklist":
-            add_ip_to_blacklist(ip_address)
-            return jsonify({"success": True})
-        elif action == "remove_whitelist":
-            remove_ip_from_whitelist(ip_address)
-            return jsonify({"success": True})
-        elif action == "remove_blacklist":
-            remove_ip_from_blacklist(ip_address)
-            return jsonify({"success": True})
-        else:
-            return jsonify({"success": False, "error": "Invalid action"})
+        try:
+            if action == "whitelist":
+                add_ip_to_whitelist(ip_address)
+                return jsonify({"success": True})
+            elif action == "blacklist":
+                add_ip_to_blacklist(ip_address)
+                return jsonify({"success": True})
+            elif action == "remove_whitelist":
+                remove_ip_from_whitelist(ip_address)
+                return jsonify({"success": True})
+            elif action == "remove_blacklist":
+                remove_ip_from_blacklist(ip_address)
+                return jsonify({"success": True})
+            else:
+                return jsonify({"success": False, "error": "Invalid action"})
+        except ValueError as e:
+            return jsonify({"success": False, "error": str(e)})
             
     except Exception as e:
         if debug_mode:

@@ -450,9 +450,9 @@
                 <label class="form-label">Add IP to Whitelist:</label>
                 <div class="input-with-icon">
                     <span class="input-icon">✅</span>
-                    <input type="text" name="whitelist_ip" id="whitelist_ip" placeholder="127.0.0.1" class="form-input">
+                    <input type="text" name="whitelist_ip" id="whitelist_ip" placeholder="127.0.0.1 or 192.168.1.0/24" class="form-input">
                 </div>
-                <div class="file-help">Enter an IP address to whitelist (bypasses all rate limiting)</div>
+                <div class="file-help">Enter an IP address (e.g., 192.168.1.100) or IP range (e.g., 192.168.1.0/24) to whitelist (bypasses all rate limiting)</div>
                 <button type="button" onclick="addToWhitelist()" class="btn btn-secondary" style="margin-top: 0.5em;">Add to Whitelist</button>
             </div>
                             
@@ -461,9 +461,9 @@
                 <label class="form-label">Add IP to Blacklist:</label>
                 <div class="input-with-icon">
                     <span class="input-icon">❌</span>
-                    <input type="text" name="blacklist_ip" id="blacklist_ip" placeholder="192.168.1.100" class="form-input">
+                    <input type="text" name="blacklist_ip" id="blacklist_ip" placeholder="192.168.1.100 or 192.168.1.0/24" class="form-input">
                 </div>
-                <div class="file-help">Enter an IP address to blacklist (completely blocked)</div>
+                <div class="file-help">Enter an IP address (e.g., 192.168.1.100) or IP range (e.g., 192.168.1.0/24) to blacklist (completely blocked)</div>
                 <button type="button" onclick="addToBlacklist()" class="btn btn-secondary" style="margin-top: 0.5em;">Add to Blacklist</button>
             </div>
                             
