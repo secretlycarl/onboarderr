@@ -766,36 +766,45 @@
       <div id="discord-config-section" style="display: {% if DISCORD_WEBHOOK %}block{% else %}none{% endif %};">
         <div class="form-group">
           <label class="form-label">Notification Events:</label>
+          <div class="info-box" style="margin-bottom: 1rem;">
+            <span>ℹ️</span>
+            <span><strong>Smart Notifications:</strong> The system now intelligently reduces notification noise by only alerting on important events. Login attempts only notify on first success/failure and lockouts, not every attempt.</span>
+          </div>
           <div class="notification-options">
             <label class="checkbox-option">
               <input type="checkbox" name="discord_notify_plex" id="discord_notify_plex" value="1" {% if DISCORD_NOTIFY_PLEX == '1' %}checked{% endif %}>
               <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
-              <span>Notify on new Plex user request</span>
+              <span>New Plex user request</span>
             </label>
             <label class="checkbox-option">
               <input type="checkbox" name="discord_notify_abs" id="discord_notify_abs" value="1" {% if DISCORD_NOTIFY_ABS == '1' %}checked{% endif %}>
               <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
-              <span>Notify on new Audiobookshelf user request</span>
+              <span>New Audiobookshelf user request</span>
             </label>
             <label class="checkbox-option">
               <input type="checkbox" name="discord_notify_rate_limiting" id="discord_notify_rate_limiting" value="1" {% if DISCORD_NOTIFY_RATE_LIMITING == '1' %}checked{% endif %}>
               <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
-              <span>Notify on rate limiting events</span>
+              <span>Rate limiting events (first failed attempt + lockouts)</span>
             </label>
             <label class="checkbox-option">
               <input type="checkbox" name="discord_notify_ip_management" id="discord_notify_ip_management" value="1" {% if DISCORD_NOTIFY_IP_MANAGEMENT == '1' %}checked{% endif %}>
               <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
-              <span>Notify on IP management events</span>
+              <span>IP management events</span>
             </label>
             <label class="checkbox-option">
               <input type="checkbox" name="discord_notify_login_attempts" id="discord_notify_login_attempts" value="1" {% if DISCORD_NOTIFY_LOGIN_ATTEMPTS == '1' %}checked{% endif %}>
               <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
-              <span>Notify on login attempts (success/failure)</span>
+              <span>Login attempts (first success + first failure + lockouts)</span>
             </label>
             <label class="checkbox-option">
               <input type="checkbox" name="discord_notify_form_rate_limiting" id="discord_notify_form_rate_limiting" value="1" {% if DISCORD_NOTIFY_FORM_RATE_LIMITING == '1' %}checked{% endif %}>
               <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
-              <span>Notify on form submission rate limiting</span>
+              <span>Form submission rate limiting</span>
+            </label>
+            <label class="checkbox-option">
+              <input type="checkbox" name="discord_notify_first_access" id="discord_notify_first_access" value="1" {% if DISCORD_NOTIFY_FIRST_ACCESS == '1' %}checked{% endif %}>
+              <img src="{{ url_for('static', filename='discord.webp') }}" alt="Discord" class="service-icon">
+              <span>First-time IP access (new visitors)</span>
             </label>
           </div>
         </div>
@@ -1019,7 +1028,8 @@
       <input type="hidden" name="discord_notify_rate_limiting" id="discord_notify_rate_limiting_hidden">
       <input type="hidden" name="discord_notify_ip_management" id="discord_notify_ip_management_hidden">
       <input type="hidden" name="discord_notify_login_attempts" id="discord_notify_login_attempts_hidden">
-      <input type="hidden" name="discord_notify_form_rate_limiting" id="discord_notify_form_rate_limiting_hidden">
+                    <input type="hidden" name="discord_notify_form_rate_limiting" id="discord_notify_form_rate_limiting_hidden">
+              <input type="hidden" name="discord_notify_first_access" id="discord_notify_first_access_hidden">
       <input type="hidden" name="discord_webhook" id="discord_webhook_hidden">
       <input type="hidden" name="discord_username" id="discord_username_hidden">
       <input type="hidden" name="discord_avatar" id="discord_avatar_hidden">
@@ -2331,6 +2341,7 @@
         document.getElementById('discord_notify_ip_management_hidden').value = document.getElementById('discord_notify_ip_management').checked ? '1' : '';
         document.getElementById('discord_notify_login_attempts_hidden').value = document.getElementById('discord_notify_login_attempts').checked ? '1' : '';
         document.getElementById('discord_notify_form_rate_limiting_hidden').value = document.getElementById('discord_notify_form_rate_limiting').checked ? '1' : '';
+        document.getElementById('discord_notify_first_access_hidden').value = document.getElementById('discord_notify_first_access').checked ? '1' : '';
       document.getElementById('discord_webhook_hidden').value = document.getElementById('discord_webhook_admin').value;
       document.getElementById('discord_username_hidden').value = document.getElementById('discord_username_admin').value;
       document.getElementById('discord_avatar_hidden').value = document.getElementById('discord_avatar_admin').value;

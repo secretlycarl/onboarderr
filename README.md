@@ -1,9 +1,24 @@
-# Attention
-If you're reading this, the repo recently had a big update and I recommend you start from scratch.
+# New Features
 
+## Quicker Setup
 Setup is much easier now! 
 - Set port with `python changeport.py [PORT_NUMBER]` if you don't want to use the default `10000`
 - Docker compose (tweak mounts first on `compose.yml`) and set all initial settings on the site itself
+
+## Security Features
+Added new security features-
+- **Rate limiting** on login and forms to prevent brute force attacks
+  - User gets 5 login attempts before 1hr lockout
+    - Lockout increases on more failed attempts
+    - User gets 1 submission each to Plex and ABS forms per hour
+- **IP white/blacklisting** - you can now block specific IPs or ranges, or whitelist only trusted ones
+  - Whitelisting excludes from rate limiting. I put in 127.0.0.1 to disable it for me in testing
+  - Blacklisting gives any devices in that range a 1hr lockout on login whenever the page is loaded
+- **Discord notifications** on security events - get alerts for rate limits and other events
+
+A new `security_log.json` is created to track the security events.
+
+This is just the start of my security improvements. Check any `in progress` issues to see what's being worked on.
 
 [How to Update](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#updates)
 

@@ -75,7 +75,11 @@ rate_limit_data = {
     'ip_monitoring': defaultdict(int),     # IP -> failed attempt count
     'banned_ips': set(),                   # Set of banned IPs
     'whitelisted_ips': set(),             # Set of whitelisted IPs
-    'rate_limit_notifications': defaultdict(int)  # IP -> notification count for rate limiting
+    'rate_limit_notifications': defaultdict(int),  # IP -> notification count for rate limiting
+    'known_ips': set(),                    # Set of IPs that have accessed the site
+    'first_failed_attempt_ips': set(),    # IPs that have had their first failed login attempt
+    'lockout_notified_ips': set(),        # IPs that have been notified about lockouts
+    'first_login_success_ips': set()      # IPs that have successfully logged in for the first time
 }
 
 def is_running_in_docker():
@@ -189,6 +193,30 @@ def is_ip_banned(ip):
     
     return False
 
+def check_first_time_ip_access(ip):
+    """Check if this is the first time an IP has accessed the site and notify if so"""
+    if ip in rate_limit_data['known_ips']:
+        return False
+    
+    # Add IP to known IPs
+    rate_limit_data['known_ips'].add(ip)
+    
+    # Send notification for first-time access
+    log_security_event("first_access", ip, "IP accessed the site for the first time")
+    return True
+
+def check_first_time_login_success(ip):
+    """Check if this is the first time an IP has successfully logged in and notify if so"""
+    if ip in rate_limit_data['first_login_success_ips']:
+        return False
+    
+    # Add IP to first login success IPs
+    rate_limit_data['first_login_success_ips'].add(ip)
+    
+    # Send notification for first-time successful login
+    log_security_event("login_success", ip, "IP successfully logged in for the first time")
+    return True
+
 def add_ip_to_whitelist(ip_or_range):
     """Add IP or IP range to whitelist"""
     if not is_valid_ip_or_range(ip_or_range):
@@ -291,6 +319,16 @@ def add_failed_attempt(ip, attempt_type="login"):
             rate_limit_data['lockout_start_times'][ip] = lockout_start_time
             if debug_mode:
                 print(f"[DEBUG] IP {ip} locked out at {lockout_start_time} based on attempts in last hour")
+    
+    # Smart notification logic: Only notify on first failed attempt and when lockout occurs
+    if ip not in rate_limit_data['first_failed_attempt_ips']:
+        # This is the first failed attempt from this IP
+        rate_limit_data['first_failed_attempt_ips'].add(ip)
+        log_security_event("login_failed", ip, "First failed login attempt")
+    elif ip in rate_limit_data['lockout_start_times'] and ip not in rate_limit_data['lockout_notified_ips']:
+        # IP just got locked out, notify about lockout
+        rate_limit_data['lockout_notified_ips'].add(ip)
+        log_security_event("login_lockout", ip, f"IP locked out after {len(recent_attempts)} failed attempts")
 
 def check_rate_limit(ip, limit_type="login", form_type=None):
     """Check if IP is rate limited"""
@@ -1123,9 +1161,11 @@ def send_security_discord_notification(event_type, ip, details):
         return
     if event_type in ["ip_whitelisted", "ip_whitelist_removed", "ip_banned", "ip_blacklist_removed"] and os.getenv("DISCORD_NOTIFY_IP_MANAGEMENT", "0") != "1":
         return
-    if event_type in ["login_success", "login_failed"] and os.getenv("DISCORD_NOTIFY_LOGIN_ATTEMPTS", "0") != "1":
+    if event_type in ["login_success", "login_failed", "login_lockout"] and os.getenv("DISCORD_NOTIFY_LOGIN_ATTEMPTS", "0") != "1":
         return
     if event_type == "form_rate_limited" and os.getenv("DISCORD_NOTIFY_FORM_RATE_LIMITING", "0") != "1":
+        return
+    if event_type == "first_access" and os.getenv("DISCORD_NOTIFY_FIRST_ACCESS", "0") != "1":
         return
     
     webhook_url = os.getenv("DISCORD_WEBHOOK")
@@ -1306,6 +1346,10 @@ def onboarding():
         if debug_mode:
             print("[DEBUG] User not authenticated, redirecting to login")
         return redirect(url_for("login"))
+    
+    # Check for first-time IP access
+    client_ip = get_client_ip()
+    check_first_time_ip_access(client_ip)
 
     submitted = False
     library_notes = load_library_notes()
@@ -1347,7 +1391,6 @@ def onboarding():
             
                     # Record successful form submission
         add_form_submission(client_ip, "plex")
-        log_security_event("form_submission", client_ip, f"Plex form submitted by {email}")
         
         # No need to clear cache since we're using local files now
         
@@ -1526,6 +1569,10 @@ def audiobookshelf():
         return ("Not Found", 404)
     if not session.get("authenticated"):
         return redirect(url_for("login"))
+    
+    # Check for first-time IP access
+    client_ip = get_client_ip()
+    check_first_time_ip_access(client_ip)
 
     submitted = False
 
@@ -1561,7 +1608,6 @@ def audiobookshelf():
             
             # Record successful form submission
             add_form_submission(client_ip, "audiobookshelf")
-            log_security_event("form_submission", client_ip, f"Audiobookshelf form submitted by {email}")
             
             send_discord_notification(email, "Audiobookshelf", event_type="abs")
             # AJAX response
@@ -1640,12 +1686,11 @@ def admin_login():
     if admin_authenticated:
         session["authenticated"] = True
         session["admin_authenticated"] = True
-        log_security_event("login_success", client_ip, "Admin login successful via AJAX")
+        check_first_time_login_success(client_ip)
         return jsonify({"success": True})
     else:
         # Record failed attempt
         add_failed_attempt(client_ip, "login")
-        log_security_event("login_failed", client_ip, "Failed admin login attempt via AJAX")
         return jsonify({"success": False, "error": "Incorrect admin password"})
 
 @app.route("/login", methods=["GET", "POST"])
@@ -1655,6 +1700,9 @@ def login():
     
     # Get client IP for rate limiting
     client_ip = get_client_ip()
+    
+    # Check for first-time IP access
+    check_first_time_ip_access(client_ip)
     
     # Check rate limiting for both GET and POST requests
     is_rate_limited, remaining_time = check_rate_limit(client_ip, "login")
@@ -1700,19 +1748,18 @@ def login():
         if admin_authenticated:
             session["authenticated"] = True
             session["admin_authenticated"] = True
-            log_security_event("login_success", client_ip, "Admin login successful")
+            check_first_time_login_success(client_ip)
             return redirect(url_for("services"))
         elif site_authenticated:
             session["authenticated"] = True
             session["admin_authenticated"] = False
-            log_security_event("login_success", client_ip, "Site user login successful")
+            check_first_time_login_success(client_ip)
             if debug_mode:
                 print("[DEBUG] Site user login successful, redirecting to onboarding")
             return redirect(url_for("onboarding"))
         else:
             # Record failed attempt
             add_failed_attempt(client_ip, "login")
-            log_security_event("login_failed", client_ip, "Failed login attempt")
             
             # Check if this is an AJAX request by looking for X-Requested-With header
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1960,6 +2007,13 @@ def services():
         current_discord_notify_form_rate_limiting = os.getenv("DISCORD_NOTIFY_FORM_RATE_LIMITING", "0")
         if discord_notify_form_rate_limiting in ["1", "0"] and discord_notify_form_rate_limiting != current_discord_notify_form_rate_limiting:
             safe_set_key(env_path, "DISCORD_NOTIFY_FORM_RATE_LIMITING", discord_notify_form_rate_limiting)
+
+        discord_notify_first_access = request.form.get("discord_notify_first_access")
+        if discord_notify_first_access is None:
+            discord_notify_first_access = "0"
+        current_discord_notify_first_access = os.getenv("DISCORD_NOTIFY_FIRST_ACCESS", "0")
+        if discord_notify_first_access in ["1", "0"] and discord_notify_first_access != current_discord_notify_first_access:
+            safe_set_key(env_path, "DISCORD_NOTIFY_FIRST_ACCESS", discord_notify_first_access)
 
         # Handle Quick Access setting
         quick_access_enabled = request.form.get("quick_access_enabled", "yes")
@@ -3837,6 +3891,11 @@ def setup():
         if discord_notify_form_rate_limiting is None:
             discord_notify_form_rate_limiting = "0"
         safe_set_key(env_path, "DISCORD_NOTIFY_FORM_RATE_LIMITING", discord_notify_form_rate_limiting)
+
+        discord_notify_first_access = form.get("discord_notify_first_access")
+        if discord_notify_first_access is None:
+            discord_notify_first_access = "0"
+        safe_set_key(env_path, "DISCORD_NOTIFY_FIRST_ACCESS", discord_notify_first_access)
         
         # Save Quick Access setting
         quick_access_enabled = form.get("quick_access_enabled", "yes")
