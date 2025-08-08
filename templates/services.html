@@ -987,6 +987,65 @@
           </div>
         </div>
       
+    <!-- Rate Limiting Settings Section -->
+    <div class="onboarding-section" id="rate-limit-settings-section">
+      <h2 class="form-section-title">
+        <span class="form-section-icon">🛡️</span>
+        Rate Limiting Settings
+      </h2>
+      
+      <div class="form-group">
+        <label class="form-label">Enable Rate Limiting Settings?</label>
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" name="rate_limit_settings_enabled" value="yes" id="rate_limit_settings_enabled_yes" class="radio-input" {% if RATE_LIMIT_SETTINGS_ENABLED == 'yes' %}checked{% endif %}>
+            <span>Yes</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="rate_limit_settings_enabled" value="no" id="rate_limit_settings_enabled_no" class="radio-input" {% if RATE_LIMIT_SETTINGS_ENABLED != 'yes' %}checked{% endif %}>
+            <span>No</span>
+          </label>
+        </div>
+        <div class="file-help">
+          Rate limiting settings allow you to configure how many failed login attempts and form submissions are allowed before lockout.
+        </div>
+      </div>
+
+      <!-- Rate Limiting Settings Section (shown when enabled) -->
+      <div id="rate-limit-settings-content" style="display: none;">
+        <div class="info-box">
+          <span>ℹ️</span>
+          <span><strong>Rate Limiting:</strong> Configure how many attempts are allowed before temporary lockout. Set to 0 for unlimited (not recommended for security).</span>
+        </div>
+        
+        <!-- Max Login Attempts -->
+        <div class="form-group">
+          <label class="form-label">Max Login Attempts Before Lockout:</label>
+          <select name="max_login_attempts" id="max_login_attempts" class="form-input">
+            {% for i in range(0, 11) %}
+              <option value="{{ i }}" {% if RATE_LIMIT_MAX_LOGIN_ATTEMPTS == i %}selected{% endif %}>
+                {% if i == 0 %}Unlimited (0){% else %}{{ i }}{% endif %}
+              </option>
+            {% endfor %}
+          </select>
+          <div class="file-help">Number of failed login attempts allowed before 1-hour lockout. 0 = unlimited (not recommended).</div>
+        </div>
+        
+        <!-- Max Form Submissions -->
+        <div class="form-group">
+          <label class="form-label">Max Form Submissions Before 1hr Lockout:</label>
+          <select name="max_form_submissions" id="max_form_submissions" class="form-input">
+            {% for i in range(0, 11) %}
+              <option value="{{ i }}" {% if RATE_LIMIT_MAX_FORM_SUBMISSIONS == i %}selected{% endif %}>
+                {% if i == 0 %}Unlimited (0){% else %}{{ i }}{% endif %}
+              </option>
+            {% endfor %}
+          </select>
+          <div class="file-help">Number of form submissions (Plex/Audiobookshelf requests) allowed per hour. 0 = unlimited (not recommended).</div>
+        </div>
+      </div>
+    </div>
+      
     <!-- Service URLs Section -->
     <div class="onboarding-section" id="service-urls-section">
       <h2 class="form-section-title">
@@ -1042,6 +1101,9 @@
       <input type="hidden" name="qa_overseerr_enabled" id="qa_overseerr_enabled_hidden">
       <input type="hidden" name="qa_jellyseerr_enabled" id="qa_jellyseerr_enabled_hidden">
       <input type="hidden" name="ip_management_enabled" id="ip_management_enabled_hidden">
+      <input type="hidden" name="rate_limit_settings_enabled" id="rate_limit_settings_enabled_hidden">
+      <input type="hidden" name="max_login_attempts" id="max_login_attempts_hidden">
+      <input type="hidden" name="max_form_submissions" id="max_form_submissions_hidden">
       
       <!-- Service URLs hidden inputs -->
       {% for service in all_services %}
@@ -2078,6 +2140,18 @@
       }
     }
     
+    // Rate Limiting Settings section visibility
+    function toggleRateLimitSettings() {
+      var rateLimitEnabled = document.querySelector('input[name="rate_limit_settings_enabled"]:checked');
+      var rateLimitSection = document.getElementById('rate-limit-settings-content');
+      
+      if (rateLimitEnabled && rateLimitEnabled.value === 'yes') {
+        rateLimitSection.style.display = 'block';
+      } else {
+        rateLimitSection.style.display = 'none';
+      }
+    }
+    
     // Audiobookshelf Configuration section visibility
     function toggleAbsConfig() {
       var absEnabled = document.querySelector('input[name="abs_config_enabled"]:checked');
@@ -2369,6 +2443,16 @@
       }
       document.getElementById('ip_management_enabled_hidden').value = ipEnabled;
       
+      // Rate Limiting Settings
+      var rateLimitEnabled = '';
+      var rateLimitRadios = document.getElementsByName('rate_limit_settings_enabled');
+      for (var i = 0; i < rateLimitRadios.length; i++) {
+        if (rateLimitRadios[i].checked) rateLimitEnabled = rateLimitRadios[i].value;
+      }
+      document.getElementById('rate_limit_settings_enabled_hidden').value = rateLimitEnabled;
+      document.getElementById('max_login_attempts_hidden').value = document.getElementById('max_login_attempts').value;
+      document.getElementById('max_form_submissions_hidden').value = document.getElementById('max_form_submissions').value;
+      
       // Service URLs
       {% for service in all_services %}
         document.getElementById('{{ service.env.lower() }}_hidden').value = document.querySelector('input[name="{{ service.env }}"]').value;
@@ -2446,6 +2530,12 @@
         radio.addEventListener('change', toggleIPManagement);
       });
       
+      // Add event listeners for rate limiting settings radio buttons
+      var rateLimitRadios = document.querySelectorAll('input[name="rate_limit_settings_enabled"]');
+      rateLimitRadios.forEach(function(radio) {
+        radio.addEventListener('change', toggleRateLimitSettings);
+      });
+      
       // Add event listeners for ABS config radio buttons
       var absConfigRadios = document.querySelectorAll('input[name="abs_config_enabled"]');
       absConfigRadios.forEach(function(radio) {
@@ -2461,6 +2551,7 @@
       // Initial toggle states
       toggleQAServiceToggles();
       toggleIPManagement();
+      toggleRateLimitSettings();
       toggleAbsConfig();
       toggleDiscordConfig();
       

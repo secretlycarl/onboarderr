@@ -297,7 +297,7 @@ def add_failed_attempt(ip, attempt_type="login"):
         log_security_event("ip_suspicious", ip, f"IP marked as suspicious after {failed_count} failed attempts")
     
     # Check if this failed attempt should trigger a lockout
-    max_attempts = int(os.getenv("RATE_LIMIT_LOGIN_ATTEMPTS", "5"))
+    max_attempts = int(os.getenv("RATE_LIMIT_MAX_LOGIN_ATTEMPTS", os.getenv("RATE_LIMIT_LOGIN_ATTEMPTS", "5")))
     
     # Check recent attempts in last 15 minutes
     recent_attempts = [t for t in rate_limit_data['failed_attempts'][ip] if t > current_time - 900]
@@ -365,7 +365,7 @@ def check_rate_limit(ip, limit_type="login", form_type=None):
         
         # Check if IP should be locked out based on recent attempts
         attempts = rate_limit_data['failed_attempts'][ip]
-        max_attempts = int(os.getenv("RATE_LIMIT_LOGIN_ATTEMPTS", "5"))
+        max_attempts = int(os.getenv("RATE_LIMIT_MAX_LOGIN_ATTEMPTS", os.getenv("RATE_LIMIT_LOGIN_ATTEMPTS", "5")))
         
         # Count attempts in last 15 minutes
         recent_attempts = [t for t in attempts if t > current_time - 900]  # 15 minutes
@@ -421,7 +421,7 @@ def check_rate_limit(ip, limit_type="login", form_type=None):
             return False, 0
             
         submissions = rate_limit_data['form_submissions'][ip][form_type]
-        max_submissions = int(os.getenv("RATE_LIMIT_FORM_SUBMISSIONS", "1"))
+        max_submissions = int(os.getenv("RATE_LIMIT_MAX_FORM_SUBMISSIONS", os.getenv("RATE_LIMIT_FORM_SUBMISSIONS", "1")))
         
         # Count submissions in last hour
         recent_submissions = [t for t in submissions if t > current_time - 3600]  # 1 hour
@@ -2074,6 +2074,39 @@ def services():
             # Reload environment variables to reflect the change immediately
             load_dotenv(override=True)
 
+        # Handle rate limiting settings
+        rate_limit_settings_enabled = request.form.get("rate_limit_settings_enabled", "yes")
+        current_rate_limit_settings = os.getenv("RATE_LIMIT_SETTINGS_ENABLED", "yes")
+        if rate_limit_settings_enabled in ["yes", "no"] and rate_limit_settings_enabled != current_rate_limit_settings:
+            safe_set_key(env_path, "RATE_LIMIT_SETTINGS_ENABLED", rate_limit_settings_enabled)
+            # Reload environment variables to reflect the change immediately
+            load_dotenv(override=True)
+
+        # Handle rate limiting values
+        max_login_attempts = request.form.get("max_login_attempts")
+        if max_login_attempts is not None:
+            try:
+                max_login_attempts = int(max_login_attempts)
+                if 0 <= max_login_attempts <= 10:
+                    current_max_login = int(os.getenv("RATE_LIMIT_MAX_LOGIN_ATTEMPTS", os.getenv("RATE_LIMIT_LOGIN_ATTEMPTS", "5")))
+                    if max_login_attempts != current_max_login:
+                        safe_set_key(env_path, "RATE_LIMIT_MAX_LOGIN_ATTEMPTS", str(max_login_attempts))
+                        load_dotenv(override=True)
+            except ValueError:
+                pass
+
+        max_form_submissions = request.form.get("max_form_submissions")
+        if max_form_submissions is not None:
+            try:
+                max_form_submissions = int(max_form_submissions)
+                if 0 <= max_form_submissions <= 10:
+                    current_max_form = int(os.getenv("RATE_LIMIT_MAX_FORM_SUBMISSIONS", os.getenv("RATE_LIMIT_FORM_SUBMISSIONS", "1")))
+                    if max_form_submissions != current_max_form:
+                        safe_set_key(env_path, "RATE_LIMIT_MAX_FORM_SUBMISSIONS", str(max_form_submissions))
+                        load_dotenv(override=True)
+            except ValueError:
+                pass
+
         # Handle IP management
         if "ip_management" in request.form:
             action = request.form.get("ip_action")
@@ -2118,7 +2151,8 @@ def services():
                      "discord_notify_ip_management", "discord_notify_login_attempts",
                      "discord_notify_form_rate_limiting", "library_carousels",
                      "qa_plex_enabled", "qa_audiobookshelf_enabled", "qa_tautulli_enabled",
-                     "qa_overseerr_enabled", "qa_jellyseerr_enabled", "ip_management_enabled"]:
+                     "qa_overseerr_enabled", "qa_jellyseerr_enabled", "ip_management_enabled",
+                     "rate_limit_settings_enabled", "max_login_attempts", "max_form_submissions"]:
             if field in request.form:
                 changed_settings.add(field)
         
@@ -2450,6 +2484,68 @@ def ajax_check_rate_limit():
         if debug_mode:
             print(f"Error checking rate limit: {e}")
         return jsonify({"rate_limited": False})
+
+@app.route("/ajax/rate-limit-settings", methods=["POST"])
+def ajax_rate_limit_settings():
+    """Update rate limiting settings"""
+    # Allow access during setup or if admin authenticated
+    if not is_setup_complete() or session.get("admin_authenticated"):
+        pass
+    else:
+        return jsonify({"success": False, "error": "Unauthorized"})
+    
+    try:
+        data = request.get_json()
+        enabled = data.get("enabled", "yes")
+        max_login_attempts = data.get("max_login_attempts", 5)
+        max_form_submissions = data.get("max_form_submissions", 1)
+        
+        # Validate inputs
+        if enabled not in ["yes", "no"]:
+            return jsonify({"success": False, "error": "Invalid enabled value"})
+        
+        if not isinstance(max_login_attempts, int) or max_login_attempts < 0 or max_login_attempts > 10:
+            return jsonify({"success": False, "error": "Max login attempts must be between 0 and 10"})
+        
+        if not isinstance(max_form_submissions, int) or max_form_submissions < 0 or max_form_submissions > 10:
+            return jsonify({"success": False, "error": "Max form submissions must be between 0 and 10"})
+        
+        # Update .env file
+        env_path = os.path.join(os.getcwd(), ".env")
+        safe_set_key(env_path, "RATE_LIMIT_SETTINGS_ENABLED", enabled)
+        safe_set_key(env_path, "RATE_LIMIT_MAX_LOGIN_ATTEMPTS", str(max_login_attempts))
+        safe_set_key(env_path, "RATE_LIMIT_MAX_FORM_SUBMISSIONS", str(max_form_submissions))
+        
+        # Reload environment variables
+        load_dotenv(override=True)
+        
+        return jsonify({"success": True})
+        
+    except Exception as e:
+        if debug_mode:
+            print(f"Error updating rate limit settings: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/ajax/get-rate-limit-settings", methods=["GET"])
+def ajax_get_rate_limit_settings():
+    """Get current rate limiting settings"""
+    # Allow access during setup or if admin authenticated
+    if not is_setup_complete() or session.get("admin_authenticated"):
+        pass
+    else:
+        return jsonify({"success": False, "error": "Unauthorized"})
+    
+    try:
+        return jsonify({
+            "success": True,
+            "enabled": os.getenv("RATE_LIMIT_SETTINGS_ENABLED", "yes"),
+            "max_login_attempts": int(os.getenv("RATE_LIMIT_MAX_LOGIN_ATTEMPTS", os.getenv("RATE_LIMIT_LOGIN_ATTEMPTS", "5"))),
+            "max_form_submissions": int(os.getenv("RATE_LIMIT_MAX_FORM_SUBMISSIONS", os.getenv("RATE_LIMIT_FORM_SUBMISSIONS", "1")))
+        })
+    except Exception as e:
+        if debug_mode:
+            print(f"Error getting rate limit settings: {e}")
+        return jsonify({"success": False, "error": str(e)})
 
 @app.route("/ajax/invite-plex-users", methods=["POST"])
 def ajax_invite_plex_users():
@@ -3595,7 +3691,7 @@ def is_setup_complete():
 
 @app.before_request
 def check_setup():
-    allowed_endpoints = {"setup", "setup_complete", "fetch_libraries", "static", "ajax_check_rate_limit", "ajax_ip_management", "ajax_get_ip_lists"}
+    allowed_endpoints = {"setup", "setup_complete", "fetch_libraries", "static", "ajax_check_rate_limit", "ajax_ip_management", "ajax_get_ip_lists", "ajax_rate_limit_settings", "ajax_get_rate_limit_settings"}
     if not is_setup_complete():
         # Allow setup page, setup_complete page, fetch-libraries API, static files, rate limit check, and IP management
         if request.endpoint not in allowed_endpoints and not request.path.startswith("/static"):
@@ -3984,6 +4080,29 @@ def setup():
         # Handle IP management enabled setting
         ip_management_enabled = form.get("ip_management_enabled", "no")
         safe_set_key(env_path, "IP_MANAGEMENT_ENABLED", ip_management_enabled)
+        
+        # Handle rate limiting settings
+        rate_limit_settings_enabled = form.get("rate_limit_settings_enabled", "yes")
+        safe_set_key(env_path, "RATE_LIMIT_SETTINGS_ENABLED", rate_limit_settings_enabled)
+        
+        # Handle rate limiting values
+        max_login_attempts = form.get("max_login_attempts")
+        if max_login_attempts is not None:
+            try:
+                max_login_attempts = int(max_login_attempts)
+                if 0 <= max_login_attempts <= 10:
+                    safe_set_key(env_path, "RATE_LIMIT_MAX_LOGIN_ATTEMPTS", str(max_login_attempts))
+            except ValueError:
+                pass
+
+        max_form_submissions = form.get("max_form_submissions")
+        if max_form_submissions is not None:
+            try:
+                max_form_submissions = int(max_form_submissions)
+                if 0 <= max_form_submissions <= 10:
+                    safe_set_key(env_path, "RATE_LIMIT_MAX_FORM_SUBMISSIONS", str(max_form_submissions))
+            except ValueError:
+                pass
         
         safe_set_key(env_path, "SETUP_COMPLETE", "1")
         load_dotenv(override=True)
@@ -4378,6 +4497,9 @@ def get_template_context():
         "QA_OVERSEERR_ENABLED": os.getenv("QA_OVERSEERR_ENABLED", "yes"),
         "QA_JELLYSEERR_ENABLED": os.getenv("QA_JELLYSEERR_ENABLED", "yes"),
         "IP_MANAGEMENT_ENABLED": os.getenv("IP_MANAGEMENT_ENABLED", "no"),
+        "RATE_LIMIT_SETTINGS_ENABLED": os.getenv("RATE_LIMIT_SETTINGS_ENABLED", "yes"),
+        "RATE_LIMIT_MAX_LOGIN_ATTEMPTS": int(os.getenv("RATE_LIMIT_MAX_LOGIN_ATTEMPTS", os.getenv("RATE_LIMIT_LOGIN_ATTEMPTS", "5"))),
+        "RATE_LIMIT_MAX_FORM_SUBMISSIONS": int(os.getenv("RATE_LIMIT_MAX_FORM_SUBMISSIONS", os.getenv("RATE_LIMIT_FORM_SUBMISSIONS", "1"))),
         "ip_lists": get_ip_lists()
     }
 
