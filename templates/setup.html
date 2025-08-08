@@ -6,48 +6,6 @@
     <title>Onboarderr - Setup</title>
     <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}">
     <link rel="stylesheet" href="/static/modern-style.css">
-    <style>
-      /* IP Management Styles */
-      .ip-list-section {
-        margin-bottom: 1.5em;
-      }
-      
-      .ip-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5em;
-      }
-      
-      .ip-item {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.5em;
-        background: var(--bg-secondary);
-        border-radius: 0.3em;
-        border: 1px solid var(--border);
-      }
-      
-      .ip-address {
-        font-family: monospace;
-        font-weight: 500;
-      }
-      
-      .btn-small {
-        padding: 0.2em 0.5em;
-        font-size: 0.8em;
-      }
-      
-      .btn-danger {
-        background: #f44336;
-        color: white;
-        border: none;
-      }
-      
-      .btn-danger:hover {
-        background: #d32f2f;
-      }
-    </style>
     <script>
       // Set accent color from environment variable
       document.addEventListener('DOMContentLoaded', function() {
@@ -520,7 +478,7 @@
     <!-- Rate Limiting Settings Section -->
     <div class="setup-section">
         <h2 class="form-section-title">
-            <span class="form-section-icon">🛡️</span>
+            <span class="form-section-icon">📈</span>
             Rate Limiting Settings
         </h2>
         
@@ -529,7 +487,7 @@
             <div class="radio-group">
                 <label class="radio-option">
                     <input type="radio" name="rate_limit_settings_enabled" value="yes" id="rate_limit_settings_enabled_yes" class="radio-input" {% if RATE_LIMIT_SETTINGS_ENABLED == 'yes' %}checked{% endif %}>
-                    <span>Yes</span>
+                    <span>Yes (Recommended)</span>
                 </label>
                 <label class="radio-option">
                     <input type="radio" name="rate_limit_settings_enabled" value="no" id="rate_limit_settings_enabled_no" class="radio-input" {% if RATE_LIMIT_SETTINGS_ENABLED != 'yes' %}checked{% endif %}>
@@ -543,10 +501,6 @@
 
         <!-- Rate Limiting Settings Section (shown when enabled) -->
         <div id="rate-limit-settings-content" style="display: none;">
-            <div class="info-box">
-                <span>ℹ️</span>
-                <span><strong>Rate Limiting:</strong> Configure how many attempts are allowed before temporary lockout. Set to 0 for unlimited (not recommended for security).</span>
-            </div>
             
             <!-- Max Login Attempts -->
             <div class="form-group">
@@ -558,7 +512,7 @@
                         </option>
                     {% endfor %}
                 </select>
-                <div class="file-help">Number of failed login attempts allowed before 1-hour lockout. 0 = unlimited (not recommended).</div>
+                <div class="file-help">Number of failed login attempts allowed before 1-hour lockout.</div>
             </div>
             
             <!-- Max Form Submissions -->
@@ -571,7 +525,7 @@
                         </option>
                     {% endfor %}
                 </select>
-                <div class="file-help">Number of form submissions (Plex/Audiobookshelf requests) allowed per hour. 0 = unlimited (not recommended).</div>
+                <div class="file-help">Number of form submissions (Plex/Audiobookshelf requests) allowed per hour.</div>
             </div>
         </div>
     </div>

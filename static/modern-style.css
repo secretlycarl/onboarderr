@@ -234,6 +234,21 @@
   box-shadow: var(--shadow-md);
 }
 
+.countdown {
+  font-size: 1.2em;
+}
+
+.rate-limit-message {
+  text-align: center;
+  color: var(--error);
+  font-weight: bold;
+  margin: 1em 0;
+}
+
+.hidden {
+  display: none !important;
+}
+
 @media (max-width: 640px) {
   
   .login-title {
@@ -1835,10 +1850,6 @@ a:hover {
 .onboarding-header {
   margin-bottom: 1.5rem;
   padding: 1.5rem 0;
-}
-
-.onboarding-content {
-  padding: 0 0.5rem;
 }
 
 .onboarding-section {
@@ -3863,4 +3874,123 @@ details.collapsible-section .section-divider {
   height: 1px;
   background: var(--border);
   margin: 2em 1em;
+}
+
+/* Services Page Specific Styles */
+/* IP Management Styles */
+.ip-list-section {
+  margin-bottom: 1.5em;
+}
+
+.ip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.ip-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5em;
+  background: var(--bg-secondary);
+  border-radius: 0.3em;
+  border: 1px solid var(--border);
+}
+
+.ip-address {
+  font-family: monospace;
+  font-weight: 500;
+}
+
+.btn-small {
+  padding: 0.2em 0.5em;
+  font-size: 0.8em;
+}
+
+.btn-danger {
+  background: #f44336;
+  color: white;
+  border: none;
+}
+
+.btn-danger:hover {
+  background: #d32f2f;
+}
+
+/* Jump to Section Navigation Styles */
+.jump-nav-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+.jump-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.jump-nav-link:hover {
+  background: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.jump-nav-icon {
+  font-size: 1.1rem;
+}
+
+/* Main Content Layout */
+.onboarding-content {
+  display: block;
+  gap: 1rem;
+}
+
+/* Desktop 2-column masonry layout for all sections */
+@media (min-width: 1200px) {
+  .onboarding-content {
+    display: block;
+    column-count: 2;
+    column-gap: 1rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  
+  /* Force sections to break properly in columns */
+  .onboarding-section {
+    break-inside: avoid;
+    margin-bottom: 1rem;
+    display: block;
+  }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .jump-nav-links {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+  
+  .jump-nav-link {
+    padding: 0.7rem 0.9rem;
+    font-size: 0.85rem;
+  }
+  
+  .onboarding-content {
+    column-count: 1;
+    gap: 1rem;
+  }
 }
