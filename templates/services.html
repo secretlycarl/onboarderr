@@ -32,12 +32,12 @@
 <body>
   {% include "_bottom_nav.html" %}
 
-  <div class="onboarding-content">
+  <div class="onboarding-content services-page">
     <!-- Jump to Section Navigation -->
-    <div class="onboarding-section">
+    <div class="onboarding-section mobile-only">
       <h2 class="form-section-title">
         <span class="form-section-icon">🦘</span>
-        Jump to Section
+        Jump to:
       </h2>
       <div class="jump-nav-links">
         <a href="#services-section" class="jump-nav-link" onclick="scrollToSection('services-section')">
@@ -64,15 +64,15 @@
         </a>
         <a href="#branding-section" class="jump-nav-link" onclick="scrollToSection('branding-section')">
           <span class="jump-nav-icon">🎨</span>
-          <span>Branding Configuration</span>
+          <span>Branding</span>
         </a>
         <a href="#plex-config-section" class="jump-nav-link" onclick="scrollToSection('plex-config-section')">
           <span class="jump-nav-icon">🎬</span>
-          <span>Plex Configuration</span>
+          <span>Plex Settings</span>
         </a>
         <a href="#audiobookshelf-config-section" class="jump-nav-link" onclick="scrollToSection('audiobookshelf-config-section')">
           <span class="jump-nav-icon">📚</span>
-          <span>Audiobookshelf Configuration</span>
+          <span>Audiobookshelf Settings</span>
         </a>
         <a href="#discord-section" class="jump-nav-link" onclick="scrollToSection('discord-section')">
           <span class="jump-nav-icon">📢</span>
@@ -430,7 +430,7 @@
     <div class="onboarding-section" id="branding-section">
       <h2 class="form-section-title">
         <span class="form-section-icon">🎨</span>
-        Branding Configuration
+        Branding
       </h2>
       
       <div class="form-group">
@@ -491,7 +491,7 @@
     <div class="onboarding-section" id="plex-config-section">
       <h2 class="form-section-title">
         <span class="form-section-icon">🎬</span>
-        Plex Configuration
+        Plex Settings
       </h2>
       
       <div class="form-group">
@@ -608,11 +608,11 @@
     <div class="onboarding-section" id="audiobookshelf-config-section">
       <h2 class="form-section-title">
         <span class="form-section-icon">📚</span>
-        Audiobookshelf Configuration
+        Audiobookshelf Settings
       </h2>
       
       <div class="form-group">
-        <label class="form-label">Enable Audiobookshelf Configuration?</label>
+        <label class="form-label">Enable Audiobookshelf?</label>
         <div class="radio-group">
           <label class="radio-option">
             <input type="radio" name="abs_config_enabled" value="yes" id="abs_config_enabled_yes" onchange="toggleAbsConfig()" class="radio-input" {% if ABS_ENABLED == 'yes' %}checked{% endif %}>
@@ -2485,6 +2485,12 @@
       }
     });
   </script>
+
+  <!-- Jump Sections Panel -->
+  {% include "_jump_sections_panel.html" %}
+  
+  <!-- Jump Sections Panel Script -->
+  <script src="{{ url_for('static', filename='jump-sections.js') }}"></script>
 
 </body>
 </html>
