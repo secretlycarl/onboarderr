@@ -134,6 +134,9 @@
       const loadedLetters = new Map(); // Track which letters have been loaded per library
       const loadedContent = new Map(); // Store the actual content for each letter
       
+      // Handle hash fragments on page load
+      handleHashFragment();
+      
       // URL state management functions
       function updateURL(service, library, letter = null) {
         const url = new URL(window.location);
@@ -566,6 +569,34 @@
       
       // Initialize the page
       initializeFromURL();
+      
+      // Handle hash fragments on page load
+      function handleHashFragment() {
+        const hash = window.location.hash;
+        if (hash) {
+          // Remove the # from the hash
+          const sectionId = hash.substring(1);
+          
+          // Check if this is a letter hash (e.g., #A, #B, etc.)
+          if (sectionId.length === 1 && /^[A-Z]$/.test(sectionId)) {
+            // This is a letter hash, we'll handle it after the page initializes
+            setTimeout(() => {
+              const letterButton = document.querySelector(`.letter-button[data-letter="${sectionId}"]`);
+              if (letterButton) {
+                letterButton.click();
+              }
+            }, 500);
+          } else {
+            // This might be a library section hash, try to scroll to it
+            setTimeout(() => {
+              const element = document.getElementById(sectionId);
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            }, 100);
+          }
+        }
+      }
     });
   </script>
 

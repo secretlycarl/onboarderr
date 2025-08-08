@@ -8,9 +8,10 @@ Setup is much easier now!
 ## Security Features
 Added new security features-
 - **Rate limiting** on login and forms to prevent brute force attacks
-  - User gets 5 login attempts before 1hr lockout
+  - Default login attempt limit is 5 wrong in 15 min per IP
     - Lockout increases on more failed attempts
-    - User gets 1 submission each to Plex and ABS forms per hour
+  - Default form submission is 1 submission each to Plex and ABS forms per user per hour
+  - Customizable on setup
 - **IP white/blacklisting** - you can now block specific IPs or ranges, or whitelist only trusted ones
   - Whitelisting excludes from rate limiting. I put in 127.0.0.1 to disable it for me in testing
   - Blacklisting gives any devices in that range a 1hr lockout on login whenever the page is loaded

@@ -11,6 +11,9 @@
     document.addEventListener('DOMContentLoaded', function() {
       const accentColor = '{{ ACCENT_COLOR or "#d33fbc" }}';
       document.documentElement.style.setProperty('--accent-color', accentColor);
+      
+      // Handle hash fragments on page load
+      handleHashFragment();
     });
     
     // Smooth scroll to section function
@@ -25,6 +28,20 @@
           top: elementPosition,
           behavior: 'smooth'
         });
+      }
+    }
+    
+    // Handle hash fragments on page load
+    function handleHashFragment() {
+      const hash = window.location.hash;
+      if (hash) {
+        // Remove the # from the hash
+        const sectionId = hash.substring(1);
+        
+        // Wait a bit for the page to fully load, then scroll to the section
+        setTimeout(() => {
+          scrollToSection(sectionId);
+        }, 100);
       }
     }
   </script>

@@ -1,5 +1,5 @@
 # app.py
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify, g
+from flask import Flask, render_template, render_template_string, request, redirect, url_for, session, jsonify, g
 import json
 from datetime import datetime, timezone
 import requests
@@ -1345,7 +1345,19 @@ def onboarding():
     if not session.get("authenticated"):
         if debug_mode:
             print("[DEBUG] User not authenticated, redirecting to login")
-        return redirect(url_for("login"))
+        # Use client-side redirect to preserve hash fragments
+        return render_template_string("""
+            <!DOCTYPE html>
+            <html>
+            <head><title>Redirecting...</title></head>
+            <body>
+                <script>
+                    sessionStorage.setItem('intended_url_after_login', window.location.href);
+                    window.location.href = '/login';
+                </script>
+            </body>
+            </html>
+        """)
     
     # Check for first-time IP access
     client_ip = get_client_ip()
@@ -1568,7 +1580,19 @@ def audiobookshelf():
     if os.getenv("ABS_ENABLED", "yes") != "yes":
         return ("Not Found", 404)
     if not session.get("authenticated"):
-        return redirect(url_for("login"))
+        # Use client-side redirect to preserve hash fragments
+        return render_template_string("""
+            <!DOCTYPE html>
+            <html>
+            <head><title>Redirecting...</title></head>
+            <body>
+                <script>
+                    sessionStorage.setItem('intended_url_after_login', window.location.href);
+                    window.location.href = '/login';
+                </script>
+            </body>
+            </html>
+        """)
     
     # Check for first-time IP access
     client_ip = get_client_ip()
@@ -1687,7 +1711,11 @@ def admin_login():
         session["authenticated"] = True
         session["admin_authenticated"] = True
         check_first_time_login_success(client_ip)
-        return jsonify({"success": True})
+        
+        # Get intended URL from form data (sent by client-side JavaScript)
+        intended_url_after_login = request.form.get("intended_url_after_login")
+        redirect_url = intended_url_after_login if intended_url_after_login else url_for("services")
+        return jsonify({"success": True, "redirect_url": redirect_url})
     else:
         # Record failed attempt
         add_failed_attempt(client_ip, "login")
@@ -1749,14 +1777,20 @@ def login():
             session["authenticated"] = True
             session["admin_authenticated"] = True
             check_first_time_login_success(client_ip)
-            return redirect(url_for("services"))
+            
+            # Get intended URL from form data (sent by client-side JavaScript)
+            intended_url_after_login = request.form.get("intended_url_after_login")
+            redirect_url = intended_url_after_login if intended_url_after_login else url_for("services")
+            return redirect(redirect_url)
         elif site_authenticated:
             session["authenticated"] = True
             session["admin_authenticated"] = False
             check_first_time_login_success(client_ip)
-            if debug_mode:
-                print("[DEBUG] Site user login successful, redirecting to onboarding")
-            return redirect(url_for("onboarding"))
+            
+            # Get intended URL from form data (sent by client-side JavaScript)
+            intended_url_after_login = request.form.get("intended_url_after_login")
+            redirect_url = intended_url_after_login if intended_url_after_login else url_for("onboarding")
+            return redirect(redirect_url)
         else:
             # Record failed attempt
             add_failed_attempt(client_ip, "login")
@@ -1780,7 +1814,19 @@ def logout():
 @app.route("/services", methods=["GET", "POST"])
 def services():
     if not session.get("admin_authenticated"):
-        return redirect(url_for("login"))
+        # Use client-side redirect to preserve hash fragments
+        return render_template_string("""
+            <!DOCTYPE html>
+            <html>
+            <head><title>Redirecting...</title></head>
+            <body>
+                <script>
+                    sessionStorage.setItem('intended_url_after_login', window.location.href);
+                    window.location.href = '/login';
+                </script>
+            </body>
+            </html>
+        """)
 
     # Handle admin settings form POST
     if request.method == "POST" and (
@@ -3366,7 +3412,19 @@ def medialists():
     selected_library = request.args.get('library')
     selected_service = request.args.get('service', 'plex')  # 'plex' or 'abs'
     if not session.get("authenticated"):
-        return redirect(url_for("login"))
+        # Use client-side redirect to preserve hash fragments
+        return render_template_string("""
+            <!DOCTYPE html>
+            <html>
+            <head><title>Redirecting...</title></head>
+            <body>
+                <script>
+                    sessionStorage.setItem('intended_url_after_login', window.location.href);
+                    window.location.href = '/login';
+                </script>
+            </body>
+            </html>
+        """)
 
     def fetch_titles_for_library(section_id):
         titles = []
