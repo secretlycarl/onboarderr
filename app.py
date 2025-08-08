@@ -4164,7 +4164,7 @@ def setup():
         
         safe_set_key(env_path, "SETUP_COMPLETE", "1")
         load_dotenv(override=True)
-        return redirect(url_for("setup_complete"))
+        return redirect(url_for("setup_complete", from_setup="true"))
     return render_template("setup.html", error_message=error_message, ip_lists=get_ip_lists())
 
 def ensure_worker_running():
@@ -4218,8 +4218,18 @@ def trigger_poster_downloads():
 @app.route("/setup_complete")
 @limiter.exempt
 def setup_complete():
-    # Check if this is from services submission (trigger restart)
+    # Security check: Verify this request is legitimate
+    # Check if this is from a legitimate form submission
     from_services = request.args.get('from_services', 'false').lower() == 'true'
+    from_setup = request.args.get('from_setup', 'false').lower() == 'true'
+    
+    # If not from legitimate form submission, redirect to login
+    if not from_services and not from_setup:
+        log_security_event("unauthorized_setup_complete_access", get_client_ip(), 
+                         {"user_agent": request.headers.get('User-Agent', 'Unknown'),
+                          "referer": request.headers.get('Referer', 'None')})
+        return redirect(url_for("login"))
+    
     restart_delay = request.args.get('restart_delay', '15')
     changed_settings = request.args.get('changed_settings', '').split(',') if request.args.get('changed_settings') else []
     
