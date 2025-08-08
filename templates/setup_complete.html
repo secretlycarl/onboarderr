@@ -27,33 +27,135 @@
             <div class="countdown-container">
                 <div class="countdown-bar-container">
                     <div class="countdown-bar" id="countdownBar"></div>
-                    <span class="countdown-label" id="countdownLabel">Reloading in 15 seconds...</span>
+                    <span class="countdown-label" id="countdownLabel">Preparing to restart...</span>
                 </div>
             </div>
 
-            <a href="/" id="loginBtn" class="login-btn">Go to Login</a>
+            <a href="/" id="loginBtn" class="login-btn" style="display: none;">Go to Login</a>
         </div>
     </div>
     
     <script>
         window.addEventListener('DOMContentLoaded', function() {
+            // Get restart configuration from backend
+            const restartDelay = '{{ restart_delay|default('10') }}';
+            const isAdaptive = {% if is_adaptive %}true{% else %}false{% endif %};
+            const changedSettings = {{ changed_settings|tojson|safe }};
+            
             // Check if restart was already triggered from backend
             const urlParams = new URLSearchParams(window.location.search);
             const fromServices = urlParams.get('from_services');
             
-            if (!fromServices) {
-                // Only trigger restart if not coming from services
-                setTimeout(function() {
-                    fetch('/trigger_restart', {method: 'POST'});
-                }, 1000);
+            let totalSeconds = 5; // Default to 5 seconds for immediate settings
+            let elapsed = 0;
+            let bar = document.getElementById('countdownBar');
+            let label = document.getElementById('countdownLabel');
+            let waiting = false;
+            let restartTriggered = false;
+            let posterCheckInterval = null;
+            let lastPosterStatus = null;
+
+            // Determine initial countdown based on restart type
+            if (isAdaptive) {
+                totalSeconds = 5; // Start with short delay, will be extended if needed
+                label.textContent = 'Checking poster downloads...';
+            } else if (restartDelay === '5') {
+                totalSeconds = 5;
+                label.textContent = 'Applying settings...';
+            } else {
+                totalSeconds = parseInt(restartDelay) || 5;
+                label.textContent = 'Applying settings...';
             }
 
-            var totalSeconds = 15;
-            var elapsed = 0;
-            var bar = document.getElementById('countdownBar');
-            var label = document.getElementById('countdownLabel');
-            var waiting = false;
+            // Function to check restart readiness
+            function checkRestartReadiness() {
+                fetch('/check-restart-readiness', {method: 'GET', cache: 'no-store'})
+                    .then(function(response) {
+                        if (response.ok) {
+                            return response.json();
+                        } else {
+                            throw new Error('Network response was not ok');
+                        }
+                    })
+                    .then(function(data) {
+                        // Update poster status display
+                        if (data.poster_status) {
+                            updatePosterStatus(data.poster_status);
+                        }
+                        
+                        // Check if we're ready to restart
+                        if (data.ready && !restartTriggered) {
+                            // System is ready, trigger restart immediately
+                            triggerRestart();
+                        } else if (data.should_wait_for_posters && !restartTriggered) {
+                            // Still waiting for posters, extend countdown
+                            if (isAdaptive) {
+                                totalSeconds = Math.max(totalSeconds, elapsed + 10); // Add 10 more seconds
+                                label.textContent = 'Waiting for poster downloads to complete...';
+                            }
+                        }
+                    })
+                    .catch(function(error) {
+                        console.error('Error checking restart readiness:', error);
+                    });
+            }
 
+            // Function to update poster status display
+            function updatePosterStatus(posterStatus) {
+                if (JSON.stringify(posterStatus) === JSON.stringify(lastPosterStatus)) {
+                    return; // Don't update if status hasn't changed
+                }
+                lastPosterStatus = JSON.parse(JSON.stringify(posterStatus));
+                
+                if (posterStatus.in_progress) {
+                    const progress = posterStatus.progress;
+                    const activeLibraries = Object.keys(progress);
+                    
+                    if (activeLibraries.length > 0) {
+                        // Show detailed progress for active libraries
+                        const libraryDetails = activeLibraries.map(libId => {
+                            const libProgress = progress[libId];
+                            if (libProgress && libProgress.total > 0) {
+                                const percent = Math.round((libProgress.current / libProgress.total) * 100);
+                                const libName = libProgress.library_name || `Library ${libId}`;
+                                return `${libName}: ${libProgress.current}/${libProgress.total} (${percent}%)`;
+                            }
+                            return 'processing';
+                        }).join(', ');
+                        
+                        label.textContent = `Downloading posters: ${libraryDetails}`;
+                    } else {
+                        label.textContent = 'Downloading posters and info...';
+                    }
+                } else if (posterStatus.worker_running) {
+                    label.textContent = 'Processing poster downloads...';
+                } else if (posterStatus.queue_size > 0) {
+                    label.textContent = `Queued poster downloads (${posterStatus.queue_size} items)...`;
+                } else {
+                    label.textContent = 'Preparing to restart...';
+                }
+            }
+
+            // Function to trigger restart
+            function triggerRestart() {
+                if (restartTriggered) return;
+                restartTriggered = true;
+                
+                label.textContent = 'Triggering restart...';
+                document.getElementById('loginBtn').style.display = 'inline-block';
+                
+                fetch('/trigger_restart', {method: 'POST'})
+                    .then(function() {
+                        label.textContent = 'Restart triggered! Checking if login page is online...';
+                        checkLoginAndRedirect();
+                    })
+                    .catch(function(error) {
+                        console.error('Error triggering restart:', error);
+                        label.textContent = 'Error triggering restart. Please check logs.';
+                    });
+            }
+
+            // Function to check if login page is online
             function checkLoginAndRedirect() {
                 document.getElementById('loginBtn').style.display = 'inline-block';
                 label.textContent = 'Checking if login page is online...';
@@ -73,23 +175,61 @@
                     });
             }
 
+            // Function to update countdown bar
             function updateBar() {
                 if (waiting) return;
-                elapsed += 0.1; // Changed from 0.5 to 0.1 for smoother animation
+                elapsed += 0.1;
                 var percent = Math.min(100, (elapsed / totalSeconds) * 100);
                 bar.style.width = percent + '%';
-                var remaining = Math.ceil(totalSeconds - elapsed);
-                label.textContent = 'Reloading in ' + remaining + ' second' + (remaining !== 1 ? 's' : '') + '...';
+                
                 if (elapsed < totalSeconds) {
-                    setTimeout(updateBar, 100); // Changed from 500ms to 100ms for smoother animation
+                    setTimeout(updateBar, 100);
                 } else {
                     waiting = true;
-                    document.getElementById('loginBtn').style.display = 'inline-block';
-                    label.textContent = 'Checking if login page is online...';
-                    checkLoginAndRedirect();
+                    if (isAdaptive) {
+                        // For adaptive restarts, check if we're ready
+                        checkRestartReadiness();
+                    } else {
+                        // For standard restarts, trigger immediately
+                        triggerRestart();
+                    }
                 }
             }
-            updateBar();
+
+            // Function to start adaptive polling
+            function startAdaptivePolling() {
+                if (posterCheckInterval) {
+                    clearInterval(posterCheckInterval);
+                }
+                
+                posterCheckInterval = setInterval(function() {
+                    checkRestartReadiness();
+                }, 2000); // Check every 2 seconds
+            }
+
+            // Initialize based on restart type
+            if (isAdaptive) {
+                // For adaptive restarts, start polling immediately
+                startAdaptivePolling();
+                
+                // Start countdown but be ready to adjust
+                updateBar();
+                
+                // Check readiness immediately
+                setTimeout(function() {
+                    checkRestartReadiness();
+                }, 1000);
+            } else {
+                // For standard restarts, only trigger restart if not from services
+                if (!fromServices) {
+                    setTimeout(function() {
+                        fetch('/trigger_restart', {method: 'POST'});
+                    }, 1000);
+                }
+                
+                // Start countdown
+                updateBar();
+            }
         });
     </script>
 </body>

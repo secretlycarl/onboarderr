@@ -54,6 +54,12 @@ poster_download_lock = Lock()
 poster_download_running = False
 poster_download_progress = {}
 
+# Adaptive restart configuration
+RESTART_DELAY_SECONDS = int(os.getenv("RESTART_DELAY_SECONDS", "5"))
+POSTER_DOWNLOAD_TIMEOUT = int(os.getenv("POSTER_DOWNLOAD_TIMEOUT", "300"))
+IMMEDIATE_RESTART_DELAY = int(os.getenv("IMMEDIATE_RESTART_DELAY", "5"))
+STANDARD_RESTART_DELAY = int(os.getenv("STANDARD_RESTART_DELAY", "5"))
+
 # Library caching infrastructure
 LIBRARY_CACHE_TTL = 86400  # 24 hour cache (libraries don't change often)
 POSTER_REFRESH_INTERVAL = 86400  # 24 hours
@@ -2047,8 +2053,42 @@ def services():
             # Library selection changed, trigger poster refresh
             refresh_posters_on_demand()
 
-        # Redirect to setup_complete to trigger restart and show countdown
-        return redirect(url_for("setup_complete", from_services="true"))
+        # Track what settings changed for adaptive restart
+        changed_settings = set()
+        
+        # Check which settings actually changed
+        for field in ["server_name", "plex_url", "audiobooks_id", "accent_color_text", 
+                     "quick_access_enabled", "discord_webhook", "discord_username", 
+                     "discord_avatar", "discord_color", "discord_notify_plex", 
+                     "discord_notify_abs", "discord_notify_rate_limiting",
+                     "discord_notify_ip_management", "discord_notify_login_attempts",
+                     "discord_notify_form_rate_limiting", "library_carousels",
+                     "qa_plex_enabled", "qa_audiobookshelf_enabled", "qa_tautulli_enabled",
+                     "qa_overseerr_enabled", "qa_jellyseerr_enabled", "ip_management_enabled"]:
+            if field in request.form:
+                changed_settings.add(field)
+        
+        # Check for poster-dependent settings
+        if "plex_token" in request.form and request.form.get("plex_token", "").strip():
+            changed_settings.add("plex_token")
+        if "library_ids" in request.form:
+            changed_settings.add("library_ids")
+        if "audiobooks_id" in request.form and request.form.get("audiobooks_id", "").strip():
+            changed_settings.add("audiobooks_id")
+        if "audiobookshelf_url" in request.form and request.form.get("audiobookshelf_url", "").strip():
+            changed_settings.add("audiobookshelf_url")
+        if "audiobookshelf_token" in request.form and request.form.get("audiobookshelf_token", "").strip():
+            changed_settings.add("audiobookshelf_token")
+        if "abs_enabled" in request.form:
+            changed_settings.add("abs_enabled")
+        
+        # Calculate restart delay
+        restart_delay = get_restart_delay_for_changes(changed_settings)
+        
+        # Redirect to setup_complete with adaptive restart info
+        return redirect(url_for("setup_complete", from_services="true", 
+                              restart_delay=str(restart_delay),
+                              changed_settings=",".join(changed_settings)))
 
     # Handle Plex/Audiobookshelf request deletion
     if request.method == "POST":
@@ -2899,11 +2939,17 @@ def download_and_cache_posters_for_libraries(libraries, limit=None, background=F
                             poster_download_progress[section_id] = {
                                 'current': i + 1,
                                 'total': len(items),
-                                'successful': successful_downloads
+                                'successful': successful_downloads,
+                                'library_name': library_name
                             }
             
             if debug_mode:
                 print(f"[INFO] Downloaded {successful_downloads}/{len(items)} posters for library {lib['title']}")
+            
+            # Clear progress for this library when complete
+            with poster_download_lock:
+                if section_id in poster_download_progress:
+                    del poster_download_progress[section_id]
             
             return successful_downloads
             
@@ -2955,6 +3001,10 @@ def background_poster_worker():
                 if debug_mode:
                     print("[INFO] Completed ABS poster download")
             
+            # Clear all progress when work is complete
+            with poster_download_lock:
+                poster_download_progress.clear()
+            
             poster_download_queue.task_done()
             
         except queue.Empty:
@@ -2986,6 +3036,95 @@ def is_poster_download_in_progress():
     """Check if poster downloads are currently in progress"""
     with poster_download_lock:
         return len(poster_download_progress) > 0
+
+def should_wait_for_posters():
+    """Determine if we should wait for poster downloads to complete"""
+    # Check if poster downloads are in progress
+    if is_poster_download_in_progress():
+        return True
+    
+    # Check if there are items in the download queue
+    try:
+        queue_size = poster_download_queue.qsize()
+        if queue_size > 0:
+            return True
+    except:
+        pass
+    
+    # Don't check if worker is running - it's always running
+    # The worker is designed to run continuously and only processes work when available
+    return False
+
+def wait_for_poster_completion(timeout_seconds=300):
+    """Wait for poster downloads to complete with timeout"""
+    start_time = time.time()
+    
+    while should_wait_for_posters():
+        if time.time() - start_time > timeout_seconds:
+            if debug_mode:
+                print(f"[WARN] Poster download timeout reached after {timeout_seconds} seconds")
+            return False
+        
+        time.sleep(1)
+    
+    return True
+
+def get_restart_delay_for_changes(changed_settings):
+    """Calculate restart delay based on what settings changed"""
+    # Immediate restart settings (5 seconds) - no poster downloads needed
+    immediate_settings = {
+        'server_name', 'accent_color_text', 'quick_access_enabled',
+        'qa_plex_enabled', 'qa_audiobookshelf_enabled', 'qa_tautulli_enabled',
+        'qa_overseerr_enabled', 'qa_jellyseerr_enabled', 'ip_management_enabled',
+        'discord_webhook', 'discord_username', 'discord_avatar', 'discord_color',
+        'discord_notify_plex', 'discord_notify_abs', 'discord_notify_rate_limiting',
+        'discord_notify_ip_management', 'discord_notify_login_attempts',
+        'discord_notify_form_rate_limiting', 'library_carousels'
+    }
+    
+    # Poster-dependent settings (adaptive delay) - need to wait for poster downloads
+    poster_dependent_settings = {
+        'plex_token', 'library_ids', 'audiobooks_id', 'audiobookshelf_url',
+        'audiobookshelf_token', 'abs_enabled'
+    }
+    
+    # Check if any poster-dependent settings changed
+    if any(setting in changed_settings for setting in poster_dependent_settings):
+        return "adaptive"
+    
+    # Check if any immediate settings changed
+    if any(setting in changed_settings for setting in immediate_settings):
+        return IMMEDIATE_RESTART_DELAY
+    
+    # Default to immediate delay for any other changes
+    return IMMEDIATE_RESTART_DELAY
+
+def is_restart_ready():
+    """Check if system is ready for restart"""
+    # If no poster downloads are in progress, we're ready
+    if not should_wait_for_posters():
+        return True
+    
+    # If we've been waiting too long, proceed anyway
+    return False
+
+def wait_for_poster_completion(timeout_seconds=300):
+    """Wait for poster downloads to complete with timeout"""
+    start_time = time.time()
+    while should_wait_for_posters() and (time.time() - start_time) < timeout_seconds:
+        time.sleep(1)
+    return not should_wait_for_posters()
+
+def get_adaptive_restart_delay():
+    """Calculate adaptive restart delay based on current operations"""
+    if should_wait_for_posters():
+        # Wait for posters with timeout
+        if wait_for_poster_completion(POSTER_DOWNLOAD_TIMEOUT):
+            return 5  # Quick restart after posters complete
+        else:
+            return 10  # Short delay if timeout reached
+    else:
+        return IMMEDIATE_RESTART_DELAY
 
 def strip_articles(title):
     """Strip articles (A, An, The) from the beginning of a title for sorting purposes."""
@@ -3426,6 +3565,34 @@ def trigger_restart():
     threading.Thread(target=restart_container_delayed, daemon=True).start()
     return jsonify({"status": "restarting"})
 
+@app.route("/check-restart-readiness", methods=["GET"])
+@csrf.exempt
+def check_restart_readiness():
+    """Check if the system is ready for restart"""
+    try:
+        should_wait = should_wait_for_posters()
+        ready = not should_wait  # Ready if we don't need to wait for posters
+        
+        poster_status = {
+            "in_progress": is_poster_download_in_progress(),
+            "worker_running": poster_download_running,
+            "queue_size": poster_download_queue.qsize() if hasattr(poster_download_queue, 'qsize') else 0,
+            "progress": get_poster_download_progress()
+        }
+        
+        if debug_mode:
+            print(f"[DEBUG] Restart readiness check: ready={ready}, should_wait={should_wait}, poster_status={poster_status}")
+        
+        return jsonify({
+            "ready": ready,
+            "poster_status": poster_status,
+            "should_wait_for_posters": should_wait
+        })
+    except Exception as e:
+        if debug_mode:
+            print(f"Error checking restart readiness: {e}")
+        return jsonify({"ready": True, "error": str(e)})
+
 # Update index route to check setup status
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -3817,10 +3984,17 @@ def trigger_poster_downloads():
 def setup_complete():
     # Check if this is from services submission (trigger restart)
     from_services = request.args.get('from_services', 'false').lower() == 'true'
+    restart_delay = request.args.get('restart_delay', '15')
+    changed_settings = request.args.get('changed_settings', '').split(',') if request.args.get('changed_settings') else []
+    
+    # Determine if this is an adaptive restart
+    is_adaptive = restart_delay == 'adaptive'
     
     if from_services:
-        # Trigger restart for services changes
-        threading.Thread(target=restart_container_delayed, daemon=True).start()
+        # Only trigger restart immediately for non-adaptive changes that don't require poster downloads
+        if not is_adaptive and not should_wait_for_posters():
+            # Trigger restart for immediate changes when no posters are downloading
+            threading.Thread(target=restart_container_delayed, daemon=True).start()
     
     # Trigger poster downloads immediately after setup completion
     try:
@@ -3869,7 +4043,10 @@ def setup_complete():
         if debug_mode:
             print(f"Warning: Could not queue poster downloads after setup: {e}")
     
-    return render_template("setup_complete.html")
+    return render_template("setup_complete.html", 
+                         restart_delay=restart_delay,
+                         is_adaptive=is_adaptive,
+                         changed_settings=changed_settings)
 
 def periodic_poster_refresh(libraries, interval_hours=6):
     def refresh():
