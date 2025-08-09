@@ -1946,7 +1946,6 @@ a:hover {
 .jump-sections-list {
   display: flex;
   flex-direction: column;
-  gap: 0.25em;
 }
 
 .jump-sections-link {

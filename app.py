@@ -801,7 +801,7 @@ def get_plex_libraries(force_refresh=False):
 # --- File read/write: always use utf-8 encoding and os.path.join ---
 def should_refresh_posters(library_id):
     """
-    Check if posters for a library need refreshing based on age.
+    Check if posters for a library need refreshing based on age or missing metadata.
     Returns True if posters should be refreshed, False otherwise.
     """
     poster_dir = os.path.join("static", "posters", str(library_id))
@@ -813,11 +813,19 @@ def should_refresh_posters(library_id):
     if not poster_files:
         return True
     
+    # Check for missing metadata files - if any poster is missing metadata, refresh is needed
+    for poster_file in poster_files:
+        if poster_file.startswith('poster_') and poster_file.endswith('.webp'):
+            meta_file = poster_file.replace('.webp', '.json')
+            meta_path = os.path.join(poster_dir, meta_file)
+            if not os.path.exists(meta_path):
+                if debug_mode:
+                    print(f"[DEBUG] Missing metadata for {poster_file}, triggering refresh for library {library_id}")
+                return True
+    
     # Check the age of the most recent poster file
     most_recent_time = max(os.path.getmtime(os.path.join(poster_dir, f)) for f in poster_files)
     current_time = time.time()
-    
-
     
     # Return True if posters are older than POSTER_REFRESH_INTERVAL
     return (current_time - most_recent_time) > POSTER_REFRESH_INTERVAL
@@ -851,6 +859,106 @@ def clear_library_cache():
         library_cache_timestamp = 0
     if debug_mode:
         print("[DEBUG] Library cache cleared")
+
+def fix_missing_metadata_files():
+    """Check for and fix missing metadata files for existing posters"""
+    try:
+        if debug_mode:
+            print("[DEBUG] Checking for missing metadata files...")
+        
+        # Get Plex credentials
+        plex_token = os.getenv("PLEX_TOKEN")
+        plex_url = os.getenv("PLEX_URL")
+        
+        if not plex_token or not plex_url:
+            if debug_mode:
+                print("[ERROR] Plex credentials not available for metadata fix")
+            return False
+        
+        headers = {"X-Plex-Token": plex_token}
+        fixed_count = 0
+        
+        # Check each library directory
+        for lib_dir in ["posters/movies", "posters/shows"]:
+            if not os.path.exists(lib_dir):
+                continue
+                
+            if debug_mode:
+                print(f"[DEBUG] Checking library directory: {lib_dir}")
+            
+            # Find all poster files
+            poster_files = [f for f in os.listdir(lib_dir) if f.endswith('.webp')]
+            
+            for poster_file in poster_files:
+                # Extract rating key from filename
+                if poster_file.startswith('poster_') and poster_file.endswith('.webp'):
+                    rating_key = poster_file[7:-5]  # Remove 'poster_' prefix and '.webp' suffix
+                    meta_file = poster_file.replace('.webp', '.json')
+                    meta_path = os.path.join(lib_dir, meta_file)
+                    
+                    # If metadata file is missing, try to recreate it
+                    if not os.path.exists(meta_path):
+                        if debug_mode:
+                            print(f"[DEBUG] Missing metadata for poster: {poster_file}, ratingKey: {rating_key}")
+                        
+                        try:
+                            # Try to fetch metadata from Plex
+                            meta_url = f"{plex_url}/library/metadata/{rating_key}"
+                            meta_resp = requests.get(meta_url, headers=headers, timeout=10)
+                            
+                            if meta_resp.status_code == 200:
+                                meta_root = ET.fromstring(meta_resp.content)
+                                
+                                # Extract basic info
+                                title_elem = meta_root.find(".//title")
+                                year_elem = meta_root.find(".//year")
+                                
+                                title = title_elem.text if title_elem is not None else f"Unknown_{rating_key}"
+                                year = year_elem.text if year_elem is not None else None
+                                
+                                # Extract GUIDs
+                                guids = {"imdb": None, "tmdb": None, "tvdb": None}
+                                for guid in meta_root.findall(".//Guid"):
+                                    gid = guid.attrib.get("id", "")
+                                    if gid.startswith("imdb://"):
+                                        guids["imdb"] = gid.replace("imdb://", "")
+                                    elif gid.startswith("tmdb://"):
+                                        guids["tmdb"] = gid.replace("tmdb://", "")
+                                    elif gid.startswith("tvdb://"):
+                                        guids["tvdb"] = gid.replace("tvdb://", "")
+                                
+                                # Create metadata
+                                meta = {
+                                    "title": title,
+                                    "ratingKey": rating_key,
+                                    "year": year,
+                                    "imdb": guids["imdb"],
+                                    "tmdb": guids["tmdb"],
+                                    "tvdb": guids["tvdb"],
+                                    "poster": poster_file
+                                }
+                                
+                                # Save metadata
+                                with open(meta_path, "w", encoding="utf-8") as f:
+                                    json.dump(meta, f, indent=2)
+                                
+                                fixed_count += 1
+                                if debug_mode:
+                                    print(f"[DEBUG] Fixed metadata for: {title} (ratingKey: {rating_key})")
+                            
+                        except Exception as e:
+                            if debug_mode:
+                                print(f"[ERROR] Failed to fix metadata for {poster_file}: {e}")
+        
+        if debug_mode:
+            print(f"[DEBUG] Metadata fix complete. Fixed {fixed_count} missing metadata files.")
+        
+        return fixed_count > 0
+        
+    except Exception as e:
+        if debug_mode:
+            print(f"[ERROR] Error in fix_missing_metadata_files: {e}")
+        return False
 
 def load_library_notes():
     if debug_mode:
@@ -2948,6 +3056,10 @@ def download_single_poster_with_metadata(item, lib_dir, index, headers):
         if file_age < 86400:  # 24 hours
             return True
     
+    # If poster exists but metadata is missing, we need to recreate the metadata
+    poster_exists = os.path.exists(out_path)
+    meta_exists = os.path.exists(meta_path)
+    
     try:
         # Get Plex credentials directly from environment
         plex_token = os.getenv("PLEX_TOKEN")
@@ -2958,19 +3070,24 @@ def download_single_poster_with_metadata(item, lib_dir, index, headers):
                 print(f"[ERROR] Plex credentials not available for poster download")
             return False
         
-        # Download poster
-        img_url = f"{plex_url}{item['thumb']}?X-Plex-Token={plex_token}"
-        r = requests.get(img_url, headers=headers, timeout=10)
-        if r.status_code == 200:
-            with open(out_path, "wb") as f:
-                f.write(r.content)
-        else:
-            return False
+        # Download poster only if it doesn't exist
+        if not poster_exists:
+            img_url = f"{plex_url}{item['thumb']}?X-Plex-Token={plex_token}"
+            r = requests.get(img_url, headers=headers, timeout=10)
+            if r.status_code == 200:
+                with open(out_path, "wb") as f:
+                    f.write(r.content)
+                if debug_mode:
+                    print(f"[DEBUG] Downloaded poster for {item.get('title', 'Unknown')} (ratingKey: {rating_key})")
+            else:
+                if debug_mode:
+                    print(f"[ERROR] Failed to download poster for {item.get('title', 'Unknown')}: HTTP {r.status_code}")
+                return False
+            
+            # Rate limiting - small delay between requests
+            time.sleep(0.1)
         
-        # Rate limiting - small delay between requests
-        time.sleep(0.1)
-        
-        # Fetch metadata
+        # Always try to fetch metadata (either for new items or items with missing metadata)
         guids = {"imdb": None, "tmdb": None, "tvdb": None}
         try:
             meta_url = f"{plex_url}/library/metadata/{item['ratingKey']}"
@@ -2985,9 +3102,14 @@ def download_single_poster_with_metadata(item, lib_dir, index, headers):
                         guids["tmdb"] = gid.replace("tmdb://", "")
                     elif gid.startswith("tvdb://"):
                         guids["tvdb"] = gid.replace("tvdb://", "")
+                if debug_mode:
+                    print(f"[DEBUG] Fetched metadata for {item.get('title', 'Unknown')} (ratingKey: {rating_key})")
+            else:
+                if debug_mode:
+                    print(f"[ERROR] Failed to fetch metadata for {item.get('title', 'Unknown')}: HTTP {meta_resp.status_code}")
         except Exception as e:
             if debug_mode:
-                print(f"Error fetching GUIDs for {item['ratingKey']}: {e}")
+                print(f"[ERROR] Error fetching GUIDs for {item['ratingKey']}: {e}")
         
         # Save metadata with thread-safe writing
         meta = {
@@ -3010,10 +3132,24 @@ def download_single_poster_with_metadata(item, lib_dir, index, headers):
             os.remove(meta_path)
         os.rename(temp_meta_path, meta_path)
         
+        if debug_mode:
+            print(f"[DEBUG] Successfully saved metadata for {item.get('title', 'Unknown')} (ratingKey: {rating_key})")
+        
         return True
     except Exception as e:
         if debug_mode:
-            print(f"Error downloading poster for {item.get('title', 'Unknown')}: {e}")
+            print(f"[ERROR] Error downloading poster/metadata for {item.get('title', 'Unknown')}: {e}")
+        # Clean up partial files on error
+        if not poster_exists and os.path.exists(out_path):
+            try:
+                os.remove(out_path)
+            except:
+                pass
+        if os.path.exists(meta_path + ".tmp"):
+            try:
+                os.remove(meta_path + ".tmp")
+            except:
+                pass
         return False
 
 def download_and_cache_posters_for_libraries(libraries, limit=None, background=False):
@@ -4362,6 +4498,17 @@ def setup_complete():
                         print("[INFO] Queued ABS poster download after setup")
                 
                 threading.Thread(target=queue_abs_posters_delayed, daemon=True).start()
+            
+            # Fix any missing metadata files after a delay
+            def fix_metadata_delayed():
+                time.sleep(5)  # Wait for poster downloads to complete
+                if debug_mode:
+                    print("[INFO] Checking for missing metadata files after setup")
+                fix_missing_metadata_files()
+                if debug_mode:
+                    print("[INFO] Completed metadata file check after setup")
+            
+            threading.Thread(target=fix_metadata_delayed, daemon=True).start()
     except Exception as e:
         if debug_mode:
             print(f"Warning: Could not queue poster downloads after setup: {e}")
@@ -5124,6 +5271,30 @@ def trigger_poster_downloads_route():
     except Exception as e:
         if debug_mode:
             print(f"Error triggering poster downloads: {e}")
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/fix-missing-metadata", methods=["POST"])
+@csrf.exempt
+def fix_missing_metadata_route():
+    """Manually trigger metadata fix for existing posters"""
+    if not session.get("admin_authenticated"):
+        return jsonify({"success": False, "error": "Unauthorized"})
+    
+    try:
+        if debug_mode:
+            print("[INFO] Manual metadata fix triggered by admin")
+        
+        # Run the metadata fix function
+        fixed_count = fix_missing_metadata_files()
+        
+        if fixed_count:
+            return jsonify({"success": True, "message": f"Fixed {fixed_count} missing metadata files"})
+        else:
+            return jsonify({"success": True, "message": "No missing metadata files found"})
+            
+    except Exception as e:
+        if debug_mode:
+            print(f"[ERROR] Error in manual metadata fix: {e}")
         return jsonify({"success": False, "error": str(e)})
 
 
