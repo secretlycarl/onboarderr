@@ -76,10 +76,8 @@ rate_limit_data = {
     'banned_ips': set(),                   # Set of banned IPs
     'whitelisted_ips': set(),             # Set of whitelisted IPs
     'rate_limit_notifications': defaultdict(int),  # IP -> notification count for rate limiting
-    'known_ips': set(),                    # Set of IPs that have accessed the site
     'first_failed_attempt_ips': set(),    # IPs that have had their first failed login attempt
-    'lockout_notified_ips': set(),        # IPs that have been notified about lockouts
-    'first_login_success_ips': set()      # IPs that have successfully logged in for the first time
+    'lockout_notified_ips': set()         # IPs that have been notified about lockouts
 }
 
 def is_running_in_docker():
@@ -195,27 +193,52 @@ def is_ip_banned(ip):
 
 def check_first_time_ip_access(ip):
     """Check if this is the first time an IP has accessed the site and notify if so"""
-    if ip in rate_limit_data['known_ips']:
-        return False
-    
-    # Add IP to known IPs
-    rate_limit_data['known_ips'].add(ip)
-    
-    # Send notification for first-time access
-    log_security_event("first_access", ip, "IP accessed the site for the first time")
-    return True
+    # Check if IP has been logged before by looking at security_log.json
+    try:
+        log_file = "security_log.json"
+        logs = load_json_file(log_file, [])
+        
+        # Check if this IP has any previous entries in the security log
+        for log_entry in logs:
+            if log_entry.get("ip_address") == ip:
+                # IP has been seen before, don't send notification
+                return False
+        
+        # This is truly a new IP - log the event and send notification
+        log_security_event("first_access", ip, "IP accessed the site for the first time")
+        return True
+        
+    except Exception as e:
+        if debug_mode:
+            print(f"Error checking first time IP access: {e}")
+        # If there's an error reading the log, fall back to logging the event
+        log_security_event("first_access", ip, "IP accessed the site for the first time")
+        return True
 
 def check_first_time_login_success(ip):
     """Check if this is the first time an IP has successfully logged in and notify if so"""
-    if ip in rate_limit_data['first_login_success_ips']:
-        return False
-    
-    # Add IP to first login success IPs
-    rate_limit_data['first_login_success_ips'].add(ip)
-    
-    # Send notification for first-time successful login
-    log_security_event("login_success", ip, "IP successfully logged in for the first time")
-    return True
+    # Check if IP has been logged before by looking at security_log.json
+    try:
+        log_file = "security_log.json"
+        logs = load_json_file(log_file, [])
+        
+        # Check if this IP has any previous login_success entries in the security log
+        for log_entry in logs:
+            if (log_entry.get("ip_address") == ip and 
+                log_entry.get("event_type") == "login_success"):
+                # IP has successfully logged in before, don't send notification
+                return False
+        
+        # This is truly a new successful login for this IP - log the event and send notification
+        log_security_event("login_success", ip, "IP successfully logged in for the first time")
+        return True
+        
+    except Exception as e:
+        if debug_mode:
+            print(f"Error checking first time login success: {e}")
+        # If there's an error reading the log, fall back to logging the event
+        log_security_event("login_success", ip, "IP successfully logged in for the first time")
+        return True
 
 def add_ip_to_whitelist(ip_or_range):
     """Add IP or IP range to whitelist"""
