@@ -1274,13 +1274,14 @@ def send_discord_notification(email, service_type, event_type=None):
             admin_link = f"{onboarderr_url}/services"
             description += f"\n\n[🔧 **Manage Users**]({admin_link})"
     
+    # Create payload for all cases
     payload = {
         "username": username,
         "embeds": [{
             "title": title,
             "description": description,
             "color": int(color.lstrip('#'), 16) if color.startswith('#') else 0,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }]
     }
     if avatar_url:
@@ -1329,7 +1330,7 @@ def send_security_discord_notification(event_type, ip, details):
             "title": "🚨 Security Alert",
             "description": description,
             "color": int(color.lstrip('#'), 16) if color.startswith('#') else 0,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat()
         }]
     }
     if avatar_url:
