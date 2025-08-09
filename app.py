@@ -1,45 +1,50 @@
 # app.py
+
+# Flask and Flask extensions
 from flask import Flask, render_template, render_template_string, request, redirect, url_for, session, jsonify, g
-import json
-from datetime import datetime, timezone
-import requests
-import xml.etree.ElementTree as ET
-import os
-from dotenv import load_dotenv, set_key
-import random
-import psutil
-import time
-import string
-import re
-from collections import defaultdict, OrderedDict
 from flask_wtf.csrf import generate_csrf
 from flask_wtf import CSRFProtect
-import platform
-import subprocess
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+# Standard library imports
+import json
 import os
-import signal
-import threading
-import shutil
+import time
 import secrets
 import tempfile
 import sys
-from PIL import Image
-import io
-import webbrowser
-from plexapi.server import PlexServer
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from threading import Lock
+import threading
 import queue
 import hashlib
 import base64
 import hmac
+import re
+import string
+import random
+import platform
+import subprocess
+import signal
+import shutil
+import webbrowser
+from datetime import datetime, timezone
+from collections import defaultdict, OrderedDict
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
+import io
+
+# Third-party imports
+import requests
+import xml.etree.ElementTree as ET
+from dotenv import load_dotenv, set_key
+import psutil
+from PIL import Image
+from plexapi.server import PlexServer
+import schedule
+import ipaddress
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-import schedule
-import ipaddress
 
 # Before load_dotenv()
 if not os.path.exists('.env') and os.path.exists('empty.env'):
@@ -76,6 +81,13 @@ rate_limit_data = {
     'rate_limit_notifications': defaultdict(int),  # IP -> notification count for rate limiting
     'first_failed_attempt_ips': set(),    # IPs that have had their first failed login attempt
     'lockout_notified_ips': set()         # IPs that have been notified about lockouts
+}
+
+# --- Rate Limiting Constants ---
+RATE_LIMIT_THRESHOLDS = {
+    'suspicious': int(os.getenv("RATE_LIMIT_IP_SUSPICIOUS_THRESHOLD", "20")),
+    'ban': int(os.getenv("RATE_LIMIT_IP_BAN_THRESHOLD", "50")),
+    'max_attempts': int(os.getenv("RATE_LIMIT_MAX_LOGIN_ATTEMPTS", os.getenv("RATE_LIMIT_LOGIN_ATTEMPTS", "5")))
 }
 
 def is_running_in_docker():
@@ -287,69 +299,86 @@ def get_ip_lists():
         'banned': list(rate_limit_data['banned_ips'])
     }
 
+def record_failed_attempt(ip, current_time):
+    """Record a single failed attempt"""
+    rate_limit_data['failed_attempts'][ip].append(current_time)
+    rate_limit_data['ip_monitoring'][ip] += 1
+
+def cleanup_old_attempts(ip, cutoff_time):
+    """Remove attempts older than cutoff time"""
+    rate_limit_data['failed_attempts'][ip] = [
+        t for t in rate_limit_data['failed_attempts'][ip] 
+        if t > cutoff_time
+    ]
+
+def check_threshold_violations(ip, failed_count):
+    """Check if IP violates suspicious or ban thresholds"""
+    if failed_count >= RATE_LIMIT_THRESHOLDS['ban']:
+        rate_limit_data['banned_ips'].add(ip)
+        log_security_event("ip_banned", ip, f"IP banned after {failed_count} failed attempts")
+        return 'banned'
+    elif failed_count >= RATE_LIMIT_THRESHOLDS['suspicious']:
+        log_security_event("ip_suspicious", ip, f"IP marked as suspicious after {failed_count} failed attempts")
+        return 'suspicious'
+    return None
+
+def check_lockout_conditions(ip, current_time, recent_attempts, failed_count):
+    """Determine if IP should be locked out"""
+    max_attempts = RATE_LIMIT_THRESHOLDS['max_attempts']
+    
+    # Check recent attempts in last 15 minutes
+    if len(recent_attempts) >= max_attempts:
+        return current_time
+    
+    # Check attempts in last hour
+    hour_ago = current_time - 3600
+    attempts_in_last_hour = [t for t in rate_limit_data['failed_attempts'][ip] if t > hour_ago]
+    
+    if len(attempts_in_last_hour) >= max_attempts:
+        sorted_attempts = sorted(attempts_in_last_hour)
+        return sorted_attempts[-max_attempts]
+    
+    return None
+
+def handle_security_notifications(ip, threshold_result, lockout_start, recent_attempts):
+    """Handle security event notifications"""
+    # Smart notification logic: Only notify on first failed attempt and when lockout occurs
+    if ip not in rate_limit_data['first_failed_attempt_ips']:
+        # This is the first failed attempt from this IP
+        rate_limit_data['first_failed_attempt_ips'].add(ip)
+        log_security_event("login_failed", ip, "First failed login attempt")
+    elif lockout_start and ip not in rate_limit_data['lockout_notified_ips']:
+        # IP just got locked out, notify about lockout
+        rate_limit_data['lockout_notified_ips'].add(ip)
+        log_security_event("login_lockout", ip, f"IP locked out after {len(recent_attempts)} failed attempts")
+
 def add_failed_attempt(ip, attempt_type="login"):
     """Record a failed authentication attempt"""
     if is_ip_whitelisted(ip):
         return
     
     current_time = time.time()
-    rate_limit_data['failed_attempts'][ip].append(current_time)
-    rate_limit_data['ip_monitoring'][ip] += 1
+    record_failed_attempt(ip, current_time)
     
     # Clean old attempts (older than 24 hours)
     cutoff_time = current_time - 86400
-    rate_limit_data['failed_attempts'][ip] = [
-        t for t in rate_limit_data['failed_attempts'][ip] 
-        if t > cutoff_time
-    ]
+    cleanup_old_attempts(ip, cutoff_time)
     
-    # Check if IP should be banned
+    # Check thresholds
     failed_count = len(rate_limit_data['failed_attempts'][ip])
-    suspicious_threshold = int(os.getenv("RATE_LIMIT_IP_SUSPICIOUS_THRESHOLD", "20"))
-    ban_threshold = int(os.getenv("RATE_LIMIT_IP_BAN_THRESHOLD", "50"))
+    threshold_result = check_threshold_violations(ip, failed_count)
     
-    if debug_mode:
-        print(f"[DEBUG] Failed attempt for IP {ip}: total attempts = {failed_count}")
-    
-    if failed_count >= ban_threshold:
-        rate_limit_data['banned_ips'].add(ip)
-        log_security_event("ip_banned", ip, f"IP banned after {failed_count} failed attempts")
-    elif failed_count >= suspicious_threshold:
-        log_security_event("ip_suspicious", ip, f"IP marked as suspicious after {failed_count} failed attempts")
-    
-    # Check if this failed attempt should trigger a lockout
-    max_attempts = int(os.getenv("RATE_LIMIT_MAX_LOGIN_ATTEMPTS", os.getenv("RATE_LIMIT_LOGIN_ATTEMPTS", "5")))
-    
-    # Check recent attempts in last 15 minutes
+    # Check lockout conditions
     recent_attempts = [t for t in rate_limit_data['failed_attempts'][ip] if t > current_time - 900]
+    lockout_start = check_lockout_conditions(ip, current_time, recent_attempts, failed_count)
     
-    if len(recent_attempts) >= max_attempts and ip not in rate_limit_data['lockout_start_times']:
-        # Start lockout period based on recent attempts
-        rate_limit_data['lockout_start_times'][ip] = current_time
+    if lockout_start and ip not in rate_limit_data['lockout_start_times']:
+        rate_limit_data['lockout_start_times'][ip] = lockout_start
         if debug_mode:
-            print(f"[DEBUG] IP {ip} locked out at {current_time} due to recent attempts")
-    elif failed_count >= max_attempts and ip not in rate_limit_data['lockout_start_times']:
-        # Check if we have enough attempts in the last hour to trigger lockout
-        hour_ago = current_time - 3600
-        attempts_in_last_hour = [t for t in rate_limit_data['failed_attempts'][ip] if t > hour_ago]
-        
-        if len(attempts_in_last_hour) >= max_attempts:
-            # Use the time of the max_attempts-th attempt as lockout start
-            sorted_attempts = sorted(attempts_in_last_hour)
-            lockout_start_time = sorted_attempts[-max_attempts]
-            rate_limit_data['lockout_start_times'][ip] = lockout_start_time
-            if debug_mode:
-                print(f"[DEBUG] IP {ip} locked out at {lockout_start_time} based on attempts in last hour")
+            print(f"[DEBUG] IP {ip} locked out at {lockout_start} due to recent attempts")
     
-    # Smart notification logic: Only notify on first failed attempt and when lockout occurs
-    if ip not in rate_limit_data['first_failed_attempt_ips']:
-        # This is the first failed attempt from this IP
-        rate_limit_data['first_failed_attempt_ips'].add(ip)
-        log_security_event("login_failed", ip, "First failed login attempt")
-    elif ip in rate_limit_data['lockout_start_times'] and ip not in rate_limit_data['lockout_notified_ips']:
-        # IP just got locked out, notify about lockout
-        rate_limit_data['lockout_notified_ips'].add(ip)
-        log_security_event("login_lockout", ip, f"IP locked out after {len(recent_attempts)} failed attempts")
+    # Handle notifications
+    handle_security_notifications(ip, threshold_result, lockout_start, recent_attempts)
 
 def check_rate_limit(ip, limit_type="login", form_type=None):
     """Check if IP is rate limited"""
@@ -2956,6 +2985,7 @@ def ajax_get_library_notes():
 
 # --- Use os.path.join for all file paths ---
 def download_and_cache_posters():
+    """Download and cache posters for libraries"""
     # Get Plex credentials directly from environment
     plex_token = os.getenv("PLEX_TOKEN")
     plex_url = os.getenv("PLEX_URL")
@@ -2965,63 +2995,96 @@ def download_and_cache_posters():
             print(f"[ERROR] Plex credentials not available for poster download")
         return
     
-    headers = {'X-Plex-Token': plex_token}
-    audiobook_dir = os.path.join("static", "posters", "audiobooks")
-    os.makedirs(audiobook_dir, exist_ok=True)
-
-    def save_images(section_id, out_dir, tag, limit):
-        url = f"{plex_url}/library/sections/{section_id}/all"
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            if debug_mode:
-                print(f"Failed to fetch from section {section_id}")
-            return
-
-        root = ET.fromstring(response.content)
-        posters = []
-        if section_id == AUDIOBOOKS_SECTION_ID:
-            if os.getenv("ABS_ENABLED", "yes") != "yes":
-                return
-            # For audiobooks, fetch all authors, then fetch their children (audiobooks)
-            for author in root.findall(".//Directory"):
-                author_key = author.attrib.get("key")
-                if author_key:
-                    author_url = f"{plex_url}{author_key}?X-Plex-Token={plex_token}"
-                    author_resp = requests.get(author_url, headers=headers)
-                    if author_resp.status_code == 200:
-                        author_root = ET.fromstring(author_resp.content)
-                        # Each audiobook is a Directory (album/book)
-                        for book in author_root.findall(".//Directory"):
-                            thumb = book.attrib.get("thumb")
-                            if thumb:
-                                posters.append(thumb)
-        else:
-            # Movies: .//Video, Shows: .//Directory
-            # (No longer used for movies or shows)
-            pass
-        random.shuffle(posters)
-
-        for i, rel_path in enumerate(posters[:limit]):
-            img_url = f"{plex_url}{rel_path}?X-Plex-Token={plex_token}"
-            out_path = os.path.join(out_dir, f"{tag}{i+1}.webp")
-            try:
-                r = requests.get(img_url, headers=headers)
-                with open(out_path, "wb") as f:
-                    f.write(r.content)
-            except Exception as e:
-                if debug_mode:
-                    print(f"Error saving {img_url}: {e}")
-
-    # Only audiobooks (if ABS is disabled)
-    if os.getenv("ABS_ENABLED", "yes") != "yes":
-        if debug_mode:
-            print("[INFO] ABS disabled, downloading audiobook posters from Plex")
-        save_images(AUDIOBOOKS_SECTION_ID, audiobook_dir, "audiobook", 25)
-    else:
-        # Download audiobook posters from ABS
+    # Only download audiobook posters from ABS (no more Plex fallback)
+    if os.getenv("ABS_ENABLED", "yes") == "yes":
         if debug_mode:
             print("[INFO] ABS enabled, downloading audiobook posters from ABS")
         download_abs_audiobook_posters()
+    else:
+        if debug_mode:
+            print("[INFO] ABS disabled, skipping audiobook poster download")
+
+def get_abs_headers():
+    """Get headers for ABS API requests"""
+    headers = {}
+    abs_token = os.getenv("AUDIOBOOKSHELF_TOKEN")
+    if abs_token:
+        headers["Authorization"] = f"Bearer {abs_token}"
+    else:
+        if debug_mode:
+            print("[INFO] No ABS token provided, trying without authentication")
+    return headers
+
+def fetch_abs_libraries(abs_url, headers):
+    """Fetch audiobook libraries from ABS API"""
+    response = requests.get(f"{abs_url}/api/libraries", headers=headers, timeout=10)
+    if response.status_code != 200:
+        if debug_mode:
+            print(f"[WARN] Failed to connect to ABS API: {response.status_code}")
+            print(f"[WARN] Response content: {response.text[:200]}...")
+        return None
+    
+    try:
+        response_data = response.json()
+        return response_data.get("libraries", [])
+    except Exception as e:
+        if debug_mode:
+            print(f"[WARN] Error parsing ABS response: {e}")
+            print(f"[WARN] Raw response: {response.text}")
+        return None
+
+def fetch_abs_books(abs_url, library_id, headers):
+    """Fetch books from a specific ABS library"""
+    books_response = requests.get(f"{abs_url}/api/libraries/{library_id}/items", headers=headers, timeout=10)
+    if books_response.status_code != 200:
+        if debug_mode:
+            print(f"[WARN] Failed to get books from library {library_id}: {books_response.status_code}")
+        return None
+    
+    try:
+        books_data = books_response.json()
+        return books_data.get("results", [])
+    except Exception as e:
+        if debug_mode:
+            print(f"[WARN] Error parsing books response for library {library_id}: {e}")
+        return None
+
+def download_abs_book_poster(abs_url, book, library_id, audiobook_dir, poster_count, headers):
+    """Download poster and metadata for a single ABS book"""
+    media = book.get("media", {})
+    cover_path = media.get("coverPath")
+    metadata = media.get("metadata", {})
+    title = metadata.get("title", "Unknown")
+    author = metadata.get("authorName", "")
+    
+    if not cover_path:
+        return poster_count
+    
+    item_id = book.get("id")
+    cover_url = f"{abs_url}/api/items/{item_id}/cover"
+    cover_response = requests.get(cover_url, headers=headers, timeout=10)
+    
+    if cover_response.status_code != 200:
+        return poster_count
+    
+    out_path = os.path.join(audiobook_dir, f"audiobook{poster_count+1}.webp")
+    meta_path = os.path.join(audiobook_dir, f"audiobook{poster_count+1}.json")
+    
+    # Save the poster image
+    with open(out_path, "wb") as f:
+        f.write(cover_response.content)
+    
+    # Save the metadata
+    meta_data = {
+        "title": title,
+        "author": author,
+        "id": item_id,
+        "library_id": library_id
+    }
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump(meta_data, f, ensure_ascii=False, indent=2)
+    
+    return poster_count + 1
 
 def download_abs_audiobook_posters():
     """Download audiobook posters from ABS API"""
@@ -3041,76 +3104,27 @@ def download_abs_audiobook_posters():
     os.makedirs(audiobook_dir, exist_ok=True)
     
     try:
-        # Fetch audiobooks from ABS API
-        headers = {}
-        abs_token = os.getenv("AUDIOBOOKSHELF_TOKEN")
-        if abs_token:
-            headers["Authorization"] = f"Bearer {abs_token}"
-        else:
-            if debug_mode:
-                print("[INFO] No ABS token provided, trying without authentication")
+        headers = get_abs_headers()
+        libraries = fetch_abs_libraries(abs_url, headers)
         
-        response = requests.get(f"{abs_url}/api/libraries", headers=headers, timeout=10)
-        if response.status_code == 200:
-            try:
-                response_data = response.json()
+        if not libraries:
+            return
+        
+        poster_count = 0
+        for library in libraries:
+            if isinstance(library, dict) and library.get("mediaType") == "book":
+                library_id = library.get("id")
+                books = fetch_abs_books(abs_url, library_id, headers)
                 
-                # Extract libraries array from response
-                libraries = response_data.get("libraries", [])
-                
-                poster_count = 0
-                for library in libraries:
-                    if isinstance(library, dict):
-                        if library.get("mediaType") == "book":
-                            library_id = library.get("id")
-                            books_response = requests.get(f"{abs_url}/api/libraries/{library_id}/items", headers=headers, timeout=10)
-                            if books_response.status_code == 200:
-                                books_data = books_response.json()
-                                for book in books_data.get("results", []):
-                                    # Get book details from the nested media structure
-                                    media = book.get("media", {})
-                                    cover_path = media.get("coverPath")
-                                    metadata = media.get("metadata", {})
-                                    title = metadata.get("title", "Unknown")
-                                    author = metadata.get("authorName", "")
-                                    
-                                    if cover_path:
-                                        # Use the correct cover URL pattern
-                                        item_id = book.get("id")
-                                        cover_url = f"{abs_url}/api/items/{item_id}/cover"
-                                        cover_response = requests.get(cover_url, headers=headers, timeout=10)
-                                        if cover_response.status_code == 200:
-                                            out_path = os.path.join(audiobook_dir, f"audiobook{poster_count+1}.webp")
-                                            meta_path = os.path.join(audiobook_dir, f"audiobook{poster_count+1}.json")
-                                            
-                                            # Save the poster image
-                                            with open(out_path, "wb") as f:
-                                                f.write(cover_response.content)
-                                            
-                                            # Save the metadata
-                                            meta_data = {
-                                                "title": title,
-                                                "author": author,
-                                                "id": item_id,
-                                                "library_id": library_id
-                                            }
-                                            with open(meta_path, "w", encoding="utf-8") as f:
-                                                json.dump(meta_data, f, ensure_ascii=False, indent=2)
-                                            
-                                            poster_count += 1
-                            else:
-                                if debug_mode:
-                                    print(f"[WARN] Failed to get books from library {library_id}: {books_response.status_code}")
-                if debug_mode:
-                    print(f"[INFO] Downloaded {poster_count} audiobook posters")
-            except Exception as e:
-                if debug_mode:
-                    print(f"[WARN] Error parsing ABS response: {e}")
-                print(f"[WARN] Raw response: {response.text}")
-        else:
-            if debug_mode:
-                print(f"[WARN] Failed to connect to ABS API: {response.status_code}")
-                print(f"[WARN] Response content: {response.text[:200]}...")
+                if books:
+                    for book in books:
+                        poster_count = download_abs_book_poster(
+                            abs_url, book, library_id, audiobook_dir, poster_count, headers
+                        )
+        
+        if debug_mode:
+            print(f"[INFO] Downloaded {poster_count} audiobook posters")
+            
     except Exception as e:
         if debug_mode:
             print(f"[WARN] Error downloading ABS audiobook posters: {e}")
@@ -3227,6 +3241,88 @@ def download_single_poster_with_metadata(item, lib_dir, index, headers):
                 pass
         return False
 
+def process_library_posters(lib, plex_url, headers, limit=None, background=False):
+    """Process poster downloads for a single library"""
+    section_id = lib["key"]
+    library_name = lib["title"]
+    
+    # Check if posters need refreshing
+    if not should_refresh_posters(section_id):
+        if debug_mode:
+            print(f"[DEBUG] Skipping poster download for {library_name} - posters are recent")
+        return 0
+    
+    lib_dir = os.path.join("static", "posters", section_id)
+    os.makedirs(lib_dir, exist_ok=True)
+    
+    try:
+        # Fetch library items
+        url = f"{plex_url}/library/sections/{section_id}/all"
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        root = ET.fromstring(response.content)
+        
+        # Collect items
+        items = []
+        for el in root.findall(".//Video"):
+            thumb = el.attrib.get("thumb")
+            rating_key = el.attrib.get("ratingKey")
+            title = el.attrib.get("title")
+            year = el.attrib.get("year")
+            if thumb and rating_key:
+                items.append({"thumb": thumb, "ratingKey": rating_key, "title": title, "year": year})
+        
+        for el in root.findall(".//Directory"):
+            thumb = el.attrib.get("thumb")
+            rating_key = el.attrib.get("ratingKey")
+            title = el.attrib.get("title")
+            if thumb and rating_key and not any(i["ratingKey"] == rating_key for i in items):
+                items.append({"thumb": thumb, "ratingKey": rating_key, "title": title})
+        
+        # Shuffle and limit
+        random.shuffle(items)
+        if limit is not None:
+            items = items[:limit]
+        
+        if debug_mode:
+            print(f"[DEBUG] Processing {len(items)} items for library {lib['title']}")
+        
+        # Process items with ThreadPoolExecutor for parallel downloads
+        successful_downloads = 0
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = []
+            for i, item in enumerate(items):
+                future = executor.submit(download_single_poster_with_metadata, item, lib_dir, i, headers)
+                futures.append(future)
+            
+            # Wait for completion with progress tracking
+            for i, future in enumerate(as_completed(futures)):
+                if future.result():
+                    successful_downloads += 1
+                if background and i % 5 == 0:  # Update progress every 5 items
+                    with poster_download_lock:
+                        poster_download_progress[section_id] = {
+                            'current': i + 1,
+                            'total': len(items),
+                            'successful': successful_downloads,
+                                'library_name': library_name
+                            }
+            
+            if debug_mode:
+                print(f"[INFO] Downloaded {successful_downloads}/{len(items)} posters for library {lib['title']}")
+            
+            # Clear progress for this library when complete
+            with poster_download_lock:
+                if section_id in poster_download_progress:
+                    del poster_download_progress[section_id]
+            
+            return successful_downloads
+            
+    except Exception as e:
+        if debug_mode:
+            print(f"Error fetching posters for section {section_id}: {e}")
+        return 0
+
 def download_and_cache_posters_for_libraries(libraries, limit=None, background=False):
     """Optimized poster downloading with background processing and rate limiting"""
     if not libraries:
@@ -3246,87 +3342,6 @@ def download_and_cache_posters_for_libraries(libraries, limit=None, background=F
     
     headers = {"X-Plex-Token": plex_token}
     
-    def process_library(lib):
-        section_id = lib["key"]
-        library_name = lib["title"]
-        
-        # Check if posters need refreshing
-        if not should_refresh_posters(section_id):
-            if debug_mode:
-                print(f"[DEBUG] Skipping poster download for {library_name} - posters are recent")
-            return 0
-        
-        lib_dir = os.path.join("static", "posters", section_id)
-        os.makedirs(lib_dir, exist_ok=True)
-        
-        try:
-            # Fetch library items
-            url = f"{plex_url}/library/sections/{section_id}/all"
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            root = ET.fromstring(response.content)
-            
-            # Collect items
-            items = []
-            for el in root.findall(".//Video"):
-                thumb = el.attrib.get("thumb")
-                rating_key = el.attrib.get("ratingKey")
-                title = el.attrib.get("title")
-                year = el.attrib.get("year")
-                if thumb and rating_key:
-                    items.append({"thumb": thumb, "ratingKey": rating_key, "title": title, "year": year})
-            
-            for el in root.findall(".//Directory"):
-                thumb = el.attrib.get("thumb")
-                rating_key = el.attrib.get("ratingKey")
-                title = el.attrib.get("title")
-                if thumb and rating_key and not any(i["ratingKey"] == rating_key for i in items):
-                    items.append({"thumb": thumb, "ratingKey": rating_key, "title": title})
-            
-            # Shuffle and limit
-            random.shuffle(items)
-            if limit is not None:
-                items = items[:limit]
-            
-            if debug_mode:
-                print(f"[DEBUG] Processing {len(items)} items for library {lib['title']}")
-            
-            # Process items with ThreadPoolExecutor for parallel downloads
-            successful_downloads = 0
-            with ThreadPoolExecutor(max_workers=3) as executor:
-                futures = []
-                for i, item in enumerate(items):
-                    future = executor.submit(download_single_poster_with_metadata, item, lib_dir, i, headers)
-                    futures.append(future)
-                
-                # Wait for completion with progress tracking
-                for i, future in enumerate(as_completed(futures)):
-                    if future.result():
-                        successful_downloads += 1
-                    if background and i % 5 == 0:  # Update progress every 5 items
-                        with poster_download_lock:
-                            poster_download_progress[section_id] = {
-                                'current': i + 1,
-                                'total': len(items),
-                                'successful': successful_downloads,
-                                'library_name': library_name
-                            }
-            
-            if debug_mode:
-                print(f"[INFO] Downloaded {successful_downloads}/{len(items)} posters for library {lib['title']}")
-            
-            # Clear progress for this library when complete
-            with poster_download_lock:
-                if section_id in poster_download_progress:
-                    del poster_download_progress[section_id]
-            
-            return successful_downloads
-            
-        except Exception as e:
-            if debug_mode:
-                print(f"Error fetching posters for section {section_id}: {e}")
-            return 0
-    
     if background:
         # Queue for background processing
         poster_download_queue.put(('libraries', libraries, limit))
@@ -3337,7 +3352,7 @@ def download_and_cache_posters_for_libraries(libraries, limit=None, background=F
         # Process immediately
         total_downloaded = 0
         for lib in libraries:
-            downloaded = process_library(lib)
+            downloaded = process_library_posters(lib, plex_url, headers, limit, background)
             total_downloaded += downloaded
         return total_downloaded
 
@@ -3603,195 +3618,144 @@ def group_books_by_letter(books):
         sorted_keys.append('Other')
     return OrderedDict((k, sorted(groups[k], key=lambda b: strip_articles(b.get("title", "")).casefold())) for k in sorted_keys)
 
-@app.route("/medialists")
-def medialists():
-    # Get query parameters for pre-selecting library
-    selected_library = request.args.get('library')
-    selected_service = request.args.get('service', 'plex')  # 'plex' or 'abs'
-    if not session.get("authenticated"):
-        # Use client-side redirect to preserve hash fragments
-        return render_template_string("""
-            <!DOCTYPE html>
-            <html>
-            <head><title>Redirecting...</title></head>
-            <body>
-                <script>
-                    sessionStorage.setItem('intended_url_after_login', window.location.href);
-                    window.location.href = '/login';
-                </script>
-            </body>
-            </html>
-        """)
-
-    def fetch_titles_for_library(section_id):
-        titles = []
-        if not section_id:
+def fetch_titles_for_library(section_id):
+    """Fetch library titles from cached poster metadata or Plex API as fallback"""
+    titles = []
+    if not section_id:
+        return titles
+    
+    # Use cached poster metadata instead of live Plex queries
+    poster_dir = os.path.join("static", "posters", section_id)
+    if os.path.exists(poster_dir):
+        # Get all JSON files
+        json_files = [f for f in os.listdir(poster_dir) if f.endswith(".json")]
+        
+        for fname in json_files:
+            meta_path = os.path.join(poster_dir, fname)
+            try:
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+                
+                title = meta.get("title")
+                if title and title not in titles:
+                    titles.append(title)
+            except Exception as e:
+                if debug_mode:
+                    print(f"Error loading cached metadata from {meta_path}: {e}")
+                continue
+    
+    # If no cached data available, fall back to Plex API (but this should be rare)
+    if not titles:
+        if debug_mode:
+            print(f"[DEBUG] No cached data for section {section_id}, falling back to Plex API")
+        
+        # Get Plex credentials directly from environment
+        plex_token = os.getenv("PLEX_TOKEN")
+        plex_url = os.getenv("PLEX_URL")
+        
+        if not plex_token or not plex_url:
+            if debug_mode:
+                print("[ERROR] Plex credentials not available for fetching titles")
             return titles
         
-        # Use cached poster metadata instead of live Plex queries
-        poster_dir = os.path.join("static", "posters", section_id)
-        if os.path.exists(poster_dir):
-            # Get all JSON files
-            json_files = [f for f in os.listdir(poster_dir) if f.endswith(".json")]
-            
-            for fname in json_files:
-                meta_path = os.path.join(poster_dir, fname)
-                try:
-                    with open(meta_path, "r", encoding="utf-8") as f:
-                        meta = json.load(f)
-                    
-                    title = meta.get("title")
-                    if title and title not in titles:
-                        titles.append(title)
-                except Exception as e:
-                    if debug_mode:
-                        print(f"Error loading cached metadata from {meta_path}: {e}")
-                    continue
-        
-        # If no cached data available, fall back to Plex API (but this should be rare)
-        if not titles:
+        headers = {"X-Plex-Token": plex_token}
+        url = f"{plex_url}/library/sections/{section_id}/all"
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            root = ET.fromstring(response.content)
+            for el in root.findall(".//Video"):
+                title = el.attrib.get("title")
+                if title:
+                    titles.append(title)
+            for el in root.findall(".//Directory"):
+                title = el.attrib.get("title")
+                if title and title not in titles:
+                    titles.append(title)
+        except Exception as e:
             if debug_mode:
-                print(f"[DEBUG] No cached data for section {section_id}, falling back to Plex API")
-            
-            # Get Plex credentials directly from environment
-            plex_token = os.getenv("PLEX_TOKEN")
-            plex_url = os.getenv("PLEX_URL")
-            
-            if not plex_token or not plex_url:
-                if debug_mode:
-                    print("[ERROR] Plex credentials not available for fetching titles")
-                return titles
-            
-            headers = {"X-Plex-Token": plex_token}
-            url = f"{plex_url}/library/sections/{section_id}/all"
-            try:
-                response = requests.get(url, headers=headers, timeout=10)
-                response.raise_for_status()
-                root = ET.fromstring(response.content)
-                for el in root.findall(".//Video"):
-                    title = el.attrib.get("title")
-                    if title:
-                        titles.append(title)
-                for el in root.findall(".//Directory"):
-                    title = el.attrib.get("title")
-                    if title and title not in titles:
-                        titles.append(title)
-            except Exception as e:
-                if debug_mode:
-                    print(f"Error fetching titles for section {section_id}: {e}")
-        
-        return titles
+                print(f"Error fetching titles for section {section_id}: {e}")
+    
+    return titles
 
-    def fetch_audiobooks(section_id):
-        books = {}
-        abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
+def fetch_audiobooks_from_cache():
+    """Fetch audiobooks from cached ABS data only (no Plex fallback)"""
+    books = {}
+    abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
+    
+    if not abs_enabled:
+        return books
+    
+    # Load cached audiobook data from static/posters/audiobooks
+    audiobook_dir = os.path.join("static", "posters", "audiobooks")
+    if os.path.exists(audiobook_dir):
+        # Get all JSON files
+        json_files = [f for f in os.listdir(audiobook_dir) if f.endswith(".json")]
         
-        if abs_enabled:
-            # Load cached audiobook data from static/posters/audiobooks
-            audiobook_dir = os.path.join("static", "posters", "audiobooks")
-            if os.path.exists(audiobook_dir):
-                # Get all JSON files
-                json_files = [f for f in os.listdir(audiobook_dir) if f.endswith(".json")]
+        for fname in json_files:
+            meta_path = os.path.join(audiobook_dir, fname)
+            try:
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
                 
-                for fname in json_files:
-                    meta_path = os.path.join(audiobook_dir, fname)
-                    try:
-                        with open(meta_path, "r", encoding="utf-8") as f:
-                            meta = json.load(f)
-                        
-                        title = meta.get("title")
-                        author = meta.get("author", "Unknown Author")
-                        
-                        if title and author:
-                            if author not in books:
-                                books[author] = []
-                            books[author].append(title)
-                    except Exception as e:
-                        if debug_mode:
-                            print(f"[WARN] Error loading cached audiobook metadata from {meta_path}: {e}")
-                        continue
-            return books
-        else:
-            # Only fetch from Plex if ABS is disabled
-            if not section_id:
-                return books
-            
-            # Get Plex credentials directly from environment
-            plex_token = os.getenv("PLEX_TOKEN")
-            plex_url = os.getenv("PLEX_URL")
-            
-            if not plex_token or not plex_url:
-                if debug_mode:
-                    print("[ERROR] Plex credentials not available for fetching audiobooks")
-                return books
-            
-            headers = {"X-Plex-Token": plex_token}
-            url = f"{plex_url}/library/sections/{section_id}/all"
-            try:
-                response = requests.get(url, headers=headers, timeout=10)
-                response.raise_for_status()
-                root = ET.fromstring(response.content)
-                for author in root.findall(".//Directory"):
-                    author_name = author.attrib.get("title")
-                    author_key = author.attrib.get("key")
-                    if author_name and author_key:
-                        author_url = f"{plex_url}{author_key}?X-Plex-Token={plex_token}"
-                        author_resp = requests.get(author_url, headers=headers)
-                        if author_resp.status_code == 200:
-                            author_root = ET.fromstring(author_resp.content)
-                            books[author_name] = []
-                            for book in author_root.findall(".//Directory"):
-                                book_title = book.attrib.get("title")
-                                if book_title:
-                                    books[author_name].append(book_title)
+                title = meta.get("title")
+                author = meta.get("author", "Unknown Author")
+                
+                if title and author:
+                    if author not in books:
+                        books[author] = []
+                    books[author].append(title)
             except Exception as e:
                 if debug_mode:
-                    print(f"Error fetching audiobooks from Plex: {e}")
-            return books
+                    print(f"[WARN] Error loading cached audiobook metadata from {meta_path}: {e}")
+                continue
+    
+    return books
 
-    def fetch_abs_books():
-        abs_books = []
-        abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
-        if not abs_enabled:
-            return abs_books
+def fetch_abs_books_from_cache():
+    """Fetch ABS books from cached data only (no Plex fallback)"""
+    abs_books = []
+    abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
+    if not abs_enabled:
+        return abs_books
+    
+    # Load cached audiobook data from static/posters/audiobooks
+    audiobook_dir = os.path.join("static", "posters", "audiobooks")
+    if os.path.exists(audiobook_dir):
+        # Get all JSON files
+        json_files = [f for f in os.listdir(audiobook_dir) if f.endswith(".json")]
         
-        # Load cached audiobook data from static/posters/audiobooks
-        audiobook_dir = os.path.join("static", "posters", "audiobooks")
-        if os.path.exists(audiobook_dir):
-            # Get all JSON files
-            json_files = [f for f in os.listdir(audiobook_dir) if f.endswith(".json")]
-            
-            for fname in json_files:
-                meta_path = os.path.join(audiobook_dir, fname)
-                try:
-                    with open(meta_path, "r", encoding="utf-8") as f:
-                        meta = json.load(f)
+        for fname in json_files:
+            meta_path = os.path.join(audiobook_dir, fname)
+            try:
+                with open(meta_path, "r", encoding="utf-8") as f:
+                    meta = json.load(f)
+                
+                title = meta.get("title")
+                author = meta.get("author")
+                
+                # Extract the number from the filename (e.g., "audiobook99.json" -> "99")
+                # and construct the corresponding webp filename
+                if fname.startswith("audiobook") and fname.endswith(".json"):
+                    number = fname[9:-5]  # Remove "audiobook" prefix and ".json" suffix
+                    cover_file = f"audiobook{number}.webp"
+                    cover_path = os.path.join(audiobook_dir, cover_file)
                     
-                    title = meta.get("title")
-                    author = meta.get("author")
-                    
-                    # Extract the number from the filename (e.g., "audiobook99.json" -> "99")
-                    # and construct the corresponding webp filename
-                    if fname.startswith("audiobook") and fname.endswith(".json"):
-                        number = fname[9:-5]  # Remove "audiobook" prefix and ".json" suffix
-                        cover_file = f"audiobook{number}.webp"
-                        cover_path = os.path.join(audiobook_dir, cover_file)
-                        
-                        # Only include if the cover file actually exists
-                        if os.path.exists(cover_path):
-                            cover_url = f"/static/posters/audiobooks/{cover_file}"
-                        else:
-                            cover_url = None
+                    # Only include if the cover file actually exists
+                    if os.path.exists(cover_path):
+                        cover_url = f"/static/posters/audiobooks/{cover_file}"
                     else:
                         cover_url = None
-                    
-                    if title:
-                        abs_books.append({
-                            "title": title,
-                            "author": author,
-                            "cover": cover_url,
-                        })
-                except Exception as e:
+                else:
+                    cover_url = None
+                
+                if title:
+                    abs_books.append({
+                        "title": title,
+                        "author": author,
+                        "cover": cover_url,
+                    })
+            except Exception as e:
                     if debug_mode:
                         print(f"[ABS] Error loading cached audiobook metadata from {meta_path}: {e}")
                     continue
@@ -4625,15 +4589,18 @@ def setup_complete():
                          is_adaptive=is_adaptive,
                          changed_settings=changed_settings)
 
+def periodic_poster_refresh_worker(libraries, interval_hours):
+    """Background worker for periodic poster refresh"""
+    while True:
+        if debug_mode:
+            print("[INFO] Refreshing library posters...")
+        # Use background processing for periodic refresh
+        download_and_cache_posters_for_libraries(libraries, background=True)
+        time.sleep(interval_hours * 3600)
+
 def periodic_poster_refresh(libraries, interval_hours=6):
-    def refresh():
-        while True:
-            if debug_mode:
-                print("[INFO] Refreshing library posters...")
-            # Use background processing for periodic refresh
-            download_and_cache_posters_for_libraries(libraries, background=True)
-            time.sleep(interval_hours * 3600)
-    t = threading.Thread(target=refresh, daemon=True)
+    """Start periodic poster refresh in background thread"""
+    t = threading.Thread(target=periodic_poster_refresh_worker, args=(libraries, interval_hours), daemon=True)
     t.start()
 
 def refresh_posters_on_demand(libraries=None):
@@ -5895,23 +5862,18 @@ def save_ip_lists_to_env():
     blacklisted_str = ",".join(list(rate_limit_data['banned_ips']))
     safe_set_key(env_path, "IP_BLACKLIST", blacklisted_str)
 
-if __name__ == "__main__":
-    # --- Dynamic configuration for section IDs ---
+def initialize_environment():
+    """Initialize environment variables and global configuration"""
     global MOVIES_SECTION_ID, SHOWS_SECTION_ID, AUDIOBOOKS_SECTION_ID
     MOVIES_SECTION_ID = os.getenv("MOVIES_ID")
     SHOWS_SECTION_ID = os.getenv("SHOWS_ID")
     AUDIOBOOKS_SECTION_ID = os.getenv("AUDIOBOOKS_ID")
     
-    # Define debug mode early so it's available for startup operations
     debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
-    
-    # Load IP lists from environment variables
-    load_ip_lists_from_env()
-    
-    # Check if this is the first run (setup not complete)
-    is_first_run = os.getenv("SETUP_COMPLETE", "0") != "1"
-    
-    # Only recreate library notes if they don't exist or are incomplete (only in main process, not reloader)
+    return debug_mode
+
+def setup_library_notes(debug_mode):
+    """Setup and recreate library notes if needed"""
     if os.environ.get('WERKZEUG_RUN_MAIN') != 'true' and os.getenv("SETUP_COMPLETE") == "1":
         # Check if library notes exist and are complete
         existing_notes = load_library_notes()
@@ -5927,70 +5889,120 @@ if __name__ == "__main__":
         else:
             if debug_mode:
                 print("[DEBUG] All library notes are up to date, skipping update")
-    
-    # Start background poster worker (only in main process, not reloader)
+
+def setup_poster_worker():
+    """Start background poster worker"""
     if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
         start_background_poster_worker()
-    
-    try:
-        if os.getenv("SETUP_COMPLETE") == "1":
-            # Get Plex credentials directly from environment
-            plex_token = os.getenv("PLEX_TOKEN")
-            if not plex_token:
-                if debug_mode:
-                    print("[WARN] Skipping poster download: PLEX_TOKEN is not set.")
-            else:
-                # Ensure worker is running before queuing downloads
-                ensure_worker_running()
-                
-                # Queue poster downloads for background processing instead of blocking startup
-                selected_ids = os.getenv("LIBRARY_IDS", "")
-                selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
-                
-                # Use local files for startup instead of relying on cache
-                try:
-                    all_libraries = get_libraries_from_local_files()
-                    if debug_mode:
-                        print(f"[DEBUG] Using local files for startup, found {len(all_libraries)} libraries")
-                except Exception as e:
-                    if debug_mode:
-                        print(f"[DEBUG] Error getting libraries from local files: {e}")
-                    all_libraries = []
-                
-                libraries = [lib for lib in all_libraries if lib["key"] in selected_ids]
-                
-                if libraries:
-                    # Queue for background processing (only if not already in progress)
-                    if not is_poster_download_in_progress():
-                        download_and_cache_posters_for_libraries(libraries, background=True)
-                        if debug_mode:
-                            print(f"[INFO] Queued poster download for {len(libraries)} libraries")
-                    else:
-                        if debug_mode:
-                            print("[INFO] Poster download already in progress, skipping")
-                
-                # Start periodic refresh in background
-                periodic_poster_refresh(libraries, interval_hours=6)
-                
-            # --- ADD THIS FOR ABS ---
-            if os.getenv("ABS_ENABLED", "yes") == "yes":
-                # Queue ABS poster download for background processing
-                poster_download_queue.put(('abs', None, None))
-                if debug_mode:
-                    print("[INFO] Queued ABS poster download")
-        else:
+
+def setup_poster_downloads(debug_mode):
+    """Setup poster downloads and periodic refresh"""
+    if os.getenv("SETUP_COMPLETE") == "1":
+        # Get Plex credentials directly from environment
+        plex_token = os.getenv("PLEX_TOKEN")
+        if not plex_token:
             if debug_mode:
-                print("[INFO] Skipping poster download: setup is not complete.")
-    except Exception as e:
+                print("[WARN] Skipping poster download: PLEX_TOKEN is not set.")
+            return
+        
+        # Ensure worker is running before queuing downloads
+        ensure_worker_running()
+        
+        # Queue poster downloads for background processing instead of blocking startup
+        selected_ids = os.getenv("LIBRARY_IDS", "")
+        selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
+        
+        # Use local files for startup instead of relying on cache
+        try:
+            all_libraries = get_libraries_from_local_files()
+            if debug_mode:
+                print(f"[DEBUG] Using local files for startup, found {len(all_libraries)} libraries")
+        except Exception as e:
+            if debug_mode:
+                print(f"[DEBUG] Error getting libraries from local files: {e}")
+            all_libraries = []
+        
+        libraries = [lib for lib in all_libraries if lib["key"] in selected_ids]
+        
+        if libraries:
+            # Queue for background processing (only if not already in progress)
+            if not is_poster_download_in_progress():
+                download_and_cache_posters_for_libraries(libraries, background=True)
+                if debug_mode:
+                    print(f"[INFO] Queued poster download for {len(libraries)} libraries")
+            else:
+                if debug_mode:
+                    print("[INFO] Poster download already in progress, skipping")
+        
+        # Start periodic refresh in background
+        periodic_poster_refresh(libraries, interval_hours=6)
+        
+        # --- ADD THIS FOR ABS ---
+        if os.getenv("ABS_ENABLED", "yes") == "yes":
+            # Queue ABS poster download for background processing
+            poster_download_queue.put(('abs', None, None))
+            if debug_mode:
+                print("[INFO] Queued ABS poster download")
+    else:
         if debug_mode:
-            print(f"Warning: Could not queue poster downloads: {e}")
-    
-    # Start browser opening thread if this is the first run
-    # Only open browser in the main process (not the reloader)
+            print("[INFO] Skipping poster download: setup is not complete.")
+
+def setup_browser_opening(is_first_run):
+    """Setup browser opening for first run"""
     if is_first_run and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
         print(f"\n[INFO] First run detected! Setup not complete.")
         print(f"[INFO] Server will start and browser will open automatically.")
         browser_thread = threading.Thread(target=open_browser_delayed, daemon=True)
         browser_thread.start()
+
+def queue_posters_delayed(libraries):
+    """Queue poster downloads with a small delay to ensure worker is ready"""
+    time.sleep(1)  # Small delay to ensure worker is ready
+    if debug_mode:
+        print(f"[INFO] Starting poster download for {len(libraries)} libraries after setup")
+    download_and_cache_posters_for_libraries(libraries, background=True)
+    if debug_mode:
+        print(f"[INFO] Completed poster download for {len(libraries)} libraries after setup")
+
+def queue_abs_posters_delayed():
+    """Queue ABS poster download with a small delay to ensure worker is ready"""
+    time.sleep(1)  # Small delay to ensure worker is ready
+    if debug_mode:
+        print("[INFO] Starting ABS poster download after setup")
+    poster_download_queue.put(('abs', None, None))
+    if debug_mode:
+        print("[INFO] Queued ABS poster download after setup")
+
+def fix_metadata_delayed():
+    """Fix any missing metadata files after a delay"""
+    time.sleep(5)  # Wait for poster downloads to complete
+    if debug_mode:
+        print("[INFO] Checking for missing metadata files after setup")
+    fix_missing_metadata_files()
+    if debug_mode:
+        print("[INFO] Completed metadata file check after setup")
+
+if __name__ == "__main__":
+    # --- Dynamic configuration for section IDs ---
+    debug_mode = initialize_environment()
+    
+    # Load IP lists from environment variables
+    load_ip_lists_from_env()
+    
+    # Check if this is the first run (setup not complete)
+    is_first_run = os.getenv("SETUP_COMPLETE", "0") != "1"
+    
+    # Setup components
+    setup_library_notes(debug_mode)
+    setup_poster_worker()
+    
+    try:
+        setup_poster_downloads(debug_mode)
+    except Exception as e:
+        if debug_mode:
+            print(f"Warning: Could not queue poster downloads: {e}")
+    
+    # Setup browser opening
+    setup_browser_opening(is_first_run)
     
     app.run(host="0.0.0.0", port=APP_PORT, debug=debug_mode)
