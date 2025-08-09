@@ -9,7 +9,6 @@ from dotenv import load_dotenv, set_key
 import random
 import psutil
 import time
-from collections import defaultdict
 import string
 import re
 from collections import defaultdict, OrderedDict
@@ -20,7 +19,6 @@ import subprocess
 import os
 import signal
 import threading
-import time
 import shutil
 import secrets
 import tempfile
@@ -3497,12 +3495,7 @@ def is_restart_ready():
     # If we've been waiting too long, proceed anyway
     return False
 
-def wait_for_poster_completion(timeout_seconds=300):
-    """Wait for poster downloads to complete with timeout"""
-    start_time = time.time()
-    while should_wait_for_posters() and (time.time() - start_time) < timeout_seconds:
-        time.sleep(1)
-    return not should_wait_for_posters()
+
 
 def get_adaptive_restart_delay():
     """Calculate adaptive restart delay based on current operations"""

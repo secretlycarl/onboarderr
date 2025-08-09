@@ -737,7 +737,7 @@ a:hover {
 .onboarding-content {
   max-width: 800px;
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0 0.5rem;
 }
 
 /* Allow more width for media lists page */
@@ -2680,7 +2680,7 @@ details.collapsible-section > .info-box {
 /* Mobile responsive adjustments for details */
 @media (pointer: coarse) and (max-width: 1024px) {
   details.collapsible-section > summary {
-    padding: 2.25rem 1.5rem;
+    padding: 2rem 1.5rem;
     font-size: 1.5em;
     line-height: 1.2;
     min-height: 2.5rem;
@@ -2704,7 +2704,7 @@ details.collapsible-section > .info-box {
 
 @media (max-width: 768px) {
   details.collapsible-section > summary {
-    padding: 2.25rem 1.25rem;
+    padding: 2rem 1.25rem;
     font-size: 1.5em;
     line-height: 1.2;
     min-height: 2.5rem;
@@ -2743,18 +2743,14 @@ details.collapsible-section > .info-box {
   }
   
   .library-tab {
-    padding: 0.5em 1em;
-    font-size: 0.95em;
+    padding: 0.66em 1.33em;
+    font-size: 1em;
     flex-shrink: 0;
   }
 }
 
 /* Medialists Page Specific Styles */
-.medialist-section {
-  margin-bottom: 2rem;
-}
 
-/* Override onboarding-content max-width for media lists to allow more columns */
 .onboarding-content .medialist-section {
   max-width: none;
 }
@@ -3675,7 +3671,6 @@ details.collapsible-section > .info-box {
   padding: 3rem 1rem;
   background: rgba(255, 255, 255, 0.05);
   border-radius: 0.5rem;
-  margin: 2rem 0;
 }
 
 .posters-container {
@@ -3685,7 +3680,7 @@ details.collapsible-section > .info-box {
 .posters-container ul {
   display: grid;
   grid-template-columns: repeat(4, 1fr); /* Fixed 4 columns for desktop */
-  gap: 1.5rem;
+  gap: 1rem;
   list-style: none;
   padding: 0 !important; /* Override the 10% padding from .onboarding-content ul */
   margin: 0;
