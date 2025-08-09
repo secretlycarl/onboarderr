@@ -35,12 +35,14 @@
             <div class="poster-carousel animate" id="main-carousel"></div>
           </div>
           
+          {% if carousel_libraries|length > 1 %}
           <div class="library-selector">
             <button class="library-tab {% if default_library == 'random-all' %}active{% endif %}" data-library="random-all">🎲 Random All</button>
             {% for lib in carousel_libraries %}
               <button class="library-tab {% if default_library == lib.title %}active{% endif %}" data-library="{{ lib.title }}">{{ lib.title }}</button>
             {% endfor %}
           </div>
+          {% endif %}
           
           {% if not carousel_libraries %}
           <div class="info-box">
@@ -51,8 +53,13 @@
         </div>
 
         <p class="carousel-note">
+          {% if carousel_libraries|length > 1 %}
           Random selection of posters from each library. Go <a href="/medialists" class="accent" id="medialists-link">here</a> for the full list. <br>
           <span class="mobile-only">On mobile, scroll horizontally to browse through posters.</span>
+          {% else %}
+          Random selection of posters from my library. Go <a href="/medialists" class="accent" id="medialists-link">here</a> for the full list. <br>
+          <span class="mobile-only">On mobile, scroll horizontally to browse through posters.</span>
+          {% endif %}
         </p>
 
         <h3>Desktop and Mobile UI</h3>
@@ -507,15 +514,26 @@
       // Load initial carousel with default library
       const defaultLibrary = '{{ default_library }}';
       const defaultTab = document.querySelector(`.library-tab[data-library="${defaultLibrary}"]`);
+      const availableLibraryTabs = document.querySelectorAll('.library-tab');
+      const hasMultipleLibraries = availableLibraryTabs.length > 1;
       
       console.log('Available library data:', libraryPosters);
       console.log('Default library:', defaultLibrary);
       console.log('Default tab:', defaultTab);
+      console.log('Number of library tabs:', availableLibraryTabs.length);
+      console.log('Has multiple libraries:', hasMultipleLibraries);
       
-      if (defaultTab) {
+      if (hasMultipleLibraries && defaultTab) {
+        // Multiple libraries available, use default library
         console.log(`Loading carousel with ${defaultLibrary}`);
         currentLibrary = defaultLibrary;
         loadCarousel('main-carousel', defaultLibrary);
+      } else if (!hasMultipleLibraries && Object.keys(libraryPosters).length === 1) {
+        // Only one library available, load it directly
+        const singleLibrary = Object.keys(libraryPosters)[0];
+        console.log(`Single library detected, loading ${singleLibrary}`);
+        currentLibrary = singleLibrary;
+        loadCarousel('main-carousel', singleLibrary);
       } else if (Object.keys(libraryPosters).length === 0) {
         // No libraries available, show message
         const carousel = document.getElementById('main-carousel');

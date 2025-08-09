@@ -56,26 +56,26 @@ def update_dockerfile(new_port):
         print("⚠ Could not find EXPOSE line in Dockerfile")
 
 def update_env_file(new_port):
-    """Add or update APP_PORT in .env file, or empty.env if .env doesn't exist"""
-    # Try .env first, then empty.env if .env doesn't exist
-    env_file = '.env' if os.path.exists('.env') else 'empty.env'
+    """Update APP_PORT in both .env and empty.env files"""
+    env_files = ['.env', 'empty.env']
     
-    # Read existing env file
-    if os.path.exists(env_file):
-        with open(env_file, 'r', encoding='utf-8') as f:
-            lines = f.readlines()
-    else:
-        lines = []
-    
-    # Remove all existing APP_PORT lines and add a new one
-    lines = [line for line in lines if not line.strip().startswith('APP_PORT=')]
-    lines.append(f'APP_PORT={new_port}\n')
-    
-    # Write back to env file
-    with open(env_file, 'w', encoding='utf-8') as f:
-        f.writelines(lines)
-    
-    print(f"✓ Updated {env_file} with APP_PORT={new_port}")
+    for env_file in env_files:
+        # Read existing env file if it exists, otherwise start with empty content
+        if os.path.exists(env_file):
+            with open(env_file, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+        else:
+            lines = []
+        
+        # Remove all existing APP_PORT lines and add a new one
+        lines = [line for line in lines if not line.strip().startswith('APP_PORT=')]
+        lines.append(f'APP_PORT={new_port}\n')
+        
+        # Write back to env file
+        with open(env_file, 'w', encoding='utf-8') as f:
+            f.writelines(lines)
+        
+        print(f"✓ Updated {env_file} with APP_PORT={new_port}")
 
 def validate_port(port_str):
     """Validate that the port is a valid number"""
@@ -97,6 +97,7 @@ def main():
         print("  - app.py: Uses APP_PORT environment variable (no update needed)")
         print("  - compose.yml: Maps port 10000:10000")
         print("  - Dockerfile: EXPOSE 10000")
+        print("  - .env and empty.env: APP_PORT setting")
         print("\nTo change the port, run:")
         print("  python changeport.py [new_port]")
         sys.exit(1)
@@ -118,7 +119,7 @@ def main():
     print()
     print("Next steps:")
     print(f"  1. The app will now use port {new_port} by default")
-    print(f"  2. You can override this by setting APP_PORT in your .env file")
+    print(f"  2. Both .env and empty.env files have been updated with APP_PORT={new_port}")
     print("  3. If using Docker Compose, restart your containers:")
     print("     docker-compose down && docker-compose up -d")
     print("  4. If using Docker directly, rebuild your image:")
