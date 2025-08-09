@@ -641,6 +641,25 @@
             {% endif %}
           </div>
         </div>
+        
+        <div class="form-group">
+          <label class="form-label">Customize Library Tab Order:</label>
+          <div class="info-box">
+            <span>ℹ️</span>
+            <span>Drag and drop or use the arrow buttons to reorder the library tabs in the Plex carousel. The order will be saved automatically.</span>
+          </div>
+          <input type="hidden" name="library_carousel_order" id="carouselOrderInput" value="{{ LIBRARY_CAROUSEL_ORDER or '' }}">
+          
+          <div class="carousel-tabs-preview">
+            <div class="carousel-tabs" id="carouselTabsPreview">
+              <!-- Tabs will be populated by JavaScript -->
+            </div>
+            <div class="tab-order-controls">
+              <button type="button" class="btn btn-secondary" id="moveLeftBtn" onclick="moveTabLeft()" disabled>Move Left</button>
+              <button type="button" class="btn btn-secondary" id="moveRightBtn" onclick="moveTabRight()" disabled>Move Right</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1359,8 +1378,19 @@
                       updateLibrariesImmediately();
                       updateCarouselSectionVisibility();
                   });
+                  
+                  // Add change event listener to carousel checkbox to update tab order
+                  carouselCheckbox.addEventListener('change', function() {
+                      // Update carousel section visibility
+                      updateCarouselSectionVisibility();
+                      // Update the carousel tab preview with new selection
+                      setTimeout(updateCarouselTabPreview, 200);
+                  });
               });
               updateCarouselSectionVisibility();
+              
+              // Force update carousel tab preview after libraries are fetched
+              setTimeout(updateCarouselTabPreview, 300);
           } else {
               section.style.display = 'none';
               carouselSection.style.display = 'none';
@@ -1394,6 +1424,8 @@
               updateCurrentLibrariesDisplay(selectedLibraries);
               // Update carousel section visibility
               updateCarouselSectionVisibility();
+              // Update carousel tab preview to reflect new library selection
+              setTimeout(updateCarouselTabPreview, 200);
               // Trigger poster refresh
               triggerPosterRefresh();
           } else {
@@ -1585,6 +1617,9 @@
       var carouselCheckboxes = document.querySelectorAll('input[name="library_carousels"]');
       var selectedLibraryItems = document.querySelectorAll('.selected-library-item');
       carouselSection.style.display = (carouselCheckboxes.length > 0 || selectedLibraryItems.length > 0) ? 'block' : 'none';
+      
+      // Update carousel tab preview when section visibility changes
+      setTimeout(updateCarouselTabPreview, 200);
   }
   
   function updateCarouselSection(selectedLibraries, libraryTitles) {
@@ -1630,10 +1665,21 @@
           carouselLabel.appendChild(carouselCheckbox);
           carouselLabel.appendChild(carouselSpan);
           carouselList.appendChild(carouselLabel);
+          
+          // Add change event listener to carousel checkbox to update tab order
+          carouselCheckbox.addEventListener('change', function() {
+              // Update carousel section visibility
+              updateCarouselSectionVisibility();
+              // Update the carousel tab preview with new selection
+              setTimeout(updateCarouselTabPreview, 200);
+          });
       });
       
       // Update carousel section visibility
       updateCarouselSectionVisibility();
+      
+      // Force refresh carousel tab preview after carousel section is updated
+      setTimeout(updateCarouselTabPreview, 300);
   }
   
   function refreshLibraryTitles() {
@@ -1657,6 +1703,189 @@
           alert('Failed to refresh library titles. Please try again.');
       });
   }
+
+  // Carousel Tab Order Functionality
+  // Global function to force refresh carousel tab preview
+  function refreshCarouselTabPreview() {
+      setTimeout(updateCarouselTabPreview, 100);
+  }
+  
+  function updateCarouselTabPreview() {
+      const carouselOrderInput = document.getElementById('carouselOrderInput');
+      const previewContainer = document.getElementById('carouselTabsPreview');
+      const moveLeftBtn = document.getElementById('moveLeftBtn');
+      const moveRightBtn = document.getElementById('moveRightBtn');
+      
+      if (!carouselOrderInput || !previewContainer) return;
+      
+      // Get current order from input or use default order
+      let currentOrder = carouselOrderInput.value.trim();
+      let tabOrder = [];
+      let hasCustomOrder = false;
+      
+      if (currentOrder) {
+          tabOrder = currentOrder.split(',').map(id => id.trim()).filter(id => id);
+          hasCustomOrder = true;
+      }
+      
+      // Get all enabled carousel libraries
+      const enabledLibraries = [];
+      document.querySelectorAll('input[name="library_carousels"]:checked').forEach(checkbox => {
+          const libId = checkbox.value;
+          const libTitle = checkbox.nextElementSibling.textContent;
+          enabledLibraries.push({ id: libId, title: libTitle });
+      });
+      
+      // If no custom order, use the current order of enabled libraries
+      if (tabOrder.length === 0) {
+          tabOrder = enabledLibraries.map(lib => lib.id);
+      } else {
+          // We have a custom order, so preserve it and only add new libraries
+          // Filter to only include currently enabled libraries
+          tabOrder = tabOrder.filter(libId => 
+              enabledLibraries.some(lib => lib.id === libId)
+          );
+          
+          // Add any new enabled libraries that aren't in the order
+          enabledLibraries.forEach(lib => {
+              if (!tabOrder.includes(lib.id)) {
+                  tabOrder.push(lib.id);
+              }
+          });
+      }
+      
+      // Clear and rebuild the preview
+      previewContainer.innerHTML = '';
+      
+      tabOrder.forEach((libId, index) => {
+          const lib = enabledLibraries.find(l => l.id === libId);
+          if (lib) {
+              const tab = document.createElement('div');
+              tab.className = 'carousel-tab';
+              tab.textContent = lib.title;
+              tab.dataset.libId = libId;
+              tab.dataset.index = index;
+              tab.onclick = () => selectTab(index);
+              previewContainer.appendChild(tab);
+          }
+      });
+      
+      // Update button states
+      updateMoveButtonStates();
+  }
+  
+  function selectTab(index) {
+      // Remove previous selection
+      document.querySelectorAll('.carousel-tab').forEach(tab => tab.classList.remove('selected'));
+      
+      // Select new tab
+      const selectedTab = document.querySelector(`.carousel-tab[data-index="${index}"]`);
+      if (selectedTab) {
+          selectedTab.classList.add('selected');
+      }
+      
+      // Update button states
+      updateMoveButtonStates();
+  }
+  
+  function updateMoveButtonStates() {
+      const moveLeftBtn = document.getElementById('moveLeftBtn');
+      const moveRightBtn = document.getElementById('moveRightBtn');
+      const selectedTab = document.querySelector('.carousel-tab.selected');
+      
+      if (selectedTab) {
+          const currentIndex = parseInt(selectedTab.dataset.index);
+          moveLeftBtn.disabled = currentIndex === 0;
+          moveRightBtn.disabled = currentIndex === document.querySelectorAll('.carousel-tab').length - 1;
+      } else {
+          moveLeftBtn.disabled = true;
+          moveRightBtn.disabled = true;
+      }
+  }
+  
+  function moveTabLeft() {
+      const selectedTab = document.querySelector('.carousel-tab.selected');
+      if (!selectedTab) return;
+      
+      const currentIndex = parseInt(selectedTab.dataset.index);
+      if (currentIndex === 0) return;
+      
+      const tabs = Array.from(document.querySelectorAll('.carousel-tab'));
+      const targetTab = tabs[currentIndex - 1];
+      
+      // Swap positions in the preview
+      const tempText = selectedTab.textContent;
+      const tempLibId = selectedTab.dataset.libId;
+      
+      selectedTab.textContent = targetTab.textContent;
+      selectedTab.dataset.libId = targetTab.dataset.libId;
+      
+      targetTab.textContent = tempText;
+      targetTab.dataset.libId = tempLibId;
+      
+      // Update the order in the hidden input
+      updateCarouselOrderFromPreview();
+      
+      // Reselect the moved tab
+      selectTab(currentIndex - 1);
+  }
+  
+  function moveTabRight() {
+      const selectedTab = document.querySelector('.carousel-tab.selected');
+      if (!selectedTab) return;
+      
+      const currentIndex = parseInt(selectedTab.dataset.index);
+      const tabs = document.querySelectorAll('.carousel-tab');
+      if (currentIndex === tabs.length - 1) return;
+      
+      const targetTab = tabs[currentIndex + 1];
+      
+      // Swap positions in the preview
+      const tempText = selectedTab.textContent;
+      const tempLibId = selectedTab.dataset.libId;
+      
+      selectedTab.textContent = targetTab.textContent;
+      selectedTab.dataset.libId = targetTab.dataset.libId;
+      
+      targetTab.textContent = tempText;
+      targetTab.dataset.libId = tempLibId;
+      
+      // Update the order in the hidden input
+      updateCarouselOrderFromPreview();
+      
+      // Reselect the moved tab
+      selectTab(currentIndex + 1);
+  }
+  
+  function updateCarouselOrderFromPreview() {
+      const carouselOrderInput = document.getElementById('carouselOrderInput');
+      const tabs = document.querySelectorAll('.carousel-tab');
+      
+      const newOrder = Array.from(tabs).map(tab => tab.dataset.libId);
+      carouselOrderInput.value = newOrder.join(',');
+  }
+  
+  // Initialize carousel tab preview when page loads
+  document.addEventListener('DOMContentLoaded', function() {
+      // Use event delegation to catch all carousel checkbox changes (including dynamically created ones)
+      document.addEventListener('change', function(e) {
+          if (e.target.name === 'library_carousels') {
+              // Add a longer delay to ensure DOM is fully updated
+              setTimeout(updateCarouselTabPreview, 200);
+          }
+      });
+      
+      // Also listen for library checkbox changes to update carousel tab preview
+      document.addEventListener('change', function(e) {
+          if (e.target.name === 'library_ids') {
+              // Update carousel tab preview when library selection changes
+              setTimeout(updateCarouselTabPreview, 300);
+          }
+      });
+      
+      // Initial update with longer delay to ensure all elements are ready
+      setTimeout(updateCarouselTabPreview, 1000);
+  });
 
   </script>
   
@@ -2431,6 +2660,16 @@
         hiddenInput.value = libId;
         document.getElementById('admin-settings-form').appendChild(hiddenInput);
       });
+      
+      // Library Carousel Order - collect the current carousel tab order
+      var carouselOrderInput = document.getElementById('carouselOrderInput');
+      if (carouselOrderInput && carouselOrderInput.value.trim()) {
+        var hiddenOrderInput = document.createElement('input');
+        hiddenOrderInput.type = 'hidden';
+        hiddenOrderInput.name = 'library_carousel_order';
+        hiddenOrderInput.value = carouselOrderInput.value.trim();
+        document.getElementById('admin-settings-form').appendChild(hiddenOrderInput);
+      }
       
       // File inputs
       var logoFile = document.getElementById('logo_file');

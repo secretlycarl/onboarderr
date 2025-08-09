@@ -1597,6 +1597,26 @@ def onboarding():
             carousel_ids = [str(id).strip() for id in library_carousels.split(",") if str(id).strip()]
             carousel_libraries = [lib for lib in available_libraries if str(lib["key"]) in carousel_ids]
         
+        # Apply custom carousel tab order if specified
+        library_carousel_order = os.getenv("LIBRARY_CAROUSEL_ORDER", "")
+        if library_carousel_order and carousel_libraries:
+            # Get the custom order of library IDs
+            custom_order_ids = [str(id).strip() for id in library_carousel_order.split(",") if str(id).strip()]
+            
+            # Filter out non-existing library IDs and create ordered list
+            ordered_libraries = []
+            for lib_id in custom_order_ids:
+                matching_lib = next((lib for lib in carousel_libraries if str(lib["key"]) == lib_id), None)
+                if matching_lib:
+                    ordered_libraries.append(matching_lib)
+            
+            # Add any remaining libraries that weren't in the custom order
+            remaining_libs = [lib for lib in carousel_libraries if str(lib["key"]) not in custom_order_ids]
+            ordered_libraries.extend(remaining_libs)
+            
+            # Update carousel_libraries with the custom order
+            carousel_libraries = ordered_libraries
+        
         # For the template, use available_libraries for access requests and carousel_libraries for carousel display
         libraries = available_libraries  # This is used for the "get access" checkboxes
     except Exception as e:
@@ -2206,6 +2226,12 @@ def services():
         current_carousels = os.getenv("LIBRARY_CAROUSELS", "")
         if library_carousels and ",".join(library_carousels) != current_carousels:
             safe_set_key(env_path, "LIBRARY_CAROUSELS", ",".join(library_carousels))
+        
+        # Handle Library Carousel Tab Order
+        library_carousel_order = request.form.get("library_carousel_order", "").strip()
+        current_carousel_order = os.getenv("LIBRARY_CAROUSEL_ORDER", "")
+        if library_carousel_order != current_carousel_order:
+            safe_set_key(env_path, "LIBRARY_CAROUSEL_ORDER", library_carousel_order)
 
         # Handle password fields
         site_password = request.form.get("site_password", "").strip()
@@ -2316,7 +2342,7 @@ def services():
                      "discord_avatar", "discord_color", "discord_notify_plex", 
                      "discord_notify_abs", "discord_notify_rate_limiting",
                      "discord_notify_ip_management", "discord_notify_login_attempts",
-                     "discord_notify_form_rate_limiting", "library_carousels",
+                     "discord_notify_form_rate_limiting", "library_carousels", "library_carousel_order",
                      "qa_plex_enabled", "qa_audiobookshelf_enabled", "qa_tautulli_enabled",
                      "qa_overseerr_enabled", "qa_jellyseerr_enabled", "ip_management_enabled",
                      "rate_limit_settings_enabled", "max_login_attempts", "max_form_submissions"]:
@@ -3442,7 +3468,7 @@ def get_restart_delay_for_changes(changed_settings):
         'discord_webhook', 'discord_username', 'discord_avatar', 'discord_color',
         'discord_notify_plex', 'discord_notify_abs', 'discord_notify_rate_limiting',
         'discord_notify_ip_management', 'discord_notify_login_attempts',
-        'discord_notify_form_rate_limiting', 'library_carousels'
+        'discord_notify_form_rate_limiting', 'library_carousels', 'library_carousel_order'
     }
     
     # Poster-dependent settings (adaptive delay) - need to wait for poster downloads
@@ -4319,6 +4345,13 @@ def setup():
                 else:
                     # If no carousels selected, set to empty to show all
                     safe_set_key(env_path, "LIBRARY_CAROUSELS", "")
+                
+                # Handle Library Carousel Tab Order
+                library_carousel_order = request.form.get("library_carousel_order", "").strip()
+                if library_carousel_order:
+                    safe_set_key(env_path, "LIBRARY_CAROUSEL_ORDER", library_carousel_order)
+                else:
+                    safe_set_key(env_path, "LIBRARY_CAROUSEL_ORDER", "")
             except Exception as e:
                 if debug_mode:
                     print(f"[DEBUG] Setup form - API call failed, saving library IDs without names: {e}")
@@ -4860,6 +4893,7 @@ def get_template_context():
         "ABS_ENABLED": os.getenv("ABS_ENABLED", "no"),
         "LIBRARY_IDS": os.getenv("LIBRARY_IDS", ""),
         "LIBRARY_CAROUSELS": os.getenv("LIBRARY_CAROUSELS", ""),
+        "LIBRARY_CAROUSEL_ORDER": os.getenv("LIBRARY_CAROUSEL_ORDER", ""),
         "DISCORD_WEBHOOK": os.getenv("DISCORD_WEBHOOK", ""),
         "DISCORD_USERNAME": os.getenv("DISCORD_USERNAME", ""),
         "DISCORD_AVATAR": os.getenv("DISCORD_AVATAR", ""),
@@ -5641,6 +5675,26 @@ def get_random_posters_all():
             print(f"Filtered to {len(libraries)} libraries with carousels enabled (from {len(available_libraries)} available libraries)")
         else:
             print(f"Using all {len(available_libraries)} available libraries for carousel")
+        
+        # Apply custom carousel tab order if specified
+        library_carousel_order = os.getenv("LIBRARY_CAROUSEL_ORDER", "")
+        if library_carousel_order and libraries:
+            # Get the custom order of library IDs
+            custom_order_ids = [str(id).strip() for id in library_carousel_order.split(",") if str(id).strip()]
+            
+            # Filter out non-existing library IDs and create ordered list
+            ordered_libraries = []
+            for lib_id in custom_order_ids:
+                matching_lib = next((lib for lib in libraries if str(lib["key"]) == lib_id), None)
+                if matching_lib:
+                    ordered_libraries.append(matching_lib)
+            
+            # Add any remaining libraries that weren't in the custom order
+            remaining_libs = [lib for lib in libraries if str(lib["key"]) not in custom_order_ids]
+            ordered_libraries.extend(remaining_libs)
+            
+            # Update libraries with the custom order
+            libraries = ordered_libraries
         
         all_posters = []
         all_imdb_ids = []
