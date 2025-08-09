@@ -1242,18 +1242,45 @@ def send_discord_notification(email, service_type, event_type=None):
     # Get Onboarderr URL for admin link
     onboarderr_url = os.getenv("ONBOARDERR_URL", "")
     
-    # Build description with optional admin link
-    description = f"{email} has requested access to {service_type}"
-    if onboarderr_url:
-        # Add linked text to admin page
-        admin_link = f"{onboarderr_url}/services"
-        description += f"\n\n[🔧 **Manage Users**]({admin_link})"
+    # Build title and description with emojis and proper admin links
+    if event_type == "plex":
+        title = "📺 New Plex Access Request"
+        description = f"**{email}** has requested access to **Plex**"
+        if onboarderr_url:
+            # Link to Plex requests admin section
+            admin_link = f"{onboarderr_url}/services#plex-requests-section"
+            description += f"\n\n[🔧 **Manage Plex Requests**]({admin_link})"
+    elif event_type == "abs":
+        title = "📚 New Audiobookshelf Access Request"
+        description = f"**{email}** has requested access to **Audiobookshelf**"
+        if onboarderr_url:
+            # Link to Audiobookshelf requests admin section
+            admin_link = f"{onboarderr_url}/services#audiobookshelf-requests-section"
+            description += f"\n\n[🔧 **Manage Audiobookshelf Requests**]({admin_link})"
+    elif event_type == "security":
+        # Handle security reports (like daily security reports)
+        title = "📊 Security Report"
+        description = f"{email}"  # email parameter contains the report message
+        if onboarderr_url:
+            # Add generic admin link for security reports
+            admin_link = f"{onboarderr_url}/services"
+            description += f"\n\n[🔧 **View Admin Panel**]({admin_link})"
+    else:
+        # Fallback for other service types
+        title = f"🔗 New {service_type} Access Request"
+        description = f"**{email}** has requested access to **{service_type}**"
+        if onboarderr_url:
+            # Add generic admin link
+            admin_link = f"{onboarderr_url}/services"
+            description += f"\n\n[🔧 **Manage Users**]({admin_link})"
     
     payload = {
         "username": username,
         "embeds": [{
+            "title": title,
             "description": description,
-            "color": int(color.lstrip('#'), 16) if color.startswith('#') else 0
+            "color": int(color.lstrip('#'), 16) if color.startswith('#') else 0,
+            "timestamp": datetime.now().isoformat()
         }]
     }
     if avatar_url:
@@ -3996,15 +4023,17 @@ def setup():
             'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR', 'JELLYSEERR'
         ]
         service_urls = {key: os.getenv(key, "") for key in service_keys}
-        return render_template(
-            "setup.html",
-            prompt_passwords=prompt,
-            site_password=site_password,
-            admin_password=admin_password,
-            drives=drives,
-            service_urls=service_urls,
-            ip_lists=get_ip_lists()
-        )
+        # Get template context including rate limiting variables
+        template_context = get_template_context()
+        template_context.update({
+            "prompt_passwords": prompt,
+            "site_password": site_password,
+            "admin_password": admin_password,
+            "drives": drives,
+            "service_urls": service_urls,
+            "ip_lists": get_ip_lists()
+        })
+        return render_template("setup.html", **template_context)
     if is_setup_complete():
         return redirect(url_for("login"))
     error_message = None
@@ -4076,7 +4105,18 @@ def setup():
                 'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR', 'JELLYSEERR'
             ]
             service_urls = {key: os.getenv(key, "") for key in service_keys}
-            return render_template("setup.html", error_message=error_message, prompt_passwords=True, site_password=site_password, admin_password=admin_password, drives=drives, service_urls=service_urls, ip_lists=get_ip_lists())
+            # Get template context including rate limiting variables
+            template_context = get_template_context()
+            template_context.update({
+                "error_message": error_message,
+                "prompt_passwords": True,
+                "site_password": site_password,
+                "admin_password": admin_password,
+                "drives": drives,
+                "service_urls": service_urls,
+                "ip_lists": get_ip_lists()
+            })
+            return render_template("setup.html", **template_context)
         
         if site_password == admin_password:
             error_message = "Guest Password and Admin Password must be different."
@@ -4085,7 +4125,18 @@ def setup():
                 'PROWLARR', 'BAZARR', 'PULSARR', 'AUDIOBOOKSHELF', 'OVERSEERR', 'JELLYSEERR'
             ]
             service_urls = {key: os.getenv(key, "") for key in service_keys}
-            return render_template("setup.html", error_message=error_message, prompt_passwords=True, site_password=site_password, admin_password=admin_password, drives=drives, service_urls=service_urls, ip_lists=get_ip_lists())
+            # Get template context including rate limiting variables
+            template_context = get_template_context()
+            template_context.update({
+                "error_message": error_message,
+                "prompt_passwords": True,
+                "site_password": site_password,
+                "admin_password": admin_password,
+                "drives": drives,
+                "service_urls": service_urls,
+                "ip_lists": get_ip_lists()
+            })
+            return render_template("setup.html", **template_context)
         
         # Hash passwords before saving
         site_salt, site_hash = hash_password(site_password)
@@ -4304,7 +4355,13 @@ def setup():
         return redirect(url_for("setup_complete", from_setup="true", 
                               restart_delay=str(restart_delay),
                               changed_settings=",".join(changed_settings)))
-    return render_template("setup.html", error_message=error_message, ip_lists=get_ip_lists())
+    # Get template context including rate limiting variables
+    template_context = get_template_context()
+    template_context.update({
+        "error_message": error_message,
+        "ip_lists": get_ip_lists()
+    })
+    return render_template("setup.html", **template_context)
 
 def ensure_worker_running():
     """Ensure the background poster worker is running"""
