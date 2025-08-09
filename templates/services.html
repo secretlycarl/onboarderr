@@ -192,13 +192,8 @@
             </tbody>
           </table>
         </div>
-      {% else %}
-        <p class="muted">No Plex requests found.</p>
-      {% endif %}
 
-      <!-- Plex User Invitation Section -->
-      {% if submissions %}
-      <div class="form-section">
+        <!-- Plex User Invitation Section -->
         <h3 class="form-section-title">
           <span class="form-section-icon">👥</span>
           Invite Plex Users
@@ -254,7 +249,8 @@
           {% endfor %}
         </div>
         {% endif %}
-      </div>
+      {% else %}
+        <p class="muted">No Plex requests found.</p>
       {% endif %}
     </div>
 
@@ -295,116 +291,114 @@
             </tbody>
           </table>
         </div>
-        
+                
         <!-- ABS User Creation Section -->
-        <div class="form-section">
-          <h3 class="form-section-title">
-            <span class="form-section-icon">👥</span>
-            Create Audiobookshelf Users
-          </h3>
-          <div class="info-box">
-            <span>ℹ️</span>
-            <span>Select submissions to create users in Audiobookshelf. Users will be created with the specified username and password.</span>
-          </div>
-          
-          <form id="abs-user-creation-form">
-            <div class="form-group">
-              <label class="form-label">Select submissions to create users:</label>
-              <div class="checkbox-group">
+        <h3 class="form-section-title">
+          <span class="form-section-icon">👥</span>
+          Create Audiobookshelf Users
+        </h3>
+        <div class="info-box">
+          <span>ℹ️</span>
+          <span>Select submissions to create users in Audiobookshelf. Users will be created with the specified username and password.</span>
+        </div>
+        
+        <form id="abs-user-creation-form">
+          <div class="form-group">
+            <label class="form-label">Select submissions to create users:</label>
+            <div class="checkbox-group">
+              <label class="checkbox-option">
+                <input type="checkbox" id="select_all_users">
+                <span>Select All</span>
+              </label>
+            </div>
+            {% for submission in audiobookshelf_submissions %}
+              <div class="user-selection-item">
                 <label class="checkbox-option">
-                  <input type="checkbox" id="select_all_users">
-                  <span>Select All</span>
-                </label>
-              </div>
-              {% for submission in audiobookshelf_submissions %}
-                <div class="user-selection-item">
-                  <label class="checkbox-option">
-                    <input type="checkbox" name="create_users" value="{{ loop.index0 }}" id="create_user_{{ loop.index0 }}" class="user-checkbox">
-                    <div class="user-info">
-                      <strong>{{ submission.username }}</strong> ({{ submission.email }})
-                      <div class="user-details">
-                        Password: •••••••• | Submitted: {{ submission.submitted_at[:10] }}
-                      </div>
+                  <input type="checkbox" name="create_users" value="{{ loop.index0 }}" id="create_user_{{ loop.index0 }}" class="user-checkbox">
+                  <div class="user-info">
+                    <strong>{{ submission.username }}</strong> ({{ submission.email }})
+                    <div class="user-details">
+                      Password: •••••••• | Submitted: {{ submission.submitted_at[:10] }}
                     </div>
-                  </label>
-                </div>
-              {% endfor %}
-            </div>
-            
-            <div class="form-group">
-              <label class="form-label">User Type:</label>
-              <select name="user_type" id="abs_user_type" class="form-input" style="width: 200px;">
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
-                <option value="guest">Guest</option>
-              </select>
-              <div class="file-help">
-                <strong>User:</strong> Standard user access | <strong>Admin:</strong> Full administrative access | <strong>Guest:</strong> Limited access
-              </div>
-            </div>
-            
-            <div class="form-group">
-              <label class="form-label">Permissions:</label>
-              <div class="permissions-grid">
-                <label class="checkbox-option">
-                  <input type="checkbox" name="permissions" value="download" checked>
-                  <span>Download items</span>
+                  </div>
                 </label>
-                <label class="checkbox-option">
-                  <input type="checkbox" name="permissions" value="update">
-                  <span>Update library items</span>
-                </label>
-                <label class="checkbox-option">
-                  <input type="checkbox" name="permissions" value="delete">
-                  <span>Delete library items</span>
-                </label>
-                <label class="checkbox-option">
-                  <input type="checkbox" name="permissions" value="upload">
-                  <span>Upload items</span>
-                </label>
-                <label class="checkbox-option">
-                  <input type="checkbox" name="permissions" value="accessAllLibraries" checked>
-                  <span>Access all libraries</span>
-                </label>
-                <label class="checkbox-option">
-                  <input type="checkbox" name="permissions" value="accessAllTags" checked>
-                  <span>Access all tags</span>
-                </label>
-                <label class="checkbox-option">
-                  <input type="checkbox" name="permissions" value="accessExplicitContent" checked>
-                  <span>Access explicit content</span>
-                </label>
-              </div>
-            </div>
-            
-            <div class="submit-section">
-              <button type="button" onclick="createAbsUsers()" class="submit-btn">
-                Create Selected Users in Audiobookshelf
-              </button>
-            </div>
-          </form>
-          
-          {% if abs_user_creation_results %}
-          <div class="results-section">
-            <h4 class="form-section-title">Creation Results:</h4>
-            {% for result in abs_user_creation_results %}
-              <div class="result-item {% if result.success %}success{% else %}error{% endif %}">
-                <div class="result-title">{{ result.username }} ({{ result.email }})</div>
-                <div class="result-message">
-                  {% if result.success %}
-                    ✅ Successfully created user
-                  {% else %}
-                    ❌ Failed to create user: {{ result.error }}
-                  {% endif %}
-                </div>
-                {% if result.success and result.user_id %}
-                  <div class="result-details">User ID: {{ result.user_id }}</div>
-                {% endif %}
               </div>
             {% endfor %}
           </div>
-          {% endif %}
+          
+          <div class="form-group">
+            <label class="form-label">User Type:</label>
+            <select name="user_type" id="abs_user_type" class="form-input" style="width: 200px;">
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+              <option value="guest">Guest</option>
+            </select>
+            <div class="file-help">
+              <strong>User:</strong> Standard user access | <strong>Admin:</strong> Full administrative access | <strong>Guest:</strong> Limited access
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Permissions:</label>
+            <div class="permissions-grid">
+              <label class="checkbox-option">
+                <input type="checkbox" name="permissions" value="download" checked>
+                <span>Download items</span>
+              </label>
+              <label class="checkbox-option">
+                <input type="checkbox" name="permissions" value="update">
+                <span>Update library items</span>
+              </label>
+              <label class="checkbox-option">
+                <input type="checkbox" name="permissions" value="delete">
+                <span>Delete library items</span>
+              </label>
+              <label class="checkbox-option">
+                <input type="checkbox" name="permissions" value="upload">
+                <span>Upload items</span>
+              </label>
+              <label class="checkbox-option">
+                <input type="checkbox" name="permissions" value="accessAllLibraries" checked>
+                <span>Access all libraries</span>
+              </label>
+              <label class="checkbox-option">
+                <input type="checkbox" name="permissions" value="accessAllTags" checked>
+                <span>Access all tags</span>
+              </label>
+              <label class="checkbox-option">
+                <input type="checkbox" name="permissions" value="accessExplicitContent" checked>
+                <span>Access explicit content</span>
+              </label>
+            </div>
+          </div>
+          
+          <div class="submit-section">
+            <button type="button" onclick="createAbsUsers()" class="submit-btn">
+              Create Selected Users in Audiobookshelf
+            </button>
+          </div>
+        </form>
+        
+        {% if abs_user_creation_results %}
+        <div class="results-section">
+          <h4 class="form-section-title">Creation Results:</h4>
+          {% for result in abs_user_creation_results %}
+            <div class="result-item {% if result.success %}success{% else %}error{% endif %}">
+              <div class="result-title">{{ result.username }} ({{ result.email }})</div>
+              <div class="result-message">
+                {% if result.success %}
+                  ✅ Successfully created user
+                {% else %}
+                  ❌ Failed to create user: {{ result.error }}
+                {% endif %}
+              </div>
+              {% if result.success and result.user_id %}
+                <div class="result-details">User ID: {{ result.user_id }}</div>
+              {% endif %}
+            </div>
+          {% endfor %}
         </div>
+        {% endif %}
       {% else %}
         <p class="muted">No Audiobookshelf requests found.</p>
       {% endif %}
@@ -569,11 +563,11 @@
       </div>
       
       <!-- Current Library Selection Display -->
-      <div class="current-library-selection">
-        <h3 class="form-section-title">
-          <span class="form-section-icon">📚</span>
-          Currently Selected Libraries
-        </h3>
+      <h3 class="form-section-title" id="currently-selected-libraries-title">
+        <span class="form-section-icon">📚</span>
+        Currently Selected Libraries
+      </h3>
+      <div id="currently-selected-libraries-content">
         {% if LIBRARY_IDS %}
           {% set selected_ids = LIBRARY_IDS.split(',') %}
           {% for lib_id in selected_ids %}
@@ -608,10 +602,11 @@
         <div class="form-group">
           <button type="button" onclick="refreshLibraryTitles()" class="btn btn-secondary" style="margin-left: 0.5em;">Refresh Library Titles</button>
         </div>
-  
       </div>
+
+      <hr class="section-divider">
         
-      <div id="library-carousels-section-admin" class="form-section" style="display: {% if LIBRARY_IDS %}block{% else %}none{% endif %};">
+      <div id="library-carousels-section-admin" style="display: {% if LIBRARY_IDS %}block{% else %}none{% endif %};">
         <h3 class="form-section-title">
           <span class="form-section-icon">🎠</span>
           Library Carousel Settings
@@ -1437,7 +1432,7 @@
   }
   
   function updateCurrentLibrariesDisplay(selectedLibraries) {
-      var currentDisplay = document.querySelector('.current-library-selection');
+      var currentDisplay = document.querySelector('#currently-selected-libraries-content');
       if (currentDisplay) {
           if (selectedLibraries.length === 0) {
               currentDisplay.innerHTML = '<h3 class="form-section-title"><span class="form-section-icon">📚</span>Currently Selected Libraries</h3><div style="color: #888; font-style: italic;">No libraries selected</div>';
@@ -2755,7 +2750,7 @@
           return id !== '';
         });
         // Only update if the section is empty (which shouldn't happen now, but just in case)
-        var currentDisplay = document.querySelector('.current-library-selection');
+        var currentDisplay = document.querySelector('#currently-selected-libraries-content');
         if (currentDisplay && currentDisplay.querySelector('.selected-library-item') === null) {
           updateCurrentLibrariesDisplay(selectedLibraries);
         }

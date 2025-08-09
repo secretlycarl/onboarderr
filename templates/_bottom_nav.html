@@ -9,9 +9,8 @@
   <a href="/medialists" class="{% if request.endpoint == 'medialists' %}active{% endif %}">Media Lists</a>
   {% if is_admin %}
   <a href="/services" class="{% if request.endpoint == 'services' %}active{% endif %}">Admin</a>
-  {% else %}
-  <a href="/logout">Log Out</a>
   {% endif %}
+  <a href="/logout">Log Out</a>
 </nav>
 
 <!-- Mobile Navigation -->
@@ -45,9 +44,8 @@
     <a href="/medialists" class="nav-mobile-link">Media Lists</a>
     {% if is_admin %}
     <a href="/services" class="nav-mobile-link">Admin</a>
-    {% else %}
-    <a href="/logout" class="nav-mobile-link">Log Out</a>
     {% endif %}
+    <a href="/logout" class="nav-mobile-link">Log Out</a>
     
     {% if quick_access_services and QUICK_ACCESS_ENABLED == 'yes' %}
     <div class="nav-mobile-services">
