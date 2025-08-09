@@ -230,6 +230,18 @@
                 // Start countdown
                 updateBar();
             }
+            
+            // For setup form submissions, always use adaptive logic regardless of isAdaptive flag
+            if (fromServices === null && urlParams.get('from_setup') === 'true') {
+                console.log('Setup form detected, forcing adaptive restart logic');
+                // Start adaptive polling for setup forms
+                startAdaptivePolling();
+                
+                // Override the countdown to be adaptive
+                setTimeout(function() {
+                    checkRestartReadiness();
+                }, 1000);
+            }
         });
     </script>
 </body>

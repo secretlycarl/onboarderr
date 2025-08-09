@@ -35,13 +35,36 @@
     function handleHashFragment() {
       const hash = window.location.hash;
       if (hash) {
+        console.log('Hash fragment detected:', hash);
         // Remove the # from the hash
         const sectionId = hash.substring(1);
+        console.log('Section ID:', sectionId);
         
-        // Wait a bit for the page to fully load, then scroll to the section
-        setTimeout(() => {
-          scrollToSection(sectionId);
-        }, 100);
+        // Function to attempt scrolling to section
+        const attemptScroll = () => {
+          const element = document.getElementById(sectionId);
+          if (element) {
+            console.log('Element found, scrolling to section:', sectionId);
+            scrollToSection(sectionId);
+            return true; // Success
+          }
+          console.log('Element not found yet:', sectionId);
+          return false; // Element not found yet
+        };
+        
+        // Try immediately
+        if (attemptScroll()) return;
+        
+        // Wait for the page to fully load, then scroll to the section
+        // Use multiple attempts for login redirects to ensure all content is loaded
+        const delays = [300, 600, 1000, 1500, 2000, 3000];
+        
+        delays.forEach(delay => {
+          setTimeout(() => {
+            console.log(`Attempting scroll after ${delay}ms delay`);
+            attemptScroll();
+          }, delay);
+        });
       }
     }
   </script>

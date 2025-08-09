@@ -817,6 +817,8 @@ def should_refresh_posters(library_id):
     most_recent_time = max(os.path.getmtime(os.path.join(poster_dir, f)) for f in poster_files)
     current_time = time.time()
     
+
+    
     # Return True if posters are older than POSTER_REFRESH_INTERVAL
     return (current_time - most_recent_time) > POSTER_REFRESH_INTERVAL
 
@@ -1668,58 +1670,7 @@ def is_setup_complete():
     return os.getenv("SETUP_COMPLETE", "0") == "1"
 
 # Update login route to check setup status
-@app.route("/admin-login", methods=["POST"])
-def admin_login():
-    """Handle admin login via AJAX"""
-    if not is_setup_complete():
-        return jsonify({"success": False, "error": "Setup not complete"})
-    
-    # Get client IP for rate limiting
-    client_ip = get_client_ip()
-    
-    # Check rate limiting
-    is_rate_limited, remaining_time = check_rate_limit(client_ip, "login")
-    if is_rate_limited:
-        time_remaining = format_time_remaining(remaining_time)
-        log_security_event("rate_limited", client_ip, f"Admin login attempt rate limited, {time_remaining} remaining")
-        return jsonify({"success": False, "error": f"Too many failed attempts. Please try again in {time_remaining}."})
-    
-    entered_password = request.form.get("password")
-    if not entered_password:
-        return jsonify({"success": False, "error": "Password is required"})
-    
-    # Always reload from .env
-    from dotenv import load_dotenv
-    load_dotenv(override=True)
-    
-    # Get hashed passwords and salts
-    admin_password_hash = os.getenv("ADMIN_PASSWORD_HASH")
-    admin_password_salt = os.getenv("ADMIN_PASSWORD_SALT")
-    
-    # For backward compatibility, check plain text passwords if hashes don't exist
-    admin_password_plain = os.getenv("ADMIN_PASSWORD")
-    
-    # Check admin password
-    admin_authenticated = False
-    if admin_password_hash and admin_password_salt:
-        admin_authenticated = verify_password(entered_password, admin_password_salt, admin_password_hash)
-    elif admin_password_plain:
-        # Fallback to plain text for backward compatibility
-        admin_authenticated = (entered_password == admin_password_plain)
-    
-    if admin_authenticated:
-        session["authenticated"] = True
-        session["admin_authenticated"] = True
-        check_first_time_login_success(client_ip)
-        
-        # Get intended URL from form data (sent by client-side JavaScript)
-        intended_url_after_login = request.form.get("intended_url_after_login")
-        redirect_url = intended_url_after_login if intended_url_after_login else url_for("services")
-        return jsonify({"success": True, "redirect_url": redirect_url})
-    else:
-        # Record failed attempt
-        add_failed_attempt(client_ip, "login")
-        return jsonify({"success": False, "error": "Incorrect admin password"})
+
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -1781,6 +1732,14 @@ def login():
             # Get intended URL from form data (sent by client-side JavaScript)
             intended_url_after_login = request.form.get("intended_url_after_login")
             redirect_url = intended_url_after_login if intended_url_after_login else url_for("services")
+            
+            # If redirecting to services with a hash fragment, ensure it's preserved
+            if intended_url_after_login and intended_url_after_login.startswith(url_for("services")) and "#" in intended_url_after_login:
+                # Extract the hash fragment
+                hash_fragment = intended_url_after_login.split("#", 1)[1]
+                redirect_url = f"{url_for('services')}#{hash_fragment}"
+                print(f"DEBUG: Preserving hash fragment '{hash_fragment}' for services redirect")
+            
             return redirect(redirect_url)
         elif site_authenticated:
             session["authenticated"] = True
@@ -1815,17 +1774,20 @@ def logout():
 def services():
     if not session.get("admin_authenticated"):
         # Use client-side redirect to preserve hash fragments
+        print(f"DEBUG: Unauthenticated access to services, storing URL: {request.url}")
         return render_template_string("""
             <!DOCTYPE html>
             <html>
             <head><title>Redirecting...</title></head>
             <body>
                 <script>
+                    // Store the full URL including hash fragment
+                    console.log('Storing intended URL:', window.location.href);
                     sessionStorage.setItem('intended_url_after_login', window.location.href);
                     window.location.href = '/login';
                 </script>
             </body>
-            </html>
+        </html>
         """)
 
     # Handle admin settings form POST
@@ -3243,17 +3205,27 @@ def should_wait_for_posters():
     try:
         queue_size = poster_download_queue.qsize()
         if queue_size > 0:
+            if debug_mode:
+                print(f"[DEBUG] Found {queue_size} items in poster download queue, waiting...")
             return True
-    except:
-        pass
+    except Exception as e:
+        if debug_mode:
+            print(f"[DEBUG] Error checking queue size: {e}")
     
-    # Don't check if worker is running - it's always running
-    # The worker is designed to run continuously and only processes work when available
+    # Check if worker is actively processing
+    if poster_download_running and not poster_download_queue.empty():
+        if debug_mode:
+            print("[DEBUG] Worker is running but queue not empty, waiting...")
+        return True
+    
     return False
 
 def wait_for_poster_completion(timeout_seconds=300):
     """Wait for poster downloads to complete with timeout"""
     start_time = time.time()
+    
+    if debug_mode:
+        print(f"[DEBUG] Waiting for poster completion with {timeout_seconds}s timeout...")
     
     while should_wait_for_posters():
         if time.time() - start_time > timeout_seconds:
@@ -3261,7 +3233,15 @@ def wait_for_poster_completion(timeout_seconds=300):
                 print(f"[WARN] Poster download timeout reached after {timeout_seconds} seconds")
             return False
         
+        # Log progress every 10 seconds
+        elapsed = time.time() - start_time
+        if debug_mode and int(elapsed) % 10 == 0:
+            print(f"[DEBUG] Still waiting for posters... ({elapsed:.1f}s elapsed)")
+        
         time.sleep(1)
+    
+    if debug_mode:
+        print(f"[DEBUG] Poster completion wait finished after {time.time() - start_time:.1f}s")
     
     return True
 
@@ -3313,13 +3293,24 @@ def wait_for_poster_completion(timeout_seconds=300):
 
 def get_adaptive_restart_delay():
     """Calculate adaptive restart delay based on current operations"""
+    if debug_mode:
+        print("[DEBUG] Calculating adaptive restart delay...")
+    
     if should_wait_for_posters():
+        if debug_mode:
+            print("[DEBUG] Poster downloads in progress, waiting for completion...")
         # Wait for posters with timeout
         if wait_for_poster_completion(POSTER_DOWNLOAD_TIMEOUT):
+            if debug_mode:
+                print("[DEBUG] Poster downloads completed successfully, quick restart")
             return 5  # Quick restart after posters complete
         else:
+            if debug_mode:
+                print("[DEBUG] Poster download timeout reached, short delay")
             return 10  # Short delay if timeout reached
     else:
+        if debug_mode:
+            print("[DEBUG] No poster downloads in progress, immediate restart")
         return IMMEDIATE_RESTART_DELAY
 
 def strip_articles(title):
@@ -4164,7 +4155,19 @@ def setup():
         
         safe_set_key(env_path, "SETUP_COMPLETE", "1")
         load_dotenv(override=True)
-        return redirect(url_for("setup_complete", from_setup="true"))
+        
+        # Track what settings changed for adaptive restart (setup always changes critical settings)
+        changed_settings = {"server_name", "plex_token", "plex_url", "library_ids", "accent_color_text"}
+        if form.get("abs_enabled") == "yes":
+            changed_settings.update({"abs_enabled", "audiobooks_id", "audiobookshelf_url", "audiobookshelf_token"})
+        
+        # Calculate restart delay for setup changes
+        restart_delay = get_restart_delay_for_changes(changed_settings)
+        
+        # Redirect to setup_complete with adaptive restart info
+        return redirect(url_for("setup_complete", from_setup="true", 
+                              restart_delay=str(restart_delay),
+                              changed_settings=",".join(changed_settings)))
     return render_template("setup.html", error_message=error_message, ip_lists=get_ip_lists())
 
 def ensure_worker_running():
@@ -4236,11 +4239,81 @@ def setup_complete():
     # Determine if this is an adaptive restart
     is_adaptive = restart_delay == 'adaptive'
     
+    # For setup form submissions, use the parameters passed from the setup route
+    if from_setup:
+        # Setup form submissions are always adaptive since they change critical settings
+        is_adaptive = True
+        restart_delay = 'adaptive'
+    
     if from_services:
-        # Only trigger restart immediately for non-adaptive changes that don't require poster downloads
-        if not is_adaptive and not should_wait_for_posters():
-            # Trigger restart for immediate changes when no posters are downloading
-            threading.Thread(target=restart_container_delayed, daemon=True).start()
+        # For adaptive restarts, wait for poster downloads to complete
+        if is_adaptive:
+            if debug_mode:
+                print("[DEBUG] Adaptive restart detected, waiting for poster downloads...")
+            # Wait for poster downloads to complete before restart
+            if wait_for_poster_completion(POSTER_DOWNLOAD_TIMEOUT):
+                if debug_mode:
+                    print("[DEBUG] Poster downloads completed, proceeding with restart...")
+                threading.Thread(target=restart_container_delayed, daemon=True).start()
+            else:
+                if debug_mode:
+                    print("[WARN] Poster download timeout reached, restarting anyway...")
+                threading.Thread(target=restart_container_delayed, daemon=True).start()
+        else:
+            # Only trigger restart immediately for non-adaptive changes that don't require poster downloads
+            if not should_wait_for_posters():
+                if debug_mode:
+                    print("[DEBUG] No poster downloads in progress, triggering immediate restart...")
+                threading.Thread(target=restart_container_delayed, daemon=True).start()
+            else:
+                if debug_mode:
+                    print("[DEBUG] Poster downloads in progress, waiting before restart...")
+                # Wait for poster downloads even for immediate changes
+                if wait_for_poster_completion(POSTER_DOWNLOAD_TIMEOUT):
+                    if debug_mode:
+                        print("[DEBUG] Poster downloads completed, proceeding with restart...")
+                    threading.Thread(target=restart_container_delayed, daemon=True).start()
+                else:
+                    if debug_mode:
+                        print("[WARN] Poster download timeout reached, restarting anyway...")
+                    threading.Thread(target=restart_container_delayed, daemon=True).start()
+    
+    elif from_setup:
+        # For setup form submissions, use the adaptive restart logic
+        if debug_mode:
+            print(f"[DEBUG] Setup form submission detected with changed settings: {changed_settings}")
+        
+        # For adaptive restarts, wait for poster downloads to complete
+        if is_adaptive:
+            if debug_mode:
+                print("[DEBUG] Adaptive restart detected for setup, waiting for poster downloads...")
+            # Wait for poster downloads to complete before restart
+            if wait_for_poster_completion(POSTER_DOWNLOAD_TIMEOUT):
+                if debug_mode:
+                    print("[DEBUG] Poster downloads completed after setup, proceeding with restart...")
+                threading.Thread(target=restart_container_delayed, daemon=True).start()
+            else:
+                if debug_mode:
+                    print("[WARN] Poster download timeout reached after setup, restarting anyway...")
+                threading.Thread(target=restart_container_delayed, daemon=True).start()
+        else:
+            # For immediate restarts, check if we need to wait for posters
+            if not should_wait_for_posters():
+                if debug_mode:
+                    print("[DEBUG] No poster downloads in progress after setup, triggering immediate restart...")
+                threading.Thread(target=restart_container_delayed, daemon=True).start()
+            else:
+                if debug_mode:
+                    print("[DEBUG] Poster downloads in progress after setup, waiting before restart...")
+                # Wait for poster downloads even for immediate changes
+                if wait_for_poster_completion(POSTER_DOWNLOAD_TIMEOUT):
+                    if debug_mode:
+                        print("[DEBUG] Poster downloads completed after setup, proceeding with restart...")
+                    threading.Thread(target=restart_container_delayed, daemon=True).start()
+                else:
+                    if debug_mode:
+                        print("[WARN] Poster download timeout reached after setup, restarting anyway...")
+                    threading.Thread(target=restart_container_delayed, daemon=True).start()
     
     # Trigger poster downloads immediately after setup completion
     try:
@@ -4270,9 +4343,11 @@ def setup_complete():
                 # Queue poster downloads with a small delay to ensure worker is ready
                 def queue_posters_delayed():
                     time.sleep(1)  # Small delay to ensure worker is ready
+                    if debug_mode:
+                        print(f"[INFO] Starting poster download for {len(libraries)} libraries after setup")
                     download_and_cache_posters_for_libraries(libraries, background=True)
                     if debug_mode:
-                        print(f"[INFO] Queued poster download for {len(libraries)} libraries after setup")
+                        print(f"[INFO] Completed poster download for {len(libraries)} libraries after setup")
                 
                 threading.Thread(target=queue_posters_delayed, daemon=True).start()
             
@@ -4280,6 +4355,8 @@ def setup_complete():
             if os.getenv("ABS_ENABLED", "yes") == "yes":
                 def queue_abs_posters_delayed():
                     time.sleep(1)  # Small delay to ensure worker is ready
+                    if debug_mode:
+                        print("[INFO] Starting ABS poster download after setup")
                     poster_download_queue.put(('abs', None, None))
                     if debug_mode:
                         print("[INFO] Queued ABS poster download after setup")
@@ -4321,6 +4398,17 @@ def refresh_posters_on_demand(libraries=None):
                 "title": lib_name,
                 "type": "show"  # Default type, could be enhanced if needed
             })
+    
+    if libraries:
+        if debug_mode:
+            print(f"[INFO] Refreshing posters for {len(libraries)} libraries on demand")
+        download_and_cache_posters_for_libraries(libraries, background=True)
+        
+        # Also refresh ABS posters if enabled
+        if os.getenv("ABS_ENABLED", "yes") == "yes":
+            poster_download_queue.put(('abs', None, None))
+            if debug_mode:
+                print("[INFO] Queued ABS poster refresh on demand")
     
     if libraries:
         # Queue for background processing
@@ -5037,6 +5125,8 @@ def trigger_poster_downloads_route():
         if debug_mode:
             print(f"Error triggering poster downloads: {e}")
         return jsonify({"success": False, "error": str(e)})
+
+
 
 @app.route("/poster-status", methods=["GET"])
 def poster_status():

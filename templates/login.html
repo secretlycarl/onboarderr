@@ -117,7 +117,7 @@
       const intendedUrl = sessionStorage.getItem('intended_url_after_login');
       if (intendedUrl) {
         formData.append('intended_url_after_login', intendedUrl);
-        sessionStorage.removeItem('intended_url_after_login');
+        // Don't remove from sessionStorage yet - we need it for hash fragment handling
       }
       
       try {
@@ -131,7 +131,19 @@
         
         if (response.redirected) {
           // Successful login, redirect to the target page
-          window.location.href = response.url;
+          // Check if we need to preserve hash fragment
+          if (intendedUrl && intendedUrl.includes('#')) {
+            // Extract hash fragment and append to redirect URL
+            const hashFragment = intendedUrl.split('#')[1];
+            const redirectUrl = response.url.includes('#') ? response.url : `${response.url}#${hashFragment}`;
+            console.log('Preserving hash fragment:', hashFragment, 'Redirecting to:', redirectUrl);
+            window.location.href = redirectUrl;
+          } else {
+            console.log('No hash fragment to preserve, redirecting to:', response.url);
+            window.location.href = response.url;
+          }
+          // Now remove from sessionStorage after we're done with it
+          sessionStorage.removeItem('intended_url_after_login');
         } else if (response.status === 401) {
           // Failed login with JSON response
           const result = await response.json();
