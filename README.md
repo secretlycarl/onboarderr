@@ -89,7 +89,8 @@ Method of making your local server publicly accessible:
 [Audiobookshelf](https://www.audiobookshelf.org/) Server and public URL to share with users
 
 [Pulsarr](https://github.com/jamcalli/Pulsarr) - Per-user content requests integrated w/ Sonarr & Radarr via Plex watchlist
-- Pulsarr is also able to push "media added" notifications through the Plex mobile app via Tautulli integration. Works fine for movies, but does not handle every new episode of shows. 
+- Pulsarr is also able to push "media added" notifications through the Plex mobile app via Tautulli integration. Works fine for movies, but does not handle every new episode of shows.*
+  * according to Pulsarr dev there should be notifs for individual eps, but he tested and also doesn't get them. if that's resolved I'll update some bod content
 
 [Overseerr](https://github.com/sct/overseerr) - User media requesting site
 

@@ -83,6 +83,11 @@
                             updatePosterStatus(data.poster_status);
                         }
                         
+                        // Check for ABS-specific status
+                        if (data.abs_download_in_progress) {
+                            label.textContent = 'Downloading Audiobookshelf posters...';
+                        }
+                        
                         // Check if we're ready to restart
                         if (data.ready && !restartTriggered) {
                             // System is ready, trigger restart immediately
@@ -91,7 +96,9 @@
                             // Still waiting for posters, extend countdown
                             if (isAdaptive) {
                                 totalSeconds = Math.max(totalSeconds, elapsed + 10); // Add 10 more seconds
-                                label.textContent = 'Waiting for poster downloads to complete...';
+                                if (!data.abs_download_in_progress) {
+                                    label.textContent = 'Downloading Plex Posters...';
+                                }
                             }
                         }
                     })
@@ -112,6 +119,18 @@
                     const activeLibraries = Object.keys(progress);
                     
                     if (activeLibraries.length > 0) {
+                        // Check for ABS downloads first
+                        if (progress.abs) {
+                            const absProgress = progress.abs;
+                            if (absProgress.total > 0) {
+                                const percent = Math.round((absProgress.current / absProgress.total) * 100);
+                                label.textContent = `${absProgress.library_name}: ${absProgress.current}/${absProgress.total} (${percent}%)`;
+                            } else {
+                                label.textContent = 'Downloading Audiobookshelf posters...';
+                            }
+                            return;
+                        }
+                        
                         // Show detailed progress for active libraries
                         const libraryDetails = activeLibraries.map(libId => {
                             const libProgress = progress[libId];

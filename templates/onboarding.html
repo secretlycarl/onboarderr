@@ -521,15 +521,8 @@
       const availableLibraryTabs = document.querySelectorAll('.library-tab');
       const hasMultipleLibraries = availableLibraryTabs.length > 1;
       
-      console.log('Available library data:', libraryPosters);
-      console.log('Default library:', defaultLibrary);
-      console.log('Default tab:', defaultTab);
-      console.log('Number of library tabs:', availableLibraryTabs.length);
-      console.log('Has multiple libraries:', hasMultipleLibraries);
-      
       if (hasMultipleLibraries && defaultTab) {
         // Multiple libraries available, use default library
-        console.log(`Loading carousel with ${defaultLibrary}`);
         currentLibrary = defaultLibrary;
         loadCarousel('main-carousel', defaultLibrary);
       } else if (!hasMultipleLibraries && Object.keys(libraryPosters).length === 1) {
@@ -554,6 +547,8 @@
         }
         
         console.log(`Loading carousel ${carouselId} with library ${library}`);
+        console.log('Available library posters:', libraryPosters);
+        console.log('Library posters for this library:', libraryPosters[library]);
         
         // Stop any existing animation
         if (carousel.rafId) {
@@ -1033,8 +1028,6 @@
           
           // Only reload if library actually changed
           if (currentLibrary !== targetLibrary) {
-            console.log(`Switching from ${currentLibrary} to ${targetLibrary}`);
-            
             // Update active tab
             libraryTabs.forEach(t => t.classList.remove('active'));
             this.classList.add('active');
@@ -1061,7 +1054,7 @@
         const container = carousel.parentElement;
         const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         
-        console.log('Carousel setup - Mobile detected:', isMobile);
+
         
         // Clear any existing auto-scroll instance
         if (carousel.autoScrollInstance) {
