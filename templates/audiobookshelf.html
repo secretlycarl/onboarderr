@@ -77,7 +77,10 @@
           <label for="password" class="form-label">Password:</label>
           <input type="text" id="password" name="password" placeholder="Choose a password" required
                  class="form-input"
+                 minlength="8"
+                 pattern=".{8,}"
                  {% if submitted %}disabled{% endif %}>
+          <div class="form-help-text">Must be at least 8 characters</div>
         </div>
     
         <div class="submit-section">
@@ -88,6 +91,13 @@
         <div class="info-box">
           <span>✅</span>
           <span><strong>Thanks! Your request has been submitted.</strong></span>
+        </div>
+      </div>
+      
+      <div id="audiobookshelf-duplicate-warning" style="display:none;">
+        <div class="warning-box">
+          <span>⚠️</span>
+          <span><strong>Email already submitted!</strong> This email address has already been used for a request. Please use a different email address or contact the administrator if you need to update your request.</span>
         </div>
       </div>
     </details>
@@ -433,6 +443,26 @@
     // AJAX audiobookshelf form submission
     document.addEventListener('DOMContentLoaded', function() {
       const form = document.getElementById('audiobookshelf-form');
+      const passwordField = document.getElementById('password');
+      
+      // Password validation
+      if (passwordField) {
+        passwordField.addEventListener('input', function() {
+          const password = this.value;
+          const isValid = password.length >= 8;
+          
+          if (isValid) {
+            this.setCustomValidity('');
+            this.classList.remove('invalid');
+            this.classList.add('valid');
+          } else {
+            this.setCustomValidity('Password must be at least 8 characters long');
+            this.classList.remove('valid');
+            this.classList.add('invalid');
+          }
+        });
+      }
+      
       if (form) {
         form.addEventListener('submit', async function(e) {
           e.preventDefault();
@@ -444,6 +474,10 @@
           const submitBtn = form.querySelector('button[type="submit"]');
           if (submitBtn) submitBtn.disabled = true;
           Array.from(form.elements).forEach(el => el.disabled = true);
+          
+          // Hide any existing warning messages
+          document.getElementById('audiobookshelf-duplicate-warning').style.display = 'none';
+          
           try {
             const response = await fetch('/audiobookshelf', {
               method: 'POST',
@@ -458,9 +492,17 @@
                 document.getElementById('audiobookshelf-success').style.display = '';
                 form.style.display = 'none';
               } else {
-                alert(result.error || 'Submission failed.');
-                Array.from(form.elements).forEach(el => el.disabled = false);
-                if (submitBtn) submitBtn.disabled = false;
+                if (result.error && result.error.includes('already been submitted')) {
+                  // Show duplicate email warning
+                  document.getElementById('audiobookshelf-duplicate-warning').style.display = '';
+                  // Re-enable form for correction
+                  Array.from(form.elements).forEach(el => el.disabled = false);
+                  if (submitBtn) submitBtn.disabled = false;
+                } else {
+                  alert(result.error || 'Submission failed.');
+                  Array.from(form.elements).forEach(el => el.disabled = false);
+                  if (submitBtn) submitBtn.disabled = false;
+                }
               }
             } else {
               alert('Submission failed.');

@@ -134,6 +134,10 @@
           <span class="jump-nav-icon">🔗</span>
           <span>Service URLs</span>
         </a>
+        <a href="/error-logs" class="jump-nav-link" target="_blank">
+          <span class="jump-nav-icon">🐛</span>
+          <span>Error Logs</span>
+        </a>
       </div>
     </div>
     {% if custom_services_url %}
@@ -1433,7 +1437,7 @@
       var currentDisplay = document.querySelector('#currently-selected-libraries-content');
       if (currentDisplay) {
           if (selectedLibraries.length === 0) {
-              currentDisplay.innerHTML = '<h3 class="form-section-title"><span class="form-section-icon">📚</span>Currently Selected Libraries</h3><div style="color: #888; font-style: italic;">No libraries selected</div>';
+              currentDisplay.innerHTML = '<div style="color: #888; font-style: italic;">No libraries selected</div>';
           } else {
               // Preserve current description input values before regenerating HTML
               var currentDescriptions = {};
@@ -1458,7 +1462,7 @@
               }).then(response => response.json()).then(data => {
                   if (data.success) {
                       var libraryNotes = data.library_notes;
-                      var html = '<h3 class="form-section-title"><span class="form-section-icon">📚</span>Currently Selected Libraries</h3>';
+                      var html = '';
                       
                       selectedLibraries.forEach(function(libId) {
                           var title = 'Unknown';
@@ -1510,7 +1514,7 @@
                   } else {
                       console.error('Failed to fetch library notes:', data.error);
                       // Fallback to basic display without titles
-                      var html = '<h3 class="form-section-title"><span class="form-section-icon">📚</span>Currently Selected Libraries</h3>';
+                      var html = '';
                       selectedLibraries.forEach(function(libId) {
                           var description = currentDescriptions[libId] || '';
                           html += '<div class="selected-library-item" style="margin-bottom: 1em;">';
@@ -1542,7 +1546,7 @@
               }).catch(error => {
                   console.error('Error fetching library notes:', error);
                   // Fallback to basic display without titles
-                  var html = '<h3 class="form-section-title"><span class="form-section-icon">📚</span>Currently Selected Libraries</h3>';
+                  var html = '';
                   selectedLibraries.forEach(function(libId) {
                       var description = currentDescriptions[libId] || '';
                       html += '<div class="selected-library-item" style="margin-bottom: 1em;">';

@@ -30,12 +30,16 @@
       <div class="form-group">
         <label for="list-select" class="form-label">Select Library:</label>
         <select id="list-select" class="form-input" style="max-width: 350px;">
+          {% set all_libraries = [] %}
           {% for lib_name in library_media.keys() %}
-            <option value="plex-{{ loop.index0 }}" {% if selected_service == 'plex' and selected_library == lib_name %}selected{% endif %}>{{ lib_name }}</option>
+            {% set _ = all_libraries.append(('plex-' + loop.index0|string, lib_name, 'plex')) %}
           {% endfor %}
           {% if abs_book_groups %}
-            <option value="abs" {% if selected_service == 'abs' %}selected{% endif %}>Audiobooks</option>
+            {% set _ = all_libraries.append(('abs', 'Audiobooks', 'abs')) %}
           {% endif %}
+          {% for value, name, service in all_libraries|sort(attribute=1) %}
+            <option value="{{ value }}" {% if (service == 'plex' and selected_service == 'plex' and selected_library == name) or (service == 'abs' and selected_service == 'abs') %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
         </select>
       </div>
       

@@ -124,6 +124,13 @@
             </div>
           </div>
           
+          <div id="onboarding-duplicate-warning" style="display:none;">
+            <div class="warning-box">
+              <span>⚠️</span>
+              <span><strong>Email already submitted!</strong> This email address has already been used for a request. Please use a different email address or contact the administrator if you need to update your request.</span>
+            </div>
+          </div>
+          
           <div class="warning-box">
             <span>⚠️</span>
             <div>
@@ -371,6 +378,10 @@
           const submitBtn = form.querySelector('button[type="submit"]');
           if (submitBtn) submitBtn.disabled = true;
           Array.from(form.elements).forEach(el => el.disabled = true);
+          
+          // Hide any existing warning messages
+          document.getElementById('onboarding-duplicate-warning').style.display = 'none';
+          
           try {
             const response = await fetch('/onboarding', {
               method: 'POST',
@@ -385,9 +396,17 @@
                 document.getElementById('onboarding-success').style.display = '';
                 form.style.display = 'none';
               } else {
-                alert(result.error || 'Submission failed.');
-                Array.from(form.elements).forEach(el => el.disabled = false);
-                if (submitBtn) submitBtn.disabled = false;
+                if (result.error && result.error.includes('already been submitted')) {
+                  // Show duplicate email warning
+                  document.getElementById('onboarding-duplicate-warning').style.display = '';
+                  // Re-enable form for correction
+                  Array.from(form.elements).forEach(el => el.disabled = false);
+                  if (submitBtn) submitBtn.disabled = false;
+                } else {
+                  alert(result.error || 'Submission failed.');
+                  Array.from(form.elements).forEach(el => el.disabled = false);
+                  if (submitBtn) submitBtn.disabled = false;
+                }
               }
             } else {
               alert('Submission failed.');

@@ -86,6 +86,9 @@
                         // Check for ABS-specific status
                         if (data.abs_download_in_progress) {
                             label.textContent = 'Downloading Audiobookshelf posters...';
+                        } else if (data.should_wait_for_posters && !data.abs_download_in_progress) {
+                            // Show Plex poster download message when ABS is not in progress but we're still waiting
+                            label.textContent = 'Downloading Plex posters...';
                         }
                         
                         // Check if we're ready to restart
@@ -96,9 +99,6 @@
                             // Still waiting for posters, extend countdown
                             if (isAdaptive) {
                                 totalSeconds = Math.max(totalSeconds, elapsed + 10); // Add 10 more seconds
-                                if (!data.abs_download_in_progress) {
-                                    label.textContent = 'Downloading Plex Posters...';
-                                }
                             }
                         }
                     })

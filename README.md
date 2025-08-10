@@ -21,6 +21,14 @@ A new `security_log.json` is created to track the security events.
 
 This is just the start of my security improvements. Check any `in progress` issues to see what's being worked on.
 
+## Misc Frontend and Backend Tweaks
+- `/services` has a new 2 column layout, and a new "jump to:" panel to quickly jump to your desired section
+- Improved and adaptive `/setup_complete` page, no longer 15s wait every time. Adapts to library poster downloads.
+- Improved poster and info grabbing logic, smart poster refresh every 24hr
+- And more
+
+See recent changelog HERE.
+
 [How to Update](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#updates)
 
 
@@ -251,7 +259,7 @@ git pull	# gets updates
 git stash pop	# re-applies your changes on top
 ```
 
-Setup and customization is pretty quick now (no more `.env` editing and much less html editing) so don't be afraid to start from scratch.
+If you ever have trouble with an update, just make a new clean instance, copy/paste your previous `.env`,`/posters` folder, `library_notes.json`, and any log files to the correct locations in the new one and it should bring everything you need to skip setup. You'll just have to go to settings to customize all of the new features.
 
 Keep copies of custom assets in another folder!
 
