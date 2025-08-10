@@ -2768,5 +2768,55 @@
   <!-- Jump Sections Panel Script -->
   <script src="{{ url_for('static', filename='jump-sections.js') }}"></script>
 
+  <!-- Mobile Jump to Top Button -->
+  <div class="mobile-jump-to-top" id="mobileJumpToTop" title="Jump to Top" aria-label="Jump to Top">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path d="M8 12L8 4M8 4L4 8M8 4L12 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
+
+  <script>
+    // Mobile Jump to Top functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      const jumpToTopButton = document.getElementById('mobileJumpToTop');
+      
+      if (jumpToTopButton) {
+        // Function to handle scroll to top
+        const handleJumpToTop = () => {
+          window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+          });
+        };
+        
+        // Function to check scroll position and show/hide button
+        const handleScroll = () => {
+          const scrollPercent = (window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100;
+          
+          if (scrollPercent > 10) {
+            jumpToTopButton.classList.add('visible');
+          } else {
+            jumpToTopButton.classList.remove('visible');
+          }
+        };
+        
+        // Add event listeners
+        jumpToTopButton.addEventListener('click', handleJumpToTop);
+        jumpToTopButton.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleJumpToTop();
+          }
+        });
+        
+        // Listen for scroll events
+        window.addEventListener('scroll', handleScroll);
+        
+        // Initial check
+        handleScroll();
+      }
+    });
+  </script>
+
 </body>
 </html>

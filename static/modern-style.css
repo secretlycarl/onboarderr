@@ -4295,3 +4295,78 @@ details.collapsible-section .section-divider {
     max-width: 200px;
   }
 }
+
+/* Mobile Jump to Top Button */
+.mobile-jump-to-top {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  width: 48px;
+  height: 48px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.8);
+}
+
+.mobile-jump-to-top.visible {
+  opacity: 1;
+  pointer-events: all;
+  transform: scale(1);
+}
+
+.mobile-jump-to-top:hover {
+  background: rgba(0, 0, 0, 0.9);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.mobile-jump-to-top:active {
+  transform: scale(0.95);
+}
+
+.mobile-jump-to-top svg {
+  color: #ffffff;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  transition: transform 0.2s ease;
+}
+
+.mobile-jump-to-top:hover svg {
+  transform: translateY(-1px);
+}
+
+/* Focus styles for accessibility */
+.mobile-jump-to-top:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
+.mobile-jump-to-top:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.8);
+  outline-offset: 2px;
+}
+
+/* Hide on desktop */
+@media (min-width: 769px) {
+  .mobile-jump-to-top {
+    display: none;
+  }
+}
+
+/* Ensure proper positioning on mobile */
+@media (max-width: 768px) {
+  .mobile-jump-to-top {
+  }
+}
+
+/* Onboarding Container */
