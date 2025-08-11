@@ -673,11 +673,11 @@
         <label class="form-label">Enable Audiobookshelf?</label>
         <div class="radio-group">
           <label class="radio-option">
-            <input type="radio" name="abs_config_enabled" value="yes" id="abs_config_enabled_yes" onchange="toggleAbsConfig()" class="radio-input" {% if ABS_ENABLED == 'yes' %}checked{% endif %}>
+            <input type="radio" name="abs_enabled" value="yes" id="abs_enabled_yes" onchange="toggleAbsConfig()" class="radio-input" {% if ABS_ENABLED == 'yes' %}checked{% endif %}>
             <span>Yes</span>
           </label>
           <label class="radio-option">
-            <input type="radio" name="abs_config_enabled" value="no" id="abs_config_enabled_no" onchange="toggleAbsConfig()" class="radio-input" {% if ABS_ENABLED != 'yes' %}checked{% endif %}>
+            <input type="radio" name="abs_enabled" value="no" id="abs_enabled_no" onchange="toggleAbsConfig()" class="radio-input" {% if ABS_ENABLED != 'yes' %}checked{% endif %}>
             <span>No</span>
           </label>
         </div>
@@ -1047,6 +1047,7 @@
       <input type="hidden" name="accent_color_text" id="accent_color_text_hidden">
       <input type="hidden" name="plex_token" id="plex_token_hidden">
       <input type="hidden" name="plex_url" id="plex_url_hidden">
+      <input type="hidden" name="abs_enabled" id="abs_enabled_hidden">
       <input type="hidden" name="audiobooks_id" id="audiobooks_id_hidden">
       <input type="hidden" name="audiobookshelf_url" id="audiobookshelf_url_hidden">
       <input type="hidden" name="audiobookshelf_token" id="audiobookshelf_token_hidden">
@@ -2273,6 +2274,41 @@
       }
     }
     
+    // ABS settings validation - ensure all required fields are filled when ABS is enabled
+    function validateABSSettings() {
+      var absEnabled = document.querySelector('input[name="abs_enabled"]:checked');
+      var errorDiv = document.getElementById('admin-setup-message');
+      
+      if (absEnabled && absEnabled.value === 'yes') {
+        var audiobooksId = document.getElementById('audiobooks_id').value.trim();
+        var audiobookshelfUrl = document.getElementById('audiobookshelf_url_admin').value.trim();
+        var audiobookshelfToken = document.getElementById('audiobookshelf_token_admin').value.trim();
+        
+        var missingFields = [];
+        
+        if (!audiobooksId) {
+          missingFields.push('Audiobook Library ID');
+        }
+        if (!audiobookshelfUrl) {
+          missingFields.push('Audiobookshelf URL');
+        }
+        if (!audiobookshelfToken) {
+          missingFields.push('Audiobookshelf API Token');
+        }
+        
+        if (missingFields.length > 0) {
+          errorDiv.textContent = 'Audiobookshelf is enabled but missing required fields: ' + missingFields.join(', ');
+          errorDiv.style.display = 'flex';
+          errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return false;
+        }
+      }
+      
+      // Clear any existing error message
+      errorDiv.style.display = 'none';
+      return true;
+    }
+    
     // Add event listeners for request service inputs
     document.addEventListener('DOMContentLoaded', function() {
       var requestServiceInputs = [
@@ -2330,7 +2366,7 @@
     
     // Audiobookshelf Configuration section visibility
     function toggleAbsConfig() {
-      var absEnabled = document.querySelector('input[name="abs_config_enabled"]:checked');
+      var absEnabled = document.querySelector('input[name="abs_enabled"]:checked');
       var absSection = document.getElementById('abs-config-section');
       
       if (absEnabled && absEnabled.value === 'yes') {
@@ -2580,6 +2616,12 @@
       document.getElementById('plex_url_hidden').value = document.getElementById('plex_url').value;
       
       // Audiobookshelf
+      var absEnabled = '';
+      var absRadios = document.getElementsByName('abs_enabled');
+      for (var i = 0; i < absRadios.length; i++) {
+        if (absRadios[i].checked) absEnabled = absRadios[i].value;
+      }
+      document.getElementById('abs_enabled_hidden').value = absEnabled;
       document.getElementById('audiobooks_id_hidden').value = document.getElementById('audiobooks_id').value;
       document.getElementById('audiobookshelf_url_hidden').value = document.getElementById('audiobookshelf_url_admin').value;
       document.getElementById('audiobookshelf_token_hidden').value = document.getElementById('audiobookshelf_token_admin').value;
@@ -2699,6 +2741,12 @@
             }
             return false;
           }
+          
+          // Check ABS validation
+          if (!validateABSSettings()) {
+            e.preventDefault();
+            return false;
+          }
         });
       }
     });
@@ -2723,7 +2771,7 @@
       });
       
       // Add event listeners for ABS config radio buttons
-      var absConfigRadios = document.querySelectorAll('input[name="abs_config_enabled"]');
+      var absConfigRadios = document.querySelectorAll('input[name="abs_enabled"]');
       absConfigRadios.forEach(function(radio) {
         radio.addEventListener('change', toggleAbsConfig);
       });

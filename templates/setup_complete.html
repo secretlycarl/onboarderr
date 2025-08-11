@@ -31,7 +31,7 @@
                 </div>
             </div>
 
-            <a href="/" id="loginBtn" class="login-btn" style="display: none;">Go to Login</a>
+            <a href="/login" id="loginBtn" class="login-btn" style="display: none;">Go to Login</a>
         </div>
     </div>
     
@@ -83,18 +83,23 @@
                             updatePosterStatus(data.poster_status);
                         }
                         
-                        // Check for ABS-specific status
-                        if (data.abs_download_in_progress) {
-                            label.textContent = 'Downloading Audiobookshelf posters...';
-                        } else if (data.should_wait_for_posters && !data.abs_download_in_progress) {
-                            // Show Plex poster download message when ABS is not in progress but we're still waiting
-                            label.textContent = 'Downloading Plex posters...';
+                        // Handle setup-specific download status
+                        if (data.setup_download_status) {
+                            updateSetupDownloadStatus(data.setup_download_status, data.current_phase);
                         }
                         
                         // Check if we're ready to restart
                         if (data.ready && !restartTriggered) {
                             // System is ready, trigger restart immediately
-                            triggerRestart();
+                            // But for services form submissions, restart is already triggered from backend
+                            if (fromServices === 'true') {
+                                // For services, just redirect to login since restart is already triggered
+                                label.textContent = 'Restart triggered! Checking if login page is online...';
+                                checkLoginAndRedirect();
+                            } else {
+                                // For other cases, trigger restart
+                                triggerRestart();
+                            }
                         } else if (data.should_wait_for_posters && !restartTriggered) {
                             // Still waiting for posters, extend countdown
                             if (isAdaptive) {
@@ -155,6 +160,61 @@
                 }
             }
 
+            // Function to update setup download status display
+            function updateSetupDownloadStatus(setupStatus, currentPhase) {
+                if (setupStatus.error) {
+                    label.textContent = `Error: ${setupStatus.error.message}`;
+                    return;
+                }
+                
+                if (currentPhase === 'plex' && setupStatus.plex) {
+                    const plexStatus = setupStatus.plex;
+                    if (plexStatus.status === 'starting') {
+                        label.textContent = plexStatus.message || 'Starting Plex poster downloads...';
+                    } else if (plexStatus.status === 'waiting_for_completion') {
+                        label.textContent = plexStatus.message || 'Waiting for Plex downloads to complete...';
+                    } else if (plexStatus.status === 'in_progress') {
+                        if (plexStatus.total > 0) {
+                            const percent = Math.round((plexStatus.current / plexStatus.total) * 100);
+                            label.textContent = `Plex: ${plexStatus.current}/${plexStatus.total} (${percent}%)`;
+                        } else {
+                            label.textContent = 'Downloading Plex posters...';
+                        }
+                    } else if (plexStatus.status === 'completed') {
+                        label.textContent = 'Plex downloads completed, preparing for next phase...';
+                    } else if (plexStatus.status === 'timeout') {
+                        label.textContent = 'Plex downloads timed out, proceeding...';
+                    }
+                } else if (currentPhase === 'abs' && setupStatus.abs) {
+                    const absStatus = setupStatus.abs;
+                    if (absStatus.status === 'starting') {
+                        label.textContent = absStatus.message || 'Starting Audiobookshelf poster downloads...';
+                    } else if (absStatus.status === 'in_progress') {
+                        if (absStatus.total > 0) {
+                            const percent = Math.round((absStatus.current / absStatus.total) * 100);
+                            label.textContent = `Audiobookshelf: ${absStatus.current}/${absStatus.total} (${percent}%)`;
+                        } else {
+                            label.textContent = 'Downloading Audiobookshelf posters...';
+                        }
+                    } else if (absStatus.status === 'completed') {
+                        label.textContent = 'Audiobookshelf downloads completed!';
+                    } else if (absStatus.status === 'failed') {
+                        label.textContent = `Audiobookshelf download failed: ${absStatus.message}`;
+                    }
+                } else {
+                    // Fallback to generic status
+                    if (setupStatus.plex && setupStatus.plex.status === 'completed') {
+                        if (setupStatus.abs) {
+                            label.textContent = 'Plex completed, processing Audiobookshelf...';
+                        } else {
+                            label.textContent = 'Plex downloads completed!';
+                        }
+                    } else {
+                        label.textContent = 'Downloading posters...';
+                    }
+                }
+            }
+
             // Function to trigger restart
             function triggerRestart() {
                 if (restartTriggered) return;
@@ -182,7 +242,7 @@
                     .then(function(response) {
                         if (response.ok) {
                             label.textContent = 'Login page is online! Redirecting...';
-                            setTimeout(function() { window.location.href = '/'; }, 500);
+                            setTimeout(function() { window.location.href = '/login'; }, 500);
                         } else {
                             label.textContent = 'Waiting for server to come online...';
                             setTimeout(checkLoginAndRedirect, 1000);
@@ -207,6 +267,10 @@
                     waiting = true;
                     if (isAdaptive) {
                         // For adaptive restarts, check if we're ready
+                        checkRestartReadiness();
+                    } else if (fromServices === 'true') {
+                        // For services form submissions, restart is already triggered from backend
+                        // Just check if we're ready to redirect
                         checkRestartReadiness();
                     } else {
                         // For standard restarts, trigger immediately
@@ -257,6 +321,22 @@
                 startAdaptivePolling();
                 
                 // Override the countdown to be adaptive
+                setTimeout(function() {
+                    checkRestartReadiness();
+                }, 1000);
+            }
+            
+            // For services form submissions, the restart is already triggered from the backend
+            // so we just need to monitor progress and redirect when ready
+            if (fromServices === 'true') {
+                console.log('Services form detected, monitoring poster downloads and waiting for restart...');
+                // Start adaptive polling for services forms
+                startAdaptivePolling();
+                
+                // Start countdown but don't trigger restart (it's already triggered from backend)
+                updateBar();
+                
+                // Check readiness immediately
                 setTimeout(function() {
                     checkRestartReadiness();
                 }, 1000);

@@ -152,11 +152,11 @@
           // Record the failed attempt and check rate limit
           await recordFailedAttempt();
         } else if (response.ok) {
-          // Successful login with JSON response (admin login)
+          // Successful login with JSON response
           const result = await response.json();
           if (result.success) {
             if (result.redirect_url) {
-              // Redirect to the stored URL
+              // Redirect to the specified URL
               window.location.href = result.redirect_url;
             } else {
               // Default redirect for admin users
