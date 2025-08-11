@@ -198,8 +198,6 @@
             <button type="button" class="btn btn-secondary" id="moveLeftBtn" onclick="moveTabLeft()" disabled>Move Left</button>
             <button type="button" class="btn btn-secondary" id="moveRightBtn" onclick="moveTabRight()" disabled>Move Right</button>
         </div>
-                    
-                    <input type="hidden" name="library_carousel_order" id="carouselOrderInput" value="{{ LIBRARY_CAROUSEL_ORDER }}">
                 </div>
             </div>
         </div>
@@ -633,6 +631,9 @@
         <input type="hidden" name="qa_overseerr_enabled" id="qa_overseerr_enabled_hidden">
         <input type="hidden" name="qa_jellyseerr_enabled" id="qa_jellyseerr_enabled_hidden">
         <input type="hidden" name="ip_management_enabled" id="ip_management_enabled_hidden">
+        
+        <!-- Carousel Order Input -->
+        <input type="hidden" name="library_carousel_order" id="carouselOrderInput" value="{{ LIBRARY_CAROUSEL_ORDER }}">
         
         <!-- Service URLs hidden inputs -->
         <input type="hidden" name="PLEX" id="plex_url_hidden_service">
@@ -1353,6 +1354,18 @@
                     selectedCarousels.push({ id: libId, title: libTitle });
                 }
             });
+            console.log('[DEBUG] updateCarouselTabPreview - Selected carousels from checkboxes:', selectedCarousels);
+            
+            // If no carousel libraries found, fall back to selected libraries from main list
+            if (selectedCarousels.length === 0) {
+                console.log('[DEBUG] No carousel libraries found, falling back to main library list');
+                document.querySelectorAll('input[name="library_ids"]:checked').forEach(function(cb) {
+                    const libId = cb.value;
+                    const libTitle = cb.nextElementSibling.nextElementSibling.textContent;
+                    selectedCarousels.push({ id: libId, title: libTitle });
+                });
+                console.log('[DEBUG] updateCarouselTabPreview - Selected carousels after fallback:', selectedCarousels);
+            }
             
             // If carouselTabs array is empty or we're initializing, create it from selected libraries
             if (!carouselTabs || carouselTabs.length === 0) {
@@ -1820,6 +1833,25 @@
             toggleQAServiceToggles();
             toggleIPManagement();
             toggleRateLimitSettings();
+        });
+
+        // Form submission handler
+        document.getElementById('setup-form').addEventListener('submit', function(e) {
+            // Debug: Log the carousel order before submission
+            const carouselOrderInput = document.getElementById('carouselOrderInput');
+            if (carouselOrderInput) {
+                console.log('[DEBUG] Form submission - carouselOrderInput value:', carouselOrderInput.value);
+                console.log('[DEBUG] Form submission - carouselOrderInput name:', carouselOrderInput.name);
+            } else {
+                console.log('[DEBUG] Form submission - carouselOrderInput not found!');
+            }
+            
+            // Debug: Log all form data
+            const formData = new FormData(this);
+            console.log('[DEBUG] Form submission - all form data:');
+            for (let [key, value] of formData.entries()) {
+                console.log('[DEBUG] Form submission -', key + ':', value);
+            }
         });
     </script>
 </body>

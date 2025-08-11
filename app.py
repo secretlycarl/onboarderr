@@ -105,34 +105,28 @@ def log_error(error_type, message, details=None, exception=None):
 
 def log_debug(debug_type, message, details=None):
     """Centralized debug logging"""
-    global debug_mode
-    
-    # Always print debug messages if debug_mode is True
-    if debug_mode:
+    # Use the helper function to safely check debug mode status
+    if is_debug_mode():
         print(f"[DEBUG] {debug_type}: {message}")
         if details:
             print(f"[DEBUG] {debug_type} details: {details}")
 
 def log_info(info_type, message, details=None):
     """Centralized info logging"""
-    global debug_mode
-    
     # Always print info messages
     print(f"[INFO] {info_type}: {message}")
     
     # Print additional details if debug mode is enabled
-    if debug_mode and details:
+    if is_debug_mode() and details:
         print(f"[INFO] {info_type} details: {details}")
 
 def log_warning(warning_type, message, details=None):
     """Centralized warning logging"""
-    global debug_mode
-    
     # Always print warning messages
     print(f"[WARN] {warning_type}: {message}")
     
     # Print additional details if debug mode is enabled
-    if debug_mode and details:
+    if is_debug_mode() and details:
         print(f"[WARN] {warning_type} details: {details}")
 
 def is_debug_mode():
@@ -340,10 +334,14 @@ class Config:
 # Global configuration instance
 config = Config()
 
+# Initialize debug_mode early to ensure logging works from the start
+debug_mode = config.get_bool("FLASK_DEBUG", False)
+
 def reload_config():
     """Reload configuration from environment variables"""
-    global config
+    global config, debug_mode
     config = Config()
+    debug_mode = config.get_bool("FLASK_DEBUG", False)
 
 # ============================================================================
 # IMPROVED STATE MANAGEMENT AND ERROR HANDLING
@@ -1085,9 +1083,6 @@ def ensure_secret_key():
 ensure_secret_key()
 # Set APP_PORT after loading environment variables
 APP_PORT = config.get_int("APP_PORT")
-
-# Initialize global debug_mode variable
-debug_mode = config.get_bool("FLASK_DEBUG", False)
 
 app = Flask(__name__)
 app.secret_key = config.get("SECRET_KEY") or os.urandom(24)
@@ -3042,6 +3037,10 @@ def services():
         library_carousel_order = request.form.get("library_carousel_order", "").strip()
         current_carousel_order = os.getenv("LIBRARY_CAROUSEL_ORDER", "")
         
+        if debug_mode:
+            print(f"[DEBUG] Services form - Raw carousel order from form: '{library_carousel_order}'")
+            print(f"[DEBUG] Services form - Current carousel order from env: '{current_carousel_order}'")
+        
         if library_carousel_order:
             # Validate that all libraries in the order are in the current libraries
             order_ids = [id.strip() for id in library_carousel_order.split(",") if id.strip()]
@@ -3405,10 +3404,17 @@ def services():
         return render_template("services.html", **context)
 
     context["abs_user_creation_results"] = None  # Will be populated if user creation was attempted
+    
+    if debug_mode:
+        print(f"[DEBUG] Services GET request - LIBRARY_CAROUSEL_ORDER: '{context.get('LIBRARY_CAROUSEL_ORDER', '')}'")
+        print(f"[DEBUG] Services GET request - LIBRARY_IDS: '{context.get('LIBRARY_IDS', '')}'")
+        print(f"[DEBUG] Services GET request - LIBRARY_CAROUSELS: '{context.get('LIBRARY_CAROUSELS', '')}'")
+    
     return render_template("services.html", **context)
 
 @app.route("/fetch-libraries", methods=["POST"])
 @limiter.exempt
+@csrf.exempt
 def fetch_libraries():
     data = request.get_json()
     plex_token = data.get("plex_token")
@@ -5617,6 +5623,9 @@ def setup():
                 
                 # Handle Library Carousel Tab Order
                 library_carousel_order = request.form.get("library_carousel_order", "").strip()
+                if debug_mode:
+                    print(f"[DEBUG] Setup form - Raw carousel order from form: '{library_carousel_order}'")
+                
                 if library_carousel_order:
                     # Validate that all libraries in the order are in the selected libraries
                     order_ids = [id.strip() for id in library_carousel_order.split(",") if id.strip()]
@@ -5630,6 +5639,8 @@ def setup():
                     
                     safe_set_key(env_path, "LIBRARY_CAROUSEL_ORDER", ",".join(valid_order_ids))
                 else:
+                    if debug_mode:
+                        print(f"[DEBUG] Setup form - No carousel order provided, setting to empty string")
                     safe_set_key(env_path, "LIBRARY_CAROUSEL_ORDER", "")
             except Exception as e:
                 if debug_mode:
@@ -7269,7 +7280,8 @@ def initialize_environment():
     SHOWS_SECTION_ID = os.getenv("SHOWS_ID")
     AUDIOBOOKS_SECTION_ID = os.getenv("AUDIOBOOKS_ID")
     
-    # Update global debug_mode variable
+    # Update debug_mode from environment to ensure it's current
+    # This ensures debug_mode is always up to date with the latest .env value
     debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
     return debug_mode
 

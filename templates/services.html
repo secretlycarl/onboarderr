@@ -624,7 +624,7 @@
           <div class="notification-options" id="library-carousels-list-admin">
             {% if LIBRARY_IDS %}
               {% set selected_ids = LIBRARY_IDS.split(',') %}
-              {% set carousel_ids = LIBRARY_CAROUSELS.split(',') if LIBRARY_CAROUSELS else [] %}
+              {% set carousel_ids = LIBRARY_CAROUSELS.split(',') if LIBRARY_CAROUSELS and LIBRARY_CAROUSELS.strip() else [] %}
               {% for lib_id in selected_ids %}
                 {% if lib_id.strip() %}
                   {% set lib_id_clean = lib_id.strip() %}
@@ -632,7 +632,7 @@
                   <label class="checkbox-option">
                     <input type="checkbox" name="library_carousels" value="{{ lib_id_clean }}" 
                            id="admin_carousel_{{ lib_id_clean }}" class="checkbox-input"
-                           {% if lib_id_clean in carousel_ids or carousel_ids|length == 0 %}checked{% endif %}>
+                           {% if lib_id_clean in carousel_ids or not LIBRARY_CAROUSELS or not LIBRARY_CAROUSELS.strip() %}checked{% endif %}>
                     <span>{{ library_title }}</span>
                   </label>
                 {% endif %}
@@ -647,7 +647,6 @@
             <span>ℹ️</span>
             <span>Use the buttons below to reorder the library tabs in the Plex posters carousel. The order will be saved automatically.</span>
           </div>
-          <input type="hidden" name="library_carousel_order" id="carouselOrderInput" value="{{ LIBRARY_CAROUSEL_ORDER or '' }}">
           
           <div class="carousel-tabs-preview">
             <div class="carousel-tabs" id="carouselTabsPreview">
@@ -1074,6 +1073,9 @@
       <input type="hidden" name="max_login_attempts" id="max_login_attempts_hidden">
       <input type="hidden" name="max_form_submissions" id="max_form_submissions_hidden">
       
+      <!-- Carousel Order Input -->
+      <input type="hidden" name="library_carousel_order" id="carouselOrderInput" value="{{ LIBRARY_CAROUSEL_ORDER or '' }}">
+      
       <!-- Service URLs hidden inputs -->
       {% for service in all_services %}
         <input type="hidden" name="{{ service.env }}" id="{{ service.env.lower() }}_hidden">
@@ -1275,7 +1277,24 @@
           alert('Please enter Plex Token and URL first.');
           return;
       }
-      var csrfToken = document.querySelector('input[name="csrf_token"]').value;
+      
+      // Get CSRF token - try multiple methods
+      var csrfToken = null;
+      var csrfInput = document.querySelector('input[name="csrf_token"]');
+      if (csrfInput) {
+          csrfToken = csrfInput.value;
+      }
+      
+      if (!csrfToken) {
+          console.error('[DEBUG] CSRF token not found!');
+          alert('Security token not found. Please refresh the page and try again.');
+          return;
+      }
+      
+      console.log('[DEBUG] fetchLibrariesAdmin - Making request with token:', token.substring(0, 10) + '...');
+      console.log('[DEBUG] fetchLibrariesAdmin - URL:', url);
+      console.log('[DEBUG] fetchLibrariesAdmin - CSRF token found:', csrfToken ? 'Yes' : 'No');
+      
       fetch('/fetch-libraries', {
           method: 'POST',
           headers: {
@@ -1286,7 +1305,14 @@
               plex_token: token,
               plex_url: url
           })
-      }).then(response => response.json()).then(data => {
+      }).then(response => {
+          console.log('[DEBUG] fetchLibrariesAdmin - Response status:', response.status);
+          if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          return response.json();
+      }).then(data => {
+          console.log('[DEBUG] fetchLibrariesAdmin - Response data:', data);
           var section = document.getElementById('libraries-section-admin');
           var list = document.getElementById('libraries-list-admin');
           var carouselSection = document.getElementById('library-carousels-section-admin');
@@ -1360,26 +1386,30 @@
                       {% endfor %}
                   {% endif %}
                   
-                  // Default to checked for new libraries, or if already in current carousels
-                  if (currentCarousels.includes(lib.key) || currentCarousels.length === 0) {
+                  if (currentCarousels.includes(lib.key)) {
                       carouselCheckbox.checked = true;
                   }
-                     
-                  var carouselSpan = document.createElement('span');
-                  carouselSpan.textContent = lib.title;
-                     
+                  
+                  var carouselTitleSpan = document.createElement('span');
+                  carouselTitleSpan.className = 'checkbox-label';
+                  carouselTitleSpan.innerText = lib.title;
+                  
                   carouselLabel.appendChild(carouselCheckbox);
-                  carouselLabel.appendChild(carouselSpan);
+                  carouselLabel.appendChild(carouselTitleSpan);
                   carouselList.appendChild(carouselLabel);
                   
-                  // Add change event listener to update libraries immediately
+                  // Show/hide carousel checkbox based on main checkbox
                   checkbox.addEventListener('change', function() {
-                      carouselLabel.style.display = checkbox.checked ? 'flex' : 'none';
-                      updateLibrariesImmediately();
+                      carouselLabel.style.display = this.checked ? 'flex' : 'none';
+                      if (!this.checked) {
+                          carouselCheckbox.checked = false;
+                      }
+                      // Update carousel section visibility
                       updateCarouselSectionVisibility();
+                      // Update the carousel tab preview with new selection
+                      setTimeout(updateCarouselTabPreview, 200);
                   });
                   
-                  // Add change event listener to carousel checkbox to update tab order
                   carouselCheckbox.addEventListener('change', function() {
                       // Update carousel section visibility
                       updateCarouselSectionVisibility();
@@ -1397,8 +1427,8 @@
               alert('No libraries found or error fetching libraries.');
           }
       }).catch((err) => {
-          alert('Failed to fetch libraries.');
-          console.error(err);
+          console.error('[DEBUG] fetchLibrariesAdmin - Error:', err);
+          alert('Failed to fetch libraries: ' + err.message);
       });
   }
   
@@ -1727,13 +1757,17 @@
           enabledLibraries.push({ id: libId, title: libTitle });
       });
       
+      console.log('[DEBUG] updateCarouselTabPreview - Enabled libraries:', enabledLibraries);
+      
       // Get the current custom order from the input
       const currentOrder = carouselOrderInput.value.trim();
+      console.log('[DEBUG] updateCarouselTabPreview - Current order from input:', currentOrder);
       
       // If carouselTabs array is empty or we're initializing, create it from selected libraries
       if (!carouselTabs || carouselTabs.length === 0) {
           // Check if we have a custom order to preserve
           let hasCustomOrder = currentOrder.length > 0;
+          console.log('[DEBUG] updateCarouselTabPreview - Has custom order:', hasCustomOrder);
           
           if (hasCustomOrder) {
               // Apply custom order if exists
@@ -1756,8 +1790,10 @@
               });
               
               carouselTabs = orderedCarousels;
+              console.log('[DEBUG] updateCarouselTabPreview - Applied custom order:', carouselTabs.map(t => t.id));
           } else {
               carouselTabs = enabledLibraries;
+              console.log('[DEBUG] updateCarouselTabPreview - Using default order:', carouselTabs.map(t => t.id));
           }
       } else {
           // Update existing carouselTabs to match current enabled libraries
@@ -1786,9 +1822,16 @@
           previewContainer.appendChild(tabElement);
       });
       
-      // Update the order input to reflect current carouselTabs order
+      // Only update order input if we don't have a custom order or if the order has changed
+      // This prevents overwriting the saved custom order during initialization
+      const currentOrder = carouselOrderInput.value.trim();
       const newOrder = carouselTabs.map(tab => tab.id).join(',');
-      carouselOrderInput.value = newOrder;
+      if (!currentOrder || newOrder !== currentOrder) {
+          carouselOrderInput.value = newOrder;
+          console.log('[DEBUG] updateCarouselTabPreview - Updated order input to:', newOrder);
+      } else {
+          console.log('[DEBUG] updateCarouselTabPreview - Preserved existing order:', currentOrder);
+      }
       
       // Update button states
       updateMoveButtonStates();
@@ -1840,6 +1883,9 @@
       
       // Reselect the moved tab
       selectTab(currentIndex - 1);
+      
+      // Update the hidden input with the new order
+      updateCarouselOrderFromPreview();
   }
   
   function moveTabRight() {
@@ -1859,13 +1905,18 @@
       
       // Reselect the moved tab
       selectTab(currentIndex + 1);
+      
+      // Update the hidden input with the new order
+      updateCarouselOrderFromPreview();
   }
   
   // Update the hidden input with the current carousel tab order
   function updateCarouselOrderFromPreview() {
       const orderInput = document.getElementById('carouselOrderInput');
       if (orderInput) {
-          orderInput.value = carouselTabs.map(tab => tab.id).join(',');
+          const orderValue = carouselTabs.map(tab => tab.id).join(',');
+          orderInput.value = orderValue;
+          console.log('[DEBUG] updateCarouselOrderFromPreview - Updated carousel order to:', orderValue);
       }
   }
   
@@ -2711,7 +2762,15 @@
       // Library Carousel Order - update the existing hidden input with current carousel tab order
       var carouselOrderInput = document.getElementById('carouselOrderInput');
       if (carouselOrderInput) {
-        carouselOrderInput.value = carouselTabs.map(tab => tab.id).join(',');
+        console.log('[DEBUG] collectFormData - carouselTabs:', carouselTabs);
+        console.log('[DEBUG] collectFormData - carouselTabs.length:', carouselTabs.length);
+        if (carouselTabs && carouselTabs.length > 0) {
+          const orderValue = carouselTabs.map(tab => tab.id).join(',');
+          carouselOrderInput.value = orderValue;
+          console.log('[DEBUG] collectFormData - Setting carousel order to:', orderValue);
+        } else {
+          console.log('[DEBUG] collectFormData - carouselTabs is empty, not updating order');
+        }
       }
       
       // File inputs
@@ -2868,6 +2927,30 @@
         handleScroll();
       }
     });
+  </script>
+
+  <!-- Form submission handler for services -->
+  <script>
+      const servicesForm = document.querySelector('form[action="/services"]');
+      if (servicesForm) {
+          servicesForm.addEventListener('submit', function(e) {
+              // Debug: Log the carousel order before submission
+              const carouselOrderInput = document.getElementById('carouselOrderInput');
+              if (carouselOrderInput) {
+                  console.log('[DEBUG] Services form submission - carouselOrderInput value:', carouselOrderInput.value);
+                  console.log('[DEBUG] Services form submission - carouselOrderInput name:', carouselOrderInput.name);
+              } else {
+                  console.log('[DEBUG] Services form submission - carouselOrderInput not found!');
+              }
+              
+              // Debug: Log all form data
+              const formData = new FormData(this);
+              console.log('[DEBUG] Services form submission - all form data:');
+              for (let [key, value] of formData.entries()) {
+                  console.log('[DEBUG] Services form submission -', key + ':', value);
+              }
+          });
+      }
   </script>
 
 </body>
