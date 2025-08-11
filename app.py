@@ -48,13 +48,8 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 # Before load_dotenv()
 if not os.path.exists('.env') and os.path.exists('empty.env'):
-    try:
-        print('\n[WARN] .env file not found. Copying empty.env to .env for you.\n')
-        shutil.copyfile('empty.env', '.env')
-        print('[INFO] Successfully copied empty.env to .env')
-    except Exception as e:
-        print(f'[ERROR] Failed to copy empty.env to .env: {e}')
-        print('[ERROR] Please manually copy empty.env to .env and restart the application')
+    print('\n[WARN] .env file not found. Copying empty.env to .env for you.\n')
+    shutil.copyfile('empty.env', '.env')
 
 # ============================================================================
 # ERROR LOGGING SYSTEM
