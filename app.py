@@ -2987,6 +2987,8 @@ def services():
             new_carousels = ",".join(valid_carousels)
             if new_carousels != current_carousels:
                 safe_set_key(env_path, "LIBRARY_CAROUSELS", new_carousels)
+                # Reload environment variables to reflect the change immediately
+                load_dotenv(override=True)
         
         # Handle Library Carousel Tab Order
         library_carousel_order = request.form.get("library_carousel_order", "").strip()
@@ -3006,6 +3008,8 @@ def services():
             new_order = ",".join(valid_order_ids)
             if new_order != current_carousel_order:
                 safe_set_key(env_path, "LIBRARY_CAROUSEL_ORDER", new_order)
+                # Reload environment variables to reflect the change immediately
+                load_dotenv(override=True)
 
         # Handle password fields
         site_password = request.form.get("site_password", "").strip()
@@ -3288,7 +3292,7 @@ def fetch_libraries():
     try:
         headers = {"X-Plex-Token": plex_token}
         url = f"{plex_url}/library/sections"
-        response = requests.get(url, headers=headers, timeout=5)
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         root = ET.fromstring(response.text)
         libraries = []
@@ -5165,7 +5169,25 @@ def setup():
     if is_setup_complete():
         return redirect(url_for("login"))
     error_message = None
-    if request.method == "POST":
+    if request.method == "POST" and (
+        "server_name" in request.form or
+        "plex_token" in request.form or
+        "plex_url" in request.form or
+        "audiobooks_id" in request.form or
+        "abs_enabled" in request.form or
+        "discord_webhook" in request.form or
+        "discord_notify_plex" in request.form or
+        "discord_notify_abs" in request.form or
+        "onboarderr_url" in request.form or
+        "library_ids" in request.form or
+        "audiobookshelf_url" in request.form or
+        "accent_color_text" in request.form or
+        "logo_file" in request.files or
+        "wordmark_file" in request.files or
+        "site_password" in request.form or
+        "admin_password" in request.form or
+        "drives" in request.form
+    ):
         from dotenv import set_key
         env_path = os.path.join(os.getcwd(), ".env")
         form = request.form
@@ -5174,11 +5196,11 @@ def setup():
         logo_file = request.files.get('logo_file')
         wordmark_file = request.files.get('wordmark_file')
         
-        if logo_file:
+        if logo_file and logo_file.filename:
             if not process_uploaded_logo(logo_file):
                 error_message = "Failed to process logo file. Please ensure it's a valid image file (.png, .webp, .jpg, .jpeg)."
         
-        if wordmark_file:
+        if wordmark_file and wordmark_file.filename:
             if not process_uploaded_wordmark(wordmark_file):
                 error_message = "Failed to process wordmark file. Please ensure it's a valid image file (.png, .webp, .jpg, .jpeg)."
 
@@ -5293,7 +5315,12 @@ def setup():
 
 
         safe_set_key(env_path, "SERVER_NAME", form.get("server_name", ""))
-        safe_set_key(env_path, "ACCENT_COLOR", form.get("accent_color_text", "#d33fbc"))
+        
+        # Handle accent color with proper validation (same as services route)
+        accent_color = form.get("accent_color_text", "").strip()
+        current_accent_color = os.getenv("ACCENT_COLOR", "")
+        if accent_color and accent_color != current_accent_color:
+            safe_set_key(env_path, "ACCENT_COLOR", accent_color)
         
         # Handle API keys with hashing
         plex_token = form.get("plex_token", "").strip()

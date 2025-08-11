@@ -78,7 +78,7 @@
         
         <div class="form-group">
             <label class="form-label">Server Name:</label>
-            <input type="text" name="server_name" id="server_name" required class="form-input">
+            <input type="text" name="server_name" id="server_name" value="{{ server_name }}" required class="form-input">
             <div class="file-help">
                 This name will be displayed on the homepage and in various places throughout the application.
             </div>
@@ -606,7 +606,7 @@
         <input type="hidden" name="admin_password" id="admin_password_hidden">
         <input type="hidden" name="drives" id="drives_hidden">
         <input type="hidden" name="server_name" id="server_name_hidden">
-        <input type="hidden" name="accent_color" id="accent_color_hidden">
+        <input type="hidden" name="accent_color_text" id="accent_color_hidden">
         <input type="hidden" name="plex_token" id="plex_token_hidden">
         <input type="hidden" name="plex_url" id="plex_url_hidden">
         <input type="hidden" name="abs_enabled" id="abs_enabled_hidden">
@@ -649,6 +649,10 @@
         <input type="hidden" name="OVERSEERR" id="overseerr_url_hidden_service">
         <input type="hidden" name="JELLYSEERR" id="jellyseerr_url_hidden_service">
         
+        <!-- File inputs -->
+        <input type="file" name="logo_file" id="logo_file_hidden" style="display: none;">
+        <input type="file" name="wordmark_file" id="wordmark_file_hidden" style="display: none;">
+        
         <!-- Error Messages -->
         {% if error_message %}
         <div id="setup-message" class="error-box">
@@ -665,6 +669,10 @@
     </form>
 
     <script>
+        // Global variables for carousel tab functionality - declare at the top to avoid initialization errors
+        let selectedTabIndex = -1;
+        let carouselTabs = [];
+        
         function toggleABS() {
             var abs = '';
             var absRadios = document.getElementsByName('abs_enabled');
@@ -838,7 +846,7 @@
                     // Reset carouselTabs array when libraries are fetched
                     carouselTabs = [];
                     // Force update carousel tab preview after libraries are fetched
-                    setTimeout(updateCarouselTabPreview, 300);
+                    setTimeout(updateCarouselTabPreview, 500);
                 } else {
                     section.style.display = 'none';
                     descSection.style.display = 'none';
@@ -847,8 +855,12 @@
                 }
             })
             .catch((err) => {
-                alert('Failed to fetch libraries.');
-                console.error(err);
+                console.error('Fetch libraries error:', err);
+                // Don't show alert if libraries were actually loaded successfully
+                // The error might be a timeout but the data was still received
+                if (!document.querySelectorAll('input[name="library_ids"]').length) {
+                    alert('Failed to fetch libraries. Please check your Plex URL and token.');
+                }
             });
         }
         
@@ -872,7 +884,7 @@
             // Reset carouselTabs array when section visibility changes
             carouselTabs = [];
             // Update carousel tab preview when section visibility changes
-            setTimeout(updateCarouselTabPreview, 200);
+            setTimeout(updateCarouselTabPreview, 300);
         }
         
         function validateSetupForm() {
@@ -967,6 +979,32 @@
                     setTimeout(updateCarouselTabPreview, 300);
                 }
             });
+            
+            // Add event listeners for file inputs to sync with hidden inputs
+            var logoFileInput = document.getElementById('logo_file');
+            var wordmarkFileInput = document.getElementById('wordmark_file');
+            
+            if (logoFileInput) {
+                logoFileInput.addEventListener('change', function() {
+                    var logoFileHidden = document.getElementById('logo_file_hidden');
+                    if (this.files.length > 0) {
+                        var dt = new DataTransfer();
+                        dt.items.add(this.files[0]);
+                        logoFileHidden.files = dt.files;
+                    }
+                });
+            }
+            
+            if (wordmarkFileInput) {
+                wordmarkFileInput.addEventListener('change', function() {
+                    var wordmarkFileHidden = document.getElementById('wordmark_file_hidden');
+                    if (this.files.length > 0) {
+                        var dt = new DataTransfer();
+                        dt.items.add(this.files[0]);
+                        wordmarkFileHidden.files = dt.files;
+                    }
+                });
+            }
         });
 
         // Function to collect all form data and populate hidden inputs
@@ -1034,14 +1072,18 @@
                 document.getElementById('setup-form').appendChild(hiddenInput);
             });
             
-            // Library Carousel Order - collect the current carousel tab order
+            // Library Carousel Order - update the existing hidden input with current carousel tab order
             var carouselOrderInput = document.getElementById('carouselOrderInput');
-            if (carouselOrderInput && carouselOrderInput.value.trim()) {
-                var hiddenOrderInput = document.createElement('input');
-                hiddenOrderInput.type = 'hidden';
-                hiddenOrderInput.name = 'library_carousel_order';
-                hiddenOrderInput.value = carouselOrderInput.value.trim();
-                document.getElementById('setup-form').appendChild(hiddenOrderInput);
+            if (carouselOrderInput) {
+                console.log('[DEBUG] collectFormData - carouselTabs:', carouselTabs);
+                console.log('[DEBUG] collectFormData - carouselTabs.length:', carouselTabs.length);
+                if (carouselTabs && carouselTabs.length > 0) {
+                    const orderValue = carouselTabs.map(tab => tab.id).join(',');
+                    carouselOrderInput.value = orderValue;
+                    console.log('[DEBUG] collectFormData - Setting carousel order to:', orderValue);
+                } else {
+                    console.log('[DEBUG] collectFormData - carouselTabs is empty, not updating order');
+                }
             }
             
             // Library Descriptions - collect description inputs for selected libraries
@@ -1146,6 +1188,25 @@
             document.getElementById('pulsarr_url_hidden_service').value = document.querySelector('input[name="PULSARR"]').value;
             document.getElementById('overseerr_url_hidden_service').value = document.querySelector('input[name="OVERSEERR"]').value;
             document.getElementById('jellyseerr_url_hidden_service').value = document.querySelector('input[name="JELLYSEERR"]').value;
+            
+            // File inputs - sync visible file inputs with hidden ones
+            var logoFileInput = document.getElementById('logo_file');
+            var logoFileHidden = document.getElementById('logo_file_hidden');
+            if (logoFileInput && logoFileInput.files.length > 0) {
+                // Create a new FileList-like object for the hidden input
+                var dt = new DataTransfer();
+                dt.items.add(logoFileInput.files[0]);
+                logoFileHidden.files = dt.files;
+            }
+            
+            var wordmarkFileInput = document.getElementById('wordmark_file');
+            var wordmarkFileHidden = document.getElementById('wordmark_file_hidden');
+            if (wordmarkFileInput && wordmarkFileInput.files.length > 0) {
+                // Create a new FileList-like object for the hidden input
+                var dt = new DataTransfer();
+                dt.items.add(wordmarkFileInput.files[0]);
+                wordmarkFileHidden.files = dt.files;
+            }
         }
         
         // Custom submit handler for client-side validation
@@ -1256,8 +1317,6 @@
         // updateCarouselTabPreview(); // Removed - will be called after libraries are fetched
         
         // Carousel Tab Order Functionality
-        let selectedTabIndex = -1;
-        let carouselTabs = [];
         
         // Global function to force refresh carousel tab preview
         function refreshCarouselTabPreview() {
@@ -1273,6 +1332,15 @@
             const orderInput = document.getElementById('carouselOrderInput');
             
             if (!previewContainer) return;
+            
+            // Check if carousel checkboxes exist yet
+            const carouselCheckboxes = document.querySelectorAll('input[name="library_carousels"]');
+            if (carouselCheckboxes.length === 0) {
+                // Carousel checkboxes haven't been created yet, try again later
+                console.log('[DEBUG] Carousel checkboxes not found, retrying in 200ms');
+                setTimeout(updateCarouselTabPreview, 200);
+                return;
+            }
             
             // Get selected carousel libraries - only those that are both selected in main list AND checked in carousel section
             const selectedCarousels = [];
@@ -1291,6 +1359,7 @@
                 // Store the original custom order to check if we should preserve it
                 const originalCustomOrder = orderInput.value.trim();
                 let hasCustomOrder = originalCustomOrder.length > 0;
+                console.log('[DEBUG] Initial carousel order from input:', originalCustomOrder);
                 
                 // Apply custom order if exists
                 if (hasCustomOrder) {
@@ -1313,8 +1382,10 @@
                     });
                     
                     carouselTabs = orderedCarousels;
+                    console.log('[DEBUG] updateCarouselTabPreview - Applied custom order:', carouselTabs.map(t => t.id));
                 } else {
                     carouselTabs = selectedCarousels;
+                    console.log('[DEBUG] updateCarouselTabPreview - Using default order:', carouselTabs.map(t => t.id));
                 }
             }
             
@@ -1328,6 +1399,32 @@
                 tabElement.onclick = () => selectTab(index);
                 previewContainer.appendChild(tabElement);
             });
+            
+            // If no tabs were created but we have selected libraries, try to create them from the main library list
+            if (carouselTabs.length === 0) {
+                console.log('[DEBUG] No carousel tabs found, trying fallback from main library list');
+                const selectedLibraries = [];
+                document.querySelectorAll('input[name="library_ids"]:checked').forEach(function(cb) {
+                    const libId = cb.value;
+                    const libTitle = cb.nextElementSibling.nextElementSibling.textContent;
+                    selectedLibraries.push({ id: libId, title: libTitle });
+                });
+                
+                if (selectedLibraries.length > 0) {
+                    console.log('[DEBUG] Created fallback carousel tabs:', selectedLibraries);
+                    carouselTabs = selectedLibraries;
+                    // Recreate the preview with the fallback data
+                    previewContainer.innerHTML = '';
+                    carouselTabs.forEach((tab, index) => {
+                        const tabElement = document.createElement('div');
+                        tabElement.className = 'carousel-tab';
+                        tabElement.textContent = tab.title;
+                        tabElement.dataset.index = index;
+                        tabElement.onclick = () => selectTab(index);
+                        previewContainer.appendChild(tabElement);
+                    });
+                }
+            }
             
             // Only update order input if we don't have a custom order or if the order has changed
             // This prevents overwriting the saved custom order during initialization
@@ -1402,7 +1499,9 @@
         function updateCarouselOrderFromPreview() {
             const orderInput = document.getElementById('carouselOrderInput');
             if (orderInput) {
-                orderInput.value = carouselTabs.map(tab => tab.id).join(',');
+                const orderValue = carouselTabs.map(tab => tab.id).join(',');
+                orderInput.value = orderValue;
+                console.log('[DEBUG] updateCarouselOrderFromPreview - Updated carousel order to:', orderValue);
             }
         }
         

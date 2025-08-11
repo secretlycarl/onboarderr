@@ -1708,6 +1708,9 @@
       setTimeout(updateCarouselTabPreview, 100);
   }
   
+  // Global variable to maintain carousel tab order state
+  let carouselTabs = [];
+  
   function updateCarouselTabPreview() {
       const carouselOrderInput = document.getElementById('carouselOrderInput');
       const previewContainer = document.getElementById('carouselTabsPreview');
@@ -1715,16 +1718,6 @@
       const moveRightBtn = document.getElementById('moveRightBtn');
       
       if (!carouselOrderInput || !previewContainer) return;
-      
-      // Get current order from input or use default order
-      let currentOrder = carouselOrderInput.value.trim();
-      let tabOrder = [];
-      let hasCustomOrder = false;
-      
-      if (currentOrder) {
-          tabOrder = currentOrder.split(',').map(id => id.trim()).filter(id => id);
-          hasCustomOrder = true;
-      }
       
       // Get all enabled carousel libraries
       const enabledLibraries = [];
@@ -1734,39 +1727,68 @@
           enabledLibraries.push({ id: libId, title: libTitle });
       });
       
-      // If no custom order, use the current order of enabled libraries
-      if (tabOrder.length === 0) {
-          tabOrder = enabledLibraries.map(lib => lib.id);
+      // Get the current custom order from the input
+      const currentOrder = carouselOrderInput.value.trim();
+      
+      // If carouselTabs array is empty or we're initializing, create it from selected libraries
+      if (!carouselTabs || carouselTabs.length === 0) {
+          // Check if we have a custom order to preserve
+          let hasCustomOrder = currentOrder.length > 0;
+          
+          if (hasCustomOrder) {
+              // Apply custom order if exists
+              const customOrder = currentOrder.split(',').map(id => id.trim());
+              const orderedCarousels = [];
+              
+              // Add libraries in custom order first
+              customOrder.forEach(id => {
+                  const lib = enabledLibraries.find(l => l.id === id);
+                  if (lib) {
+                      orderedCarousels.push(lib);
+                  }
+              });
+              
+              // Add remaining libraries
+              enabledLibraries.forEach(lib => {
+                  if (!orderedCarousels.find(l => l.id === lib.id)) {
+                      orderedCarousels.push(lib);
+                  }
+              });
+              
+              carouselTabs = orderedCarousels;
+          } else {
+              carouselTabs = enabledLibraries;
+          }
       } else {
-          // We have a custom order, so preserve it and only add new libraries
-          // Filter to only include currently enabled libraries
-          tabOrder = tabOrder.filter(libId => 
-              enabledLibraries.some(lib => lib.id === libId)
+          // Update existing carouselTabs to match current enabled libraries
+          // Filter out libraries that are no longer enabled
+          carouselTabs = carouselTabs.filter(tab => 
+              enabledLibraries.some(lib => lib.id === tab.id)
           );
           
           // Add any new enabled libraries that aren't in the order
           enabledLibraries.forEach(lib => {
-              if (!tabOrder.includes(lib.id)) {
-                  tabOrder.push(lib.id);
+              if (!carouselTabs.find(tab => tab.id === lib.id)) {
+                  carouselTabs.push(lib);
               }
           });
       }
       
-      // Clear and rebuild the preview
+      // Clear and rebuild the preview based on current carouselTabs array
       previewContainer.innerHTML = '';
-      
-      tabOrder.forEach((libId, index) => {
-          const lib = enabledLibraries.find(l => l.id === libId);
-          if (lib) {
-              const tab = document.createElement('div');
-              tab.className = 'carousel-tab';
-              tab.textContent = lib.title;
-              tab.dataset.libId = libId;
-              tab.dataset.index = index;
-              tab.onclick = () => selectTab(index);
-              previewContainer.appendChild(tab);
-          }
+      carouselTabs.forEach((tab, index) => {
+          const tabElement = document.createElement('div');
+          tabElement.className = 'carousel-tab';
+          tabElement.textContent = tab.title;
+          tabElement.dataset.libId = tab.id;
+          tabElement.dataset.index = index;
+          tabElement.onclick = () => selectTab(index);
+          previewContainer.appendChild(tabElement);
       });
+      
+      // Update the order input to reflect current carouselTabs order
+      const newOrder = carouselTabs.map(tab => tab.id).join(',');
+      carouselOrderInput.value = newOrder;
       
       // Update button states
       updateMoveButtonStates();
@@ -1808,21 +1830,13 @@
       const currentIndex = parseInt(selectedTab.dataset.index);
       if (currentIndex === 0) return;
       
-      const tabs = Array.from(document.querySelectorAll('.carousel-tab'));
-      const targetTab = tabs[currentIndex - 1];
+      // Swap positions in the carouselTabs array
+      const temp = carouselTabs[currentIndex];
+      carouselTabs[currentIndex] = carouselTabs[currentIndex - 1];
+      carouselTabs[currentIndex - 1] = temp;
       
-      // Swap positions in the preview
-      const tempText = selectedTab.textContent;
-      const tempLibId = selectedTab.dataset.libId;
-      
-      selectedTab.textContent = targetTab.textContent;
-      selectedTab.dataset.libId = targetTab.dataset.libId;
-      
-      targetTab.textContent = tempText;
-      targetTab.dataset.libId = tempLibId;
-      
-      // Update the order in the hidden input
-      updateCarouselOrderFromPreview();
+      // Update the preview
+      updateCarouselTabPreview();
       
       // Reselect the moved tab
       selectTab(currentIndex - 1);
@@ -1833,35 +1847,29 @@
       if (!selectedTab) return;
       
       const currentIndex = parseInt(selectedTab.dataset.index);
-      const tabs = document.querySelectorAll('.carousel-tab');
-      if (currentIndex === tabs.length - 1) return;
+      if (currentIndex === carouselTabs.length - 1) return;
       
-      const targetTab = tabs[currentIndex + 1];
+      // Swap positions in the carouselTabs array
+      const temp = carouselTabs[currentIndex];
+      carouselTabs[currentIndex] = carouselTabs[currentIndex + 1];
+      carouselTabs[currentIndex + 1] = temp;
       
-      // Swap positions in the preview
-      const tempText = selectedTab.textContent;
-      const tempLibId = selectedTab.dataset.libId;
-      
-      selectedTab.textContent = targetTab.textContent;
-      selectedTab.dataset.libId = targetTab.dataset.libId;
-      
-      targetTab.textContent = tempText;
-      targetTab.dataset.libId = tempLibId;
-      
-      // Update the order in the hidden input
-      updateCarouselOrderFromPreview();
+      // Update the preview
+      updateCarouselTabPreview();
       
       // Reselect the moved tab
       selectTab(currentIndex + 1);
   }
   
+  // Update the hidden input with the current carousel tab order
   function updateCarouselOrderFromPreview() {
-      const carouselOrderInput = document.getElementById('carouselOrderInput');
-      const tabs = document.querySelectorAll('.carousel-tab');
-      
-      const newOrder = Array.from(tabs).map(tab => tab.dataset.libId);
-      carouselOrderInput.value = newOrder.join(',');
+      const orderInput = document.getElementById('carouselOrderInput');
+      if (orderInput) {
+          orderInput.value = carouselTabs.map(tab => tab.id).join(',');
+      }
   }
+  
+
   
   // Initialize carousel tab preview when page loads
   document.addEventListener('DOMContentLoaded', function() {
@@ -2700,14 +2708,10 @@
         document.getElementById('admin-settings-form').appendChild(hiddenInput);
       });
       
-      // Library Carousel Order - collect the current carousel tab order
+      // Library Carousel Order - update the existing hidden input with current carousel tab order
       var carouselOrderInput = document.getElementById('carouselOrderInput');
-      if (carouselOrderInput && carouselOrderInput.value.trim()) {
-        var hiddenOrderInput = document.createElement('input');
-        hiddenOrderInput.type = 'hidden';
-        hiddenOrderInput.name = 'library_carousel_order';
-        hiddenOrderInput.value = carouselOrderInput.value.trim();
-        document.getElementById('admin-settings-form').appendChild(hiddenOrderInput);
+      if (carouselOrderInput) {
+        carouselOrderInput.value = carouselTabs.map(tab => tab.id).join(',');
       }
       
       // File inputs
