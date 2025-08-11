@@ -632,7 +632,7 @@
                   <label class="checkbox-option">
                     <input type="checkbox" name="library_carousels" value="{{ lib_id_clean }}" 
                            id="admin_carousel_{{ lib_id_clean }}" class="checkbox-input"
-                           {% if lib_id_clean in carousel_ids or not LIBRARY_CAROUSELS or not LIBRARY_CAROUSELS.strip() %}checked{% endif %}>
+                           {% if lib_id_clean in carousel_ids or carousel_ids|length == 0 %}checked{% endif %}>
                     <span>{{ library_title }}</span>
                   </label>
                 {% endif %}
@@ -1075,6 +1075,7 @@
       
       <!-- Carousel Order Input -->
       <input type="hidden" name="library_carousel_order" id="carouselOrderInput" value="{{ LIBRARY_CAROUSEL_ORDER or '' }}">
+      <input type="hidden" name="library_carousel_order" id="library_carousel_order_hidden">
       
       <!-- Service URLs hidden inputs -->
       {% for service in all_services %}
@@ -1404,6 +1405,8 @@
                       if (!this.checked) {
                           carouselCheckbox.checked = false;
                       }
+                      // Update libraries immediately when checkbox changes
+                      updateLibrariesImmediately();
                       // Update carousel section visibility
                       updateCarouselSectionVisibility();
                       // Update the carousel tab preview with new selection
@@ -1469,6 +1472,9 @@
       if (currentDisplay) {
           if (selectedLibraries.length === 0) {
               currentDisplay.innerHTML = '<div style="color: #888; font-style: italic;">No libraries selected</div>';
+              // Update carousel section visibility when no libraries are selected
+              updateCarouselSectionVisibility();
+              return;
           } else {
               // Preserve current description input values before regenerating HTML
               var currentDescriptions = {};
@@ -1490,7 +1496,12 @@
                   headers: {
                       'X-CSRFToken': csrfToken
                   }
-              }).then(response => response.json()).then(data => {
+              }).then(response => {
+                  if (!response.ok) {
+                      throw new Error('Failed to fetch library notes');
+                  }
+                  return response.json();
+              }).then(data => {
                   if (data.success) {
                       var libraryNotes = data.library_notes;
                       var html = '';
@@ -1514,24 +1525,46 @@
                           html += '</div>';
                           html += '<div class="library-description-section" style="margin-top: 0.5em;">';
                           html += '<label class="form-label">Description:</label>';
-                                                html += '<input type="text" name="library_desc_' + libId + '" value="' + (description || '') + '" class="form-input library-description-input" placeholder="Enter a description for this library (optional)" onchange="syncLibraryDescription(this, \'' + libId + '\')" oninput="syncLibraryDescription(this, \'' + libId + '\')">';
-                      html += '</div>';
-                      html += '</div>';
-                  });
-                  
-                  currentDisplay.innerHTML = html;
-                  
-                  // Update carousel section with new libraries
-                  // Extract library titles from libraryNotes
-                  var libraryTitles = {};
-                  if (libraryNotes) {
+                          html += '<input type="text" name="library_desc_' + libId + '" value="' + (description || '') + '" class="form-input library-description-input" placeholder="Enter a description for this library (optional)" onchange="syncLibraryDescription(this, \'' + libId + '\')" oninput="syncLibraryDescription(this, \'' + libId + '\')">';
+                          html += '</div>';
+                          html += '</div>';
+                      });
+                      
+                      currentDisplay.innerHTML = html;
+                      
+                      // Create hidden inputs for new libraries if they don't exist
                       selectedLibraries.forEach(function(libId) {
-                          if (libraryNotes[libId] && libraryNotes[libId].title) {
-                              libraryTitles[libId] = libraryNotes[libId].title;
+                          var existingHiddenInput = document.querySelector('input[name="library_desc_hidden_' + libId + '"]');
+                          if (!existingHiddenInput) {
+                              var hiddenInput = document.createElement('input');
+                              hiddenInput.type = 'text';
+                              hiddenInput.name = 'library_desc_hidden_' + libId;
+                              hiddenInput.value = currentDescriptions[libId] || '';
+                              hiddenInput.style.display = 'none';
+                              document.getElementById('admin-settings-form').appendChild(hiddenInput);
                           }
                       });
-                  }
-                  updateCarouselSection(selectedLibraries, libraryTitles);
+                      
+                      // Remove hidden inputs for libraries that are no longer selected
+                      var allHiddenInputs = document.querySelectorAll('input[name^="library_desc_hidden_"]');
+                      allHiddenInputs.forEach(function(hiddenInput) {
+                          var libId = hiddenInput.name.replace('library_desc_hidden_', '');
+                          if (!selectedLibraries.includes(libId)) {
+                              hiddenInput.remove();
+                          }
+                      });
+                      
+                      // Update carousel section with new libraries
+                      // Extract library titles from libraryNotes
+                      var libraryTitles = {};
+                      if (libraryNotes) {
+                          selectedLibraries.forEach(function(libId) {
+                              if (libraryNotes[libId] && libraryNotes[libId].title) {
+                                  libraryTitles[libId] = libraryNotes[libId].title;
+                              }
+                          });
+                      }
+                      updateCarouselSection(selectedLibraries, libraryTitles);
                   
                   // Add event listeners to sync with hidden inputs
                   setTimeout(function() {
@@ -1559,6 +1592,28 @@
                           html += '</div>';
                       });
                       currentDisplay.innerHTML = html;
+                      
+                      // Create hidden inputs for new libraries if they don't exist
+                      selectedLibraries.forEach(function(libId) {
+                          var existingHiddenInput = document.querySelector('input[name="library_desc_hidden_' + libId + '"]');
+                          if (!existingHiddenInput) {
+                              var hiddenInput = document.createElement('input');
+                              hiddenInput.type = 'text';
+                              hiddenInput.name = 'library_desc_hidden_' + libId;
+                              hiddenInput.value = currentDescriptions[libId] || '';
+                              hiddenInput.style.display = 'none';
+                              document.getElementById('admin-settings-form').appendChild(hiddenInput);
+                          }
+                      });
+                      
+                      // Remove hidden inputs for libraries that are no longer selected
+                      var allHiddenInputs = document.querySelectorAll('input[name^="library_desc_hidden_"]');
+                      allHiddenInputs.forEach(function(hiddenInput) {
+                          var libId = hiddenInput.name.replace('library_desc_hidden_', '');
+                          if (!selectedLibraries.includes(libId)) {
+                              hiddenInput.remove();
+                          }
+                      });
                       
                       // Update carousel section with new libraries
                       // No library titles available in this fallback case
@@ -1591,6 +1646,28 @@
                       html += '</div>';
                   });
                   currentDisplay.innerHTML = html;
+                  
+                  // Create hidden inputs for new libraries if they don't exist
+                  selectedLibraries.forEach(function(libId) {
+                      var existingHiddenInput = document.querySelector('input[name="library_desc_hidden_' + libId + '"]');
+                      if (!existingHiddenInput) {
+                          var hiddenInput = document.createElement('input');
+                          hiddenInput.type = 'text';
+                          hiddenInput.name = 'library_desc_hidden_' + libId;
+                          hiddenInput.value = currentDescriptions[libId] || '';
+                          hiddenInput.style.display = 'none';
+                          document.getElementById('admin-settings-form').appendChild(hiddenInput);
+                      }
+                  });
+                  
+                  // Remove hidden inputs for libraries that are no longer selected
+                  var allHiddenInputs = document.querySelectorAll('input[name^="library_desc_hidden_"]');
+                  allHiddenInputs.forEach(function(hiddenInput) {
+                      var libId = hiddenInput.name.replace('library_desc_hidden_', '');
+                      if (!selectedLibraries.includes(libId)) {
+                          hiddenInput.remove();
+                      }
+                  });
                   
                   // Update carousel section with new libraries
                   // No library titles available in this error case
@@ -1741,6 +1818,9 @@
   // Global variable to maintain carousel tab order state
   let carouselTabs = [];
   
+  // Flag to track if user is actively reordering
+  let isUserReordering = false;
+  
   function updateCarouselTabPreview() {
       const carouselOrderInput = document.getElementById('carouselOrderInput');
       const previewContainer = document.getElementById('carouselTabsPreview');
@@ -1763,51 +1843,52 @@
       const currentOrder = carouselOrderInput.value.trim();
       console.log('[DEBUG] updateCarouselTabPreview - Current order from input:', currentOrder);
       
-      // If carouselTabs array is empty or we're initializing, create it from selected libraries
-      if (!carouselTabs || carouselTabs.length === 0) {
-          // Check if we have a custom order to preserve
-          let hasCustomOrder = currentOrder.length > 0;
-          console.log('[DEBUG] updateCarouselTabPreview - Has custom order:', hasCustomOrder);
+      // Only apply custom order if user is not actively reordering
+      let hasCustomOrder = currentOrder.length > 0 && !isUserReordering;
+      console.log('[DEBUG] updateCarouselTabPreview - Has custom order:', hasCustomOrder, 'isUserReordering:', isUserReordering);
+      
+      if (hasCustomOrder) {
+          // Apply custom order if exists
+          const customOrder = currentOrder.split(',').map(id => id.trim());
+          const orderedCarousels = [];
           
-          if (hasCustomOrder) {
-              // Apply custom order if exists
-              const customOrder = currentOrder.split(',').map(id => id.trim());
-              const orderedCarousels = [];
+          // Add libraries in custom order first
+          customOrder.forEach(id => {
+              const lib = enabledLibraries.find(l => l.id === id);
+              if (lib) {
+                  orderedCarousels.push(lib);
+              }
+          });
+          
+          // Add remaining libraries
+          enabledLibraries.forEach(lib => {
+              if (!orderedCarousels.find(l => l.id === lib.id)) {
+                  orderedCarousels.push(lib);
+              }
+          });
+          
+          carouselTabs = orderedCarousels;
+          console.log('[DEBUG] updateCarouselTabPreview - Applied custom order:', carouselTabs.map(t => t.id));
+      } else {
+          // If no custom order or user is reordering, use the current carouselTabs if it exists and matches enabled libraries
+          if (carouselTabs && carouselTabs.length > 0) {
+              // Update existing carouselTabs to match current enabled libraries
+              // Filter out libraries that are no longer enabled
+              carouselTabs = carouselTabs.filter(tab => 
+                  enabledLibraries.some(lib => lib.id === tab.id)
+              );
               
-              // Add libraries in custom order first
-              customOrder.forEach(id => {
-                  const lib = enabledLibraries.find(l => l.id === id);
-                  if (lib) {
-                      orderedCarousels.push(lib);
-                  }
-              });
-              
-              // Add remaining libraries
+              // Add any new enabled libraries that aren't in the order
               enabledLibraries.forEach(lib => {
-                  if (!orderedCarousels.find(l => l.id === lib.id)) {
-                      orderedCarousels.push(lib);
+                  if (!carouselTabs.find(tab => tab.id === lib.id)) {
+                      carouselTabs.push(lib);
                   }
               });
-              
-              carouselTabs = orderedCarousels;
-              console.log('[DEBUG] updateCarouselTabPreview - Applied custom order:', carouselTabs.map(t => t.id));
           } else {
+              // Initialize with default order
               carouselTabs = enabledLibraries;
               console.log('[DEBUG] updateCarouselTabPreview - Using default order:', carouselTabs.map(t => t.id));
           }
-      } else {
-          // Update existing carouselTabs to match current enabled libraries
-          // Filter out libraries that are no longer enabled
-          carouselTabs = carouselTabs.filter(tab => 
-              enabledLibraries.some(lib => lib.id === tab.id)
-          );
-          
-          // Add any new enabled libraries that aren't in the order
-          enabledLibraries.forEach(lib => {
-              if (!carouselTabs.find(tab => tab.id === lib.id)) {
-                  carouselTabs.push(lib);
-              }
-          });
       }
       
       // Clear and rebuild the preview based on current carouselTabs array
@@ -1824,7 +1905,6 @@
       
       // Only update order input if we don't have a custom order or if the order has changed
       // This prevents overwriting the saved custom order during initialization
-      const currentOrder = carouselOrderInput.value.trim();
       const newOrder = carouselTabs.map(tab => tab.id).join(',');
       if (!currentOrder || newOrder !== currentOrder) {
           carouselOrderInput.value = newOrder;
@@ -1873,6 +1953,9 @@
       const currentIndex = parseInt(selectedTab.dataset.index);
       if (currentIndex === 0) return;
       
+      // Set flag to indicate user is actively reordering
+      isUserReordering = true;
+      
       // Swap positions in the carouselTabs array
       const temp = carouselTabs[currentIndex];
       carouselTabs[currentIndex] = carouselTabs[currentIndex - 1];
@@ -1886,6 +1969,11 @@
       
       // Update the hidden input with the new order
       updateCarouselOrderFromPreview();
+      
+      // Reset flag after a short delay to allow for visual updates
+      setTimeout(() => {
+          isUserReordering = false;
+      }, 100);
   }
   
   function moveTabRight() {
@@ -1894,6 +1982,9 @@
       
       const currentIndex = parseInt(selectedTab.dataset.index);
       if (currentIndex === carouselTabs.length - 1) return;
+      
+      // Set flag to indicate user is actively reordering
+      isUserReordering = true;
       
       // Swap positions in the carouselTabs array
       const temp = carouselTabs[currentIndex];
@@ -1908,6 +1999,11 @@
       
       // Update the hidden input with the new order
       updateCarouselOrderFromPreview();
+      
+      // Reset flag after a short delay to allow for visual updates
+      setTimeout(() => {
+          isUserReordering = false;
+      }, 100);
   }
   
   // Update the hidden input with the current carousel tab order
@@ -2767,6 +2863,8 @@
         if (carouselTabs && carouselTabs.length > 0) {
           const orderValue = carouselTabs.map(tab => tab.id).join(',');
           carouselOrderInput.value = orderValue;
+          // ADD THIS LINE:
+          document.getElementById('library_carousel_order_hidden').value = orderValue; 
           console.log('[DEBUG] collectFormData - Setting carousel order to:', orderValue);
         } else {
           console.log('[DEBUG] collectFormData - carouselTabs is empty, not updating order');
@@ -2868,7 +2966,11 @@
           updateCurrentLibrariesDisplay(selectedLibraries);
         }
         // Initialize carousel section visibility
-        updateCarouselSectionVisibility();
+        if (typeof updateCarouselSectionVisibility === 'function') {
+          updateCarouselSectionVisibility();
+        } else {
+          console.warn('updateCarouselSectionVisibility function not available yet');
+        }
       }
     });
   </script>
