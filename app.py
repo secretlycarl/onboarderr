@@ -5162,6 +5162,7 @@ def setup():
             "site_password": site_password,
             "admin_password": admin_password,
             "drives": drives,
+            "server_name": os.getenv("SERVER_NAME", ""),
             "service_urls": service_urls,
             "ip_lists": get_ip_lists()
         })
@@ -5263,6 +5264,7 @@ def setup():
                 "site_password": site_password,
                 "admin_password": admin_password,
                 "drives": drives,
+                "server_name": os.getenv("SERVER_NAME", ""),
                 "service_urls": service_urls,
                 "ip_lists": get_ip_lists()
             })
@@ -5283,6 +5285,7 @@ def setup():
                 "site_password": site_password,
                 "admin_password": admin_password,
                 "drives": drives,
+                "server_name": os.getenv("SERVER_NAME", ""),
                 "service_urls": service_urls,
                 "ip_lists": get_ip_lists()
             })
