@@ -56,26 +56,40 @@ def update_dockerfile(new_port):
         print("⚠ Could not find EXPOSE line in Dockerfile")
 
 def update_env_file(new_port):
-    """Update APP_PORT in both .env and empty.env files"""
-    env_files = ['.env', 'empty.env']
-    
-    for env_file in env_files:
-        # Read existing env file if it exists, otherwise start with empty content
-        if os.path.exists(env_file):
-            with open(env_file, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-        else:
-            lines = []
+    """Update APP_PORT in empty.env and .env (if it exists)"""
+    # Always update empty.env
+    if os.path.exists('empty.env'):
+        with open('empty.env', 'r', encoding='utf-8') as f:
+            lines = f.readlines()
         
         # Remove all existing APP_PORT lines and add a new one
         lines = [line for line in lines if not line.strip().startswith('APP_PORT=')]
         lines.append(f'APP_PORT={new_port}\n')
         
-        # Write back to env file
-        with open(env_file, 'w', encoding='utf-8') as f:
+        # Write back to empty.env
+        with open('empty.env', 'w', encoding='utf-8') as f:
             f.writelines(lines)
         
-        print(f"✓ Updated {env_file} with APP_PORT={new_port}")
+        print(f"✓ Updated empty.env with APP_PORT={new_port}")
+    else:
+        print("⚠ Could not find empty.env file")
+    
+    # Update .env only if it exists
+    if os.path.exists('.env'):
+        with open('.env', 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+        
+        # Remove all existing APP_PORT lines and add a new one
+        lines = [line for line in lines if not line.strip().startswith('APP_PORT=')]
+        lines.append(f'APP_PORT={new_port}\n')
+        
+        # Write back to .env
+        with open('.env', 'w', encoding='utf-8') as f:
+            f.writelines(lines)
+        
+        print(f"✓ Updated .env with APP_PORT={new_port}")
+    else:
+        print("ℹ .env file does not exist - skipping (will be created by app.py on startup)")
 
 def validate_port(port_str):
     """Validate that the port is a valid number"""

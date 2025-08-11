@@ -177,16 +177,16 @@ class Config:
         """Validate rate limiting values"""
         rate_limits = {
             'RATE_LIMIT_IP_SUSPICIOUS_THRESHOLD': (5, 100),
-            'RATE_LIMIT_IP_BAN_THRESHOLD': (5, 200),  # Lowered minimum from 10 to 5
+            'RATE_LIMIT_IP_BAN_THRESHOLD': (10, 200),
             'RATE_LIMIT_MAX_LOGIN_ATTEMPTS': (1, 20),
             'RATE_LIMIT_MAX_FORM_SUBMISSIONS': (1, 10)
         }
         
         for key, (min_val, max_val) in rate_limits.items():
-            value = self.get_int(key, min_val)  # Use min_val as default instead of hardcoded 5
+            value = self.get_int(key, 5)
             if not min_val <= value <= max_val:
-                log_error("config_validation", f"Invalid rate limit value for {key}: {value}. Using default {min_val}.", 
-                         {"value": value, "min": min_val, "max": max_val, "default": min_val})
+                log_error("config_validation", f"Invalid rate limit value for {key}: {value}. Using default.", 
+                         {"value": value, "min": min_val, "max": max_val})
     
     def _validate_cache_settings(self):
         """Validate cache TTL values"""
@@ -547,7 +547,7 @@ rate_limit_data = {
 # --- Rate Limiting Constants ---
 RATE_LIMIT_THRESHOLDS = {
     'suspicious': config.get_int("RATE_LIMIT_IP_SUSPICIOUS_THRESHOLD", 20),
-    'ban': config.get_int("RATE_LIMIT_IP_BAN_THRESHOLD", 50),  # Default to 50, not 5
+    'ban': config.get_int("RATE_LIMIT_IP_BAN_THRESHOLD", 50),
     'max_attempts': config.get_int("RATE_LIMIT_MAX_LOGIN_ATTEMPTS", config.get_int("RATE_LIMIT_LOGIN_ATTEMPTS", 5))
 }
 
@@ -1668,21 +1668,15 @@ def fix_missing_metadata_files():
 def load_library_notes():
     if debug_mode:
         print("[DEBUG] Loading library notes from file...")
-    try:
-        notes = load_json_file("library_notes.json", {})
-        if debug_mode:
-            print(f"[DEBUG] Loaded {len(notes)} library notes from file")
-            if notes:
-                print(f"[DEBUG] Library note keys: {list(notes.keys())}")
-        
-        # Only load from file - no API calls
-        # Missing titles should be handled by recreate_library_notes() during setup/admin actions
-        return notes
-    except Exception as e:
-        if debug_mode:
-            print(f"[DEBUG] Error loading library notes: {e}")
-        # Return empty dict if file doesn't exist or is corrupted
-        return {}
+    notes = load_json_file("library_notes.json", {})
+    if debug_mode:
+        print(f"[DEBUG] Loaded {len(notes)} library notes from file")
+        if notes:
+            print(f"[DEBUG] Library note keys: {list(notes.keys())}")
+    
+    # Only load from file - no API calls
+    # Missing titles should be handled by recreate_library_notes() during setup/admin actions
+    return notes
 
 def save_library_notes(notes):
     print(f"[DEBUG] save_library_notes called with: {notes}")
@@ -7029,16 +7023,6 @@ def initialize_environment():
 
 def setup_library_notes(debug_mode):
     """Setup and recreate library notes if needed"""
-    # Ensure library_notes.json exists (create empty file if it doesn't)
-    if not os.path.exists("library_notes.json"):
-        try:
-            save_json_file("library_notes.json", {})
-            if debug_mode:
-                print("[DEBUG] Created empty library_notes.json file")
-        except Exception as e:
-            if debug_mode:
-                print(f"[ERROR] Failed to create library_notes.json: {e}")
-    
     if os.environ.get('WERKZEUG_RUN_MAIN') != 'true' and os.getenv("SETUP_COMPLETE") == "1":
         # Check if library notes exist and are complete
         existing_notes = load_library_notes()
@@ -7350,18 +7334,11 @@ def medialists():
 
 def get_library_poster_dir(library_id):
     """Get the poster directory path for a library using the old naming format (just ID)"""
-    poster_dir = os.path.join("static", "posters", str(library_id))
-    # Ensure the directory exists
-    os.makedirs(poster_dir, exist_ok=True)
-    return poster_dir
+    return os.path.join("static", "posters", str(library_id))
 
 if __name__ == "__main__":
     # --- Dynamic configuration for section IDs ---
     debug_mode = initialize_environment()
-    
-    # Ensure required directories exist
-    os.makedirs(os.path.join("static", "posters"), exist_ok=True)
-    os.makedirs(os.path.join("static", "posters", "audiobooks"), exist_ok=True)
     
     # Load IP lists from environment variables
     load_ip_lists_from_env()
