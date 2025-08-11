@@ -105,15 +105,43 @@ def log_error(error_type, message, details=None, exception=None):
 
 def log_debug(debug_type, message, details=None):
     """Centralized debug logging"""
-    # Simple print for now since debug_mode might not be available yet
-    print(f"[DEBUG] {debug_type}: {message}")
+    global debug_mode
     
-    # Try to use debug_mode if it's available
+    # Always print debug messages if debug_mode is True
+    if debug_mode:
+        print(f"[DEBUG] {debug_type}: {message}")
+        if details:
+            print(f"[DEBUG] {debug_type} details: {details}")
+
+def log_info(info_type, message, details=None):
+    """Centralized info logging"""
+    global debug_mode
+    
+    # Always print info messages
+    print(f"[INFO] {info_type}: {message}")
+    
+    # Print additional details if debug mode is enabled
+    if debug_mode and details:
+        print(f"[INFO] {info_type} details: {details}")
+
+def log_warning(warning_type, message, details=None):
+    """Centralized warning logging"""
+    global debug_mode
+    
+    # Always print warning messages
+    print(f"[WARN] {warning_type}: {message}")
+    
+    # Print additional details if debug mode is enabled
+    if debug_mode and details:
+        print(f"[WARN] {warning_type} details: {details}")
+
+def is_debug_mode():
+    """Helper function to safely check debug mode status"""
+    global debug_mode
     try:
-        if 'debug_mode' in globals() and debug_mode:
-            print(f"[DEBUG] {debug_type}: {message}")
+        return debug_mode
     except NameError:
-        pass  # debug_mode not defined yet
+        return False
 
 # ============================================================================
 # CENTRALIZED CONFIGURATION MANAGEMENT
@@ -1057,6 +1085,8 @@ def ensure_secret_key():
 ensure_secret_key()
 # Set APP_PORT after loading environment variables
 APP_PORT = config.get_int("APP_PORT")
+
+# Initialize global debug_mode variable
 debug_mode = config.get_bool("FLASK_DEBUG", False)
 
 app = Flask(__name__)
@@ -1120,7 +1150,7 @@ def get_libraries_from_local_files():
     Get library information from local files only (no Plex API calls).
     Returns library data from library_notes.json and poster directories.
     """
-    if debug_mode:
+    if is_debug_mode():
         print("[DEBUG] Getting libraries from local files only...")
     
     libraries = []
@@ -1467,6 +1497,13 @@ def process_library_posters_incremental(lib, plex_url, headers, background=False
                         'successful': 0,
                         'status': 'processing_incremental'
                     })
+                
+                # Update unified progress for Plex downloads
+                if 'unified' in poster_download_progress and poster_download_progress['unified']['status'] == 'plex_downloading':
+                    # Calculate overall progress across all libraries
+                    total_libraries = poster_download_progress['unified'].get('total', 1)
+                    current_library = poster_download_progress['unified'].get('current', 0)
+                    poster_download_progress['unified']['message'] = f'Processing {library_name}...'
         
         # Download new posters with ThreadPoolExecutor
         successful_downloads = 0
@@ -1490,6 +1527,10 @@ def process_library_posters_incremental(lib, plex_url, headers, background=False
                                 'successful': successful_downloads,
                                 'status': 'processing_incremental'
                             })
+                        
+                        # Update unified progress for Plex downloads
+                        if 'unified' in poster_download_progress and poster_download_progress['unified']['status'] == 'plex_downloading':
+                            poster_download_progress['unified']['message'] = f'Downloading {library_name} ({i + 1}/{len(new_items)})'
         
         if debug_mode:
             print(f"[INFO] Incremental refresh for {library_name}: Downloaded {successful_downloads}/{len(new_items)} new posters, removed {removed_count} deleted posters")
@@ -3111,17 +3152,46 @@ def services():
                     context["error_message"] = str(e)
                     return render_template("services.html", **context)
 
-        # Trigger background poster refresh if library settings changed
-        library_ids = request.form.getlist("library_ids")
-        current_library_ids = os.getenv("LIBRARY_IDS", "")
-        if library_ids and ",".join(library_ids) != current_library_ids:
-            # Library selection changed, trigger poster refresh
-            refresh_posters_on_demand()
+        # Note: Poster downloads will be handled by setup_complete route to ensure proper flow
+        # This prevents the user from staying on /services with loading animation
 
         # Track what settings changed for adaptive restart
         changed_settings = set()
         
-        # Check which settings actually changed
+        # Check which settings actually changed by comparing with current values
+        current_config = {
+            "server_name": config.get("SERVER_NAME", ""),
+            "plex_url": config.get("PLEX_URL", ""),
+            "audiobooks_id": config.get("AUDIOBOOKS_ID", ""),
+            "accent_color_text": config.get("ACCENT_COLOR_TEXT", ""),
+            "quick_access_enabled": config.get("QUICK_ACCESS_ENABLED", "no"),
+            "discord_webhook": config.get("DISCORD_WEBHOOK", ""),
+            "discord_username": config.get("DISCORD_USERNAME", ""),
+            "discord_avatar": config.get("DISCORD_AVATAR", ""),
+            "discord_color": config.get("DISCORD_COLOR", ""),
+            "discord_notify_plex": config.get("DISCORD_NOTIFY_PLEX", "0"),
+            "discord_notify_abs": config.get("DISCORD_NOTIFY_ABS", "0"),
+            "discord_notify_rate_limiting": config.get("DISCORD_NOTIFY_RATE_LIMITING", "0"),
+            "discord_notify_ip_management": config.get("DISCORD_NOTIFY_IP_MANAGEMENT", "0"),
+            "discord_notify_login_attempts": config.get("DISCORD_NOTIFY_LOGIN_ATTEMPTS", "0"),
+            "discord_notify_form_rate_limiting": config.get("DISCORD_NOTIFY_FORM_RATE_LIMITING", "0"),
+            "library_carousels": config.get("LIBRARY_CAROUSELS", ""),
+            "library_carousel_order": config.get("LIBRARY_CAROUSEL_ORDER", ""),
+            "qa_plex_enabled": config.get("QA_PLEX_ENABLED", "no"),
+            "qa_audiobookshelf_enabled": config.get("QA_AUDIOBOOKSHELF_ENABLED", "no"),
+            "qa_tautulli_enabled": config.get("QA_TAUTULLI_ENABLED", "no"),
+            "qa_overseerr_enabled": config.get("QA_OVERSEERR_ENABLED", "no"),
+            "qa_jellyseerr_enabled": config.get("QA_JELLYSEERR_ENABLED", "no"),
+            "ip_management_enabled": config.get("IP_MANAGEMENT_ENABLED", "no"),
+            "rate_limit_settings_enabled": config.get("RATE_LIMIT_SETTINGS_ENABLED", "no"),
+            "max_login_attempts": config.get("MAX_LOGIN_ATTEMPTS", "5"),
+            "max_form_submissions": config.get("MAX_FORM_SUBMISSIONS", "10"),
+            "library_ids": config.get("LIBRARY_IDS", ""),
+            "abs_enabled": config.get("ABS_ENABLED", "no"),
+            "audiobookshelf_url": config.get("AUDIOBOOKSHELF_URL", ""),
+        }
+        
+        # Check for actual changes in form fields
         for field in ["server_name", "plex_url", "audiobooks_id", "accent_color_text", 
                      "quick_access_enabled", "discord_webhook", "discord_username", 
                      "discord_avatar", "discord_color", "discord_notify_plex", 
@@ -3132,21 +3202,72 @@ def services():
                      "qa_overseerr_enabled", "qa_jellyseerr_enabled", "ip_management_enabled",
                      "rate_limit_settings_enabled", "max_login_attempts", "max_form_submissions"]:
             if field in request.form:
-                changed_settings.add(field)
+                new_value = request.form.get(field, "").strip()
+                if field in ["discord_notify_plex", "discord_notify_abs", "discord_notify_rate_limiting",
+                           "discord_notify_ip_management", "discord_notify_login_attempts",
+                           "discord_notify_form_rate_limiting", "quick_access_enabled",
+                           "qa_plex_enabled", "qa_audiobookshelf_enabled", "qa_tautulli_enabled",
+                           "qa_overseerr_enabled", "qa_jellyseerr_enabled", "ip_management_enabled",
+                           "rate_limit_settings_enabled"]:
+                    # Handle checkbox fields
+                    new_value = "yes" if new_value else "no"
+                
+                if new_value != current_config.get(field, ""):
+                    changed_settings.add(field)
+                    if is_debug_mode():
+                        print(f"[DEBUG] Setting '{field}' changed: '{current_config.get(field, '')}' -> '{new_value}'")
         
         # Check for poster-dependent settings
         if "plex_token" in request.form and request.form.get("plex_token", "").strip():
             changed_settings.add("plex_token")
+            if is_debug_mode():
+                print("[DEBUG] Plex token changed")
+        
         if "library_ids" in request.form:
-            changed_settings.add("library_ids")
-        if "audiobooks_id" in request.form and request.form.get("audiobooks_id", "").strip():
-            changed_settings.add("audiobooks_id")
-        if "audiobookshelf_url" in request.form and request.form.get("audiobookshelf_url", "").strip():
-            changed_settings.add("audiobookshelf_url")
-        if "audiobookshelf_token" in request.form and request.form.get("audiobookshelf_token", "").strip():
-            changed_settings.add("audiobookshelf_token")
+            new_library_ids = ",".join(cleaned_library_ids)
+            if new_library_ids != current_config.get("library_ids", ""):
+                changed_settings.add("library_ids")
+                if is_debug_mode():
+                    print(f"[DEBUG] Library IDs changed: '{current_config.get('library_ids', '')}' -> '{new_library_ids}'")
+        
+        if "audiobooks_id" in request.form:
+            new_audiobooks_id = request.form.get("audiobooks_id", "").strip()
+            if new_audiobooks_id != current_config.get("audiobooks_id", ""):
+                changed_settings.add("audiobooks_id")
+                if is_debug_mode():
+                    print(f"[DEBUG] Audiobooks ID changed: '{current_config.get('audiobooks_id', '')}' -> '{new_audiobooks_id}'")
+        
+        if "audiobookshelf_url" in request.form:
+            new_abs_url = request.form.get("audiobookshelf_url", "").strip()
+            if new_abs_url != current_config.get("audiobookshelf_url", ""):
+                changed_settings.add("audiobookshelf_url")
+                if is_debug_mode():
+                    print(f"[DEBUG] ABS URL changed: '{current_config.get('audiobookshelf_url', '')}' -> '{new_abs_url}'")
+        
+        if "audiobookshelf_token" in request.form:
+            new_abs_token = request.form.get("audiobookshelf_token", "").strip()
+            # Only mark as changed if the token field is not empty and different from current
+            # Since we can't directly compare hashed tokens, we'll only mark as changed if:
+            # 1. The new token is not empty AND
+            # 2. Either there's no current token hash OR the new token is different from what we can verify
+            current_abs_token_hash = os.getenv("AUDIOBOOKSHELF_TOKEN_HASH", "")
+            if new_abs_token and (not current_abs_token_hash or not verify_api_key(new_abs_token, current_abs_token_hash)):
+                changed_settings.add("audiobookshelf_token")
+                if is_debug_mode():
+                    print("[DEBUG] ABS token changed")
+            elif is_debug_mode():
+                print("[DEBUG] ABS token unchanged or empty")
+        
         if "abs_enabled" in request.form:
-            changed_settings.add("abs_enabled")
+            new_abs_enabled = request.form.get("abs_enabled")
+            if new_abs_enabled != current_config.get("abs_enabled", "no"):
+                changed_settings.add("abs_enabled")
+                if is_debug_mode():
+                    print(f"[DEBUG] ABS enabled changed: '{current_config.get('abs_enabled', 'no')}' -> '{new_abs_enabled}'")
+        
+        if is_debug_mode():
+            print(f"[DEBUG] Final changed settings: {changed_settings}")
+            print(f"[DEBUG] ABS token in changed settings: {'audiobookshelf_token' in changed_settings}")
         
         # Calculate restart delay
         restart_delay = get_restart_delay_for_changes(changed_settings)
@@ -3928,7 +4049,7 @@ def download_abs_book_poster(abs_url, book, library_id, audiobook_dir, poster_co
     
     return poster_count + 1
 
-def download_abs_audiobook_posters():
+def download_abs_audiobook_posters(check_local_first=False):
     """Download audiobook posters from ABS API"""
     global abs_download_in_progress, abs_download_completed
     
@@ -3944,8 +4065,8 @@ def download_abs_audiobook_posters():
     if debug_mode:
         print(f"[INFO] Starting ABS audiobook poster download from: {abs_url}")
     
-    # Check if posters need refreshing
-    if not should_refresh_abs_posters():
+    # Check if posters need refreshing (skip if check_local_first is enabled)
+    if not check_local_first and not should_refresh_abs_posters():
         if debug_mode:
             print("[DEBUG] Skipping ABS poster download - posters are recent")
         # Clear flags if no refresh needed
@@ -3986,6 +4107,13 @@ def download_abs_audiobook_posters():
                 'type': 'abs'
             }
             
+            # Update unified progress to show ABS is in progress
+            if 'unified' in poster_download_progress:
+                poster_download_progress['unified']['status'] = 'abs_downloading'
+                poster_download_progress['unified']['message'] = 'Downloading Audiobookshelf posters...'
+                poster_download_progress['unified']['current'] = 0
+                poster_download_progress['unified']['total'] = len(book_libraries)
+            
             # Update setup status to show ABS is in progress
             if 'abs_setup' in poster_download_progress:
                 poster_download_progress['abs_setup']['status'] = 'in_progress'
@@ -4010,6 +4138,11 @@ def download_abs_audiobook_posters():
                 if 'abs' in poster_download_progress:
                     poster_download_progress['abs']['current'] = i + 1
                     poster_download_progress['abs']['library_name'] = f'Audiobookshelf - {library_name}'
+                
+                # Update unified progress
+                if 'unified' in poster_download_progress:
+                    poster_download_progress['unified']['current'] = i + 1
+                    poster_download_progress['unified']['message'] = f'Processing {library_name}...'
                 
                 # Update setup status
                 if 'abs_setup' in poster_download_progress:
@@ -4157,10 +4290,10 @@ def download_single_poster_with_metadata(item, lib_dir, index, headers):
                 with open(out_path, "wb") as f:
                     f.write(content)
                 if debug_mode:
-                    print(f"[DEBUG] Downloaded poster for {item.get('title', 'Unknown')} (ratingKey: {rating_key})")
+                    log_info("poster_download", f"Downloaded poster for {item.get('title', 'Unknown')}", {"rating_key": rating_key, "size": len(content)})
             else:
                 if debug_mode:
-                    print(f"[ERROR] Failed to download poster for {item.get('title', 'Unknown')}: HTTP {r.status_code}")
+                    log_error("poster_download", f"Failed to download poster for {item.get('title', 'Unknown')}", {"rating_key": rating_key, "status_code": r.status_code})
                 return False
             
             # Rate limiting - small delay between requests
@@ -4242,7 +4375,7 @@ def process_library_posters(lib, plex_url, headers, limit=None, background=False
     # Check if posters need refreshing
     if not should_refresh_posters(section_id):
         if debug_mode:
-            print(f"[DEBUG] Skipping poster download for {library_name} - posters are recent")
+            log_debug("library_posters", f"Skipping poster download for {library_name} - posters are recent", {"section_id": section_id})
         return 0
     
     lib_dir = get_library_poster_dir(section_id)
@@ -4278,7 +4411,7 @@ def process_library_posters(lib, plex_url, headers, limit=None, background=False
             items = items[:limit]
         
         if debug_mode:
-            print(f"[DEBUG] Processing {len(items)} items for library {lib['title']}")
+            log_info("library_posters", f"Processing {len(items)} items for library {lib['title']}", {"section_id": section_id, "items_count": len(items)})
         
         # Process items with ThreadPoolExecutor for parallel downloads
         successful_downloads = 0
@@ -4327,7 +4460,7 @@ def process_library_posters(lib, plex_url, headers, limit=None, background=False
                             poster_download_progress['plex_setup']['message'] = f'Processing {library_name} ({i + 1}/{len(items)})'
             
             if debug_mode:
-                print(f"[INFO] Downloaded {successful_downloads}/{len(items)} posters for library {lib['title']}")
+                log_info("library_posters", f"Downloaded {successful_downloads}/{len(items)} posters for library {lib['title']}", {"section_id": section_id, "successful": successful_downloads, "total": len(items)})
             
             # Clear progress for this library when complete
             with poster_download_lock:
@@ -4341,7 +4474,7 @@ def process_library_posters(lib, plex_url, headers, limit=None, background=False
             print(f"Error fetching posters for section {section_id}: {e}")
         return 0
 
-def download_and_cache_posters_for_libraries(libraries, limit=None, background=False, incremental_mode=False):
+def download_and_cache_posters_for_libraries(libraries, limit=None, background=False, incremental_mode=False, check_local_first=False):
     """Optimized poster downloading with background processing and rate limiting"""
     if not libraries:
         return
@@ -4349,11 +4482,11 @@ def download_and_cache_posters_for_libraries(libraries, limit=None, background=F
     # Check queue size to prevent memory overflow
     if poster_download_queue.qsize() >= POSTER_DOWNLOAD_LIMITS['max_downloads_per_hour']:
         if debug_mode:
-            print(f"[WARN] Download queue is full ({poster_download_queue.qsize()} items), skipping new downloads")
+            log_warning("poster_download", f"Download queue is full ({poster_download_queue.qsize()} items), skipping new downloads")
         return
     
     if debug_mode:
-        print(f"[DEBUG] download_and_cache_posters_for_libraries called with {len(libraries)} libraries, background={background}, incremental={incremental_mode}")
+        log_debug("poster_download", f"download_and_cache_posters_for_libraries called with {len(libraries)} libraries", {"background": background, "incremental": incremental_mode, "check_local_first": check_local_first})
     
     # Get Plex credentials directly from environment to ensure latest values
     plex_token = os.getenv("PLEX_TOKEN")
@@ -4361,8 +4494,14 @@ def download_and_cache_posters_for_libraries(libraries, limit=None, background=F
     
     if not plex_token or not plex_url:
         if debug_mode:
-            print(f"[ERROR] Plex credentials not available: token={'set' if plex_token else 'not set'}, url={'set' if plex_url else 'not set'}")
+            log_error("poster_download", "Plex credentials not available", {"token_set": bool(plex_token), "url_set": bool(plex_url)})
         return
+    
+    # If check_local_first is enabled, use incremental mode to only download missing posters
+    if check_local_first:
+        if debug_mode:
+            log_debug("poster_download", "check_local_first enabled, using incremental mode to check local files first")
+        incremental_mode = True
     
     headers = {"X-Plex-Token": plex_token}
     
@@ -4370,7 +4509,7 @@ def download_and_cache_posters_for_libraries(libraries, limit=None, background=F
         # Queue for background processing with incremental mode flag
         poster_download_queue.put(('libraries', libraries, limit, incremental_mode))
         if debug_mode:
-            print(f"[DEBUG] Queued {len(libraries)} libraries for background processing (incremental={incremental_mode})")
+            log_debug("poster_download", f"Queued {len(libraries)} libraries for background processing", {"incremental": incremental_mode, "queue_size": poster_download_queue.qsize()})
         return True
     else:
         # Process immediately
@@ -4386,7 +4525,7 @@ def download_and_cache_posters_for_libraries(libraries, limit=None, background=F
                 total_downloaded += downloaded
         
         if debug_mode and incremental_mode:
-            print(f"[INFO] Incremental refresh complete: {total_downloaded} new posters downloaded, {total_removed} deleted posters removed")
+            log_info("poster_download", f"Incremental refresh complete: {total_downloaded} new posters downloaded, {total_removed} deleted posters removed")
         
         return total_downloaded
 
@@ -4417,8 +4556,12 @@ def background_poster_worker():
             if len(work_item) == 3:
                 work_type, data, limit = work_item
                 incremental_mode = False
+                check_local_first = False
             elif len(work_item) == 4:
                 work_type, data, limit, incremental_mode = work_item
+                check_local_first = False
+            elif len(work_item) == 5:
+                work_type, data, limit, incremental_mode, check_local_first = work_item
             else:
                 log_debug("worker", f"Invalid work item format: {work_item}", {"work_item_length": len(work_item)})
                 continue
@@ -4430,7 +4573,7 @@ def background_poster_worker():
                 
                 # Use retry mechanism for library downloads
                 def download_libraries():
-                    return download_and_cache_posters_for_libraries(data, limit, background=False, incremental_mode=incremental_mode)
+                    return download_and_cache_posters_for_libraries(data, limit, background=False, incremental_mode=incremental_mode, check_local_first=False)
                 
                 try:
                     retry_operation(download_libraries, max_retries=3, delay=5.0, 
@@ -4445,11 +4588,11 @@ def background_poster_worker():
                 abs_download_completed = False
                 abs_download_queued = False  # Reset queued flag since we're now processing
                 
-                log_debug("worker", "Starting ABS audiobook poster download", {"work_type": "abs_download"})
+                log_debug("worker", "Starting ABS audiobook poster download", {"work_type": "abs_download", "check_local_first": check_local_first})
                 
                 # Use retry mechanism for ABS downloads
                 def download_abs():
-                    return download_abs_audiobook_posters()
+                    return download_abs_audiobook_posters(check_local_first=check_local_first)
                 
                 try:
                     retry_operation(download_abs, max_retries=3, delay=10.0, 
@@ -4480,7 +4623,7 @@ def background_poster_worker():
                     'abs_setup' not in poster_download_progress):
                     # Keep plex_setup status until ABS downloads start
                     if debug_mode:
-                        print("[DEBUG] Keeping plex_setup status until ABS downloads start")
+                        log_debug("worker", "Keeping plex_setup status until ABS downloads start")
             
             poster_download_queue.task_done()
             
@@ -4496,10 +4639,14 @@ def start_background_poster_worker():
     """Start the background poster download worker"""
     global poster_download_running, abs_download_completed, abs_download_queued
     if not poster_download_running:
+        poster_download_running = True
         worker_thread = threading.Thread(target=background_poster_worker, daemon=True)
         worker_thread.start()
         if debug_mode:
             print("[INFO] Started background poster download worker")
+    else:
+        if debug_mode:
+            print("[DEBUG] Background poster worker already running, skipping start")
         # Small delay to ensure worker is ready
         time.sleep(0.5)
         # Reset ABS download status when starting new worker
@@ -4518,17 +4665,34 @@ def is_poster_download_in_progress():
 
 def should_wait_for_posters():
     """Determine if we should wait for poster downloads to complete"""
-    # Check if poster downloads are in progress
+    global abs_download_in_progress, abs_download_queued, poster_download_running, poster_download_queue
+    
+    # Check unified download status first (for setup_complete route)
+    with poster_download_lock:
+        if 'unified' in poster_download_progress:
+            unified_status = poster_download_progress['unified']['status']
+            if unified_status in ['plex_downloading', 'abs_downloading', 'starting']:
+                if debug_mode:
+                    print(f"[DEBUG] Unified downloads in progress (status: {unified_status}), waiting...")
+                return True
+    
+    # Check if poster downloads are in progress (for regular background downloads)
     if is_poster_download_in_progress():
         if debug_mode:
             progress = get_poster_download_progress()
             print(f"[DEBUG] Poster downloads in progress: {list(progress.keys())}")
         return True
     
-    # Check if ABS downloads are in progress
+    # Check if ABS downloads are in progress - this is the key fix
     if abs_download_in_progress:
         if debug_mode:
             print("[DEBUG] ABS poster downloads in progress, waiting...")
+        return True
+    
+    # Check if ABS download is queued but not yet started
+    if abs_download_queued:
+        if debug_mode:
+            print("[DEBUG] ABS poster downloads queued, waiting...")
         return True
     
     # Check if there are items in the download queue
@@ -4547,58 +4711,6 @@ def should_wait_for_posters():
         if debug_mode:
             print("[DEBUG] Worker is running but queue not empty, waiting...")
         return True
-    
-    # Check setup-specific download status
-    with poster_download_lock:
-        if 'plex_setup' in poster_download_progress:
-            plex_status = poster_download_progress['plex_setup']['status']
-            if plex_status in ['starting', 'waiting_for_completion', 'in_progress']:
-                if debug_mode:
-                    print(f"[DEBUG] Plex setup downloads in progress (status: {plex_status}), waiting...")
-                return True
-        
-        if 'abs_setup' in poster_download_progress:
-            abs_status = poster_download_progress['abs_setup']['status']
-            if abs_status in ['starting', 'in_progress']:
-                if debug_mode:
-                    print(f"[DEBUG] ABS setup downloads in progress (status: {abs_status}), waiting...")
-                return True
-        
-        # Check if ABS is enabled and needs to be downloaded but hasn't started yet
-        if os.getenv("ABS_ENABLED", "yes") == "yes":
-            # If Plex setup is completed but ABS setup hasn't started yet, we need to wait
-            if ('plex_setup' in poster_download_progress and 
-                poster_download_progress['plex_setup']['status'] == 'completed' and
-                'abs_setup' not in poster_download_progress):
-                if debug_mode:
-                    print("[DEBUG] Plex completed but ABS setup not started yet, waiting...")
-                return True
-            
-            # Also check if ABS is queued but not started yet
-            if abs_download_queued and not abs_download_in_progress and not abs_download_completed:
-                if debug_mode:
-                    print("[DEBUG] ABS downloads queued but not started yet, waiting...")
-                return True
-    
-    # Check if ABS poster download is needed and not completed
-    if os.getenv("ABS_ENABLED", "yes") == "yes":
-        # Check if ABS download is in progress
-        if abs_download_in_progress:
-            if debug_mode:
-                print("[DEBUG] ABS poster download in progress, waiting...")
-            return True
-        
-        # Check if ABS download is queued but not completed
-        if abs_download_queued and not abs_download_completed:
-            if debug_mode:
-                print(f"[DEBUG] ABS poster download queued, waiting... (abs_download_queued={abs_download_queued}, abs_download_completed={abs_download_completed})")
-            return True
-        
-        # Check if ABS posters need refreshing and download is not completed
-        if should_refresh_abs_posters() and not abs_download_completed:
-            if debug_mode:
-                print("[DEBUG] ABS posters need refreshing but download not queued yet, not waiting...")
-            return False
     
     return False
 
@@ -5013,16 +5125,41 @@ def check_setup():
             return redirect(url_for("setup"))
 
 def restart_container_delayed():
-    time.sleep(2)  # Give browser time to receive the response
-    if platform.system() == "Windows":
-        import sys
-        import os
-        # Re-execute the current script with the same arguments
-        os.execv(sys.executable, [sys.executable] + sys.argv)
+    """Restart the container with proper poster download completion handling"""
+    if debug_mode:
+        print("[INFO] Preparing for restart...")
+    
+    # Wait for poster downloads to complete before restarting
+    max_wait_time = 600  # 10 minutes timeout
+    start_time = time.time()
+    
+    while should_wait_for_posters() and (time.time() - start_time) < max_wait_time:
+        if debug_mode:
+            print("[DEBUG] Waiting for poster downloads to complete before restart...")
+        time.sleep(2)
+    
+    if should_wait_for_posters():
+        if debug_mode:
+            print("[WARN] Poster downloads did not complete within timeout, restarting anyway")
     else:
-        import os
-        import signal
-        os.kill(os.getpid(), signal.SIGTERM)
+        if debug_mode:
+            print("[INFO] Poster downloads completed, proceeding with restart")
+    
+    time.sleep(2)  # Give browser time to receive the response
+    
+    # Instead of killing the process, just reload the configuration
+    # This allows background threads to continue running
+    if debug_mode:
+        print("[INFO] Reloading configuration instead of full restart to preserve background downloads")
+    
+    # Reload environment variables
+    reload_config()
+    
+    # Clear any cached data that might need refreshing
+    clear_library_cache()
+    
+    if debug_mode:
+        print("[INFO] Configuration reloaded successfully")
 
 @app.route("/trigger_restart", methods=["POST"])
 @csrf.exempt
@@ -5045,30 +5182,27 @@ def check_restart_readiness():
             "progress": get_poster_download_progress()
         }
         
-        # Add setup-specific download status
+        # Add unified download status
         setup_download_status = {}
+        current_phase = "idle"
         with poster_download_lock:
-            if 'plex_setup' in poster_download_progress:
-                setup_download_status['plex'] = poster_download_progress['plex_setup']
-            if 'abs_setup' in poster_download_progress:
-                setup_download_status['abs'] = poster_download_progress['abs_setup']
-            if 'setup_error' in poster_download_progress:
-                setup_download_status['error'] = poster_download_progress['setup_error']
+            if 'unified' in poster_download_progress:
+                unified_status = poster_download_progress['unified']
+                setup_download_status['unified'] = unified_status
+                
+                # Determine current phase based on unified status
+                if unified_status['status'] == 'plex_downloading':
+                    current_phase = "plex"
+                elif unified_status['status'] == 'abs_downloading':
+                    current_phase = "abs"
+                elif unified_status['status'] == 'completed':
+                    current_phase = "completed"
+                elif unified_status['status'] == 'error':
+                    current_phase = "error"
         
         # Add ABS-specific status
         abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
         abs_needs_refresh = should_refresh_abs_posters() if abs_enabled else False
-        
-        # Determine current download phase for better status messages
-        current_phase = "idle"
-        if 'plex_setup' in setup_download_status:
-            plex_status = setup_download_status['plex']['status']
-            if plex_status in ['starting', 'waiting_for_completion']:
-                current_phase = "plex"
-            elif plex_status == 'completed' and 'abs_setup' in setup_download_status:
-                abs_status = setup_download_status['abs']['status']
-                if abs_status in ['starting', 'in_progress']:
-                    current_phase = "abs"
         
         if debug_mode:
             print(f"[DEBUG] Restart readiness check: ready={ready}, should_wait={should_wait}")
@@ -5553,6 +5687,16 @@ def setup():
         # Calculate restart delay for setup changes
         restart_delay = get_restart_delay_for_changes(changed_settings)
         
+        # Add debug output to show what's being passed to setup_complete
+        if debug_mode:
+            print(f"[DEBUG] Setup form completed successfully")
+            print(f"[DEBUG] Changed settings: {changed_settings}")
+            print(f"[DEBUG] Restart delay: {restart_delay}")
+            print(f"[DEBUG] ABS enabled: {form.get('abs_enabled')}")
+            print(f"[DEBUG] Plex URL: {form.get('plex_url')}")
+            print(f"[DEBUG] Library IDs: {form.getlist('library_ids')}")
+            print(f"[DEBUG] Redirecting to setup_complete with from_setup=true")
+        
         # Redirect to setup_complete with adaptive restart info
         return redirect(url_for("setup_complete", from_setup="true", 
                               restart_delay=str(restart_delay),
@@ -5617,12 +5761,18 @@ def trigger_poster_downloads():
 @limiter.exempt
 def setup_complete():
     # Security check: Verify this request is legitimate
-    # Check if this is from a legitimate form submission
     from_services = request.args.get('from_services', 'false').lower() == 'true'
     from_setup = request.args.get('from_setup', 'false').lower() == 'true'
     
+    # Add debug output to show setup completion is being reached
+    if is_debug_mode():
+        print(f"[DEBUG] Setup complete route accessed - from_services: {from_services}, from_setup: {from_setup}")
+        print(f"[DEBUG] Request args: {dict(request.args)}")
+    
     # If not from legitimate form submission, redirect to login
     if not from_services and not from_setup:
+        if is_debug_mode():
+            print("[DEBUG] Unauthorized setup complete access - redirecting to login")
         log_security_event("unauthorized_setup_complete_access", get_client_ip(), 
                          {"user_agent": request.headers.get('User-Agent', 'Unknown'),
                           "referer": request.headers.get('Referer', 'None')})
@@ -5631,363 +5781,163 @@ def setup_complete():
     restart_delay = request.args.get('restart_delay', '15')
     changed_settings = request.args.get('changed_settings', '').split(',') if request.args.get('changed_settings') else []
     
-    # Determine if this is an adaptive restart
+    # Determine if this is an adaptive restart (poster downloads needed)
     is_adaptive = restart_delay == 'adaptive'
     
-    # For setup form submissions, use the parameters passed from the setup route
+    # For setup form submissions, always use adaptive restart since they change critical settings
     if from_setup:
-        # Setup form submissions are always adaptive since they change critical settings
         is_adaptive = True
         restart_delay = 'adaptive'
     
-    if from_services:
-        # For adaptive restarts, wait for poster downloads to complete
-        if is_adaptive:
-            if debug_mode:
-                print("[DEBUG] Adaptive restart detected, waiting for poster downloads...")
-            # Wait for poster downloads to complete before restart
-            if wait_for_poster_completion(POSTER_DOWNLOAD_TIMEOUT):
-                if debug_mode:
-                    print("[DEBUG] Poster downloads completed, proceeding with restart...")
-                threading.Thread(target=restart_container_delayed, daemon=True).start()
-            else:
-                if debug_mode:
-                    print("[WARN] Poster download timeout reached, restarting anyway...")
-                threading.Thread(target=restart_container_delayed, daemon=True).start()
-        else:
-            # Only trigger restart immediately for non-adaptive changes that don't require poster downloads
-            if not should_wait_for_posters():
-                if debug_mode:
-                    print("[DEBUG] No poster downloads in progress, triggering immediate restart...")
-                threading.Thread(target=restart_container_delayed, daemon=True).start()
-            else:
-                if debug_mode:
-                    print("[DEBUG] Poster downloads in progress, waiting before restart...")
-                # Wait for poster downloads even for immediate changes
-                if wait_for_poster_completion(POSTER_DOWNLOAD_TIMEOUT):
-                    if debug_mode:
-                        print("[DEBUG] Poster downloads completed, proceeding with restart...")
-                    threading.Thread(target=restart_container_delayed, daemon=True).start()
-                else:
-                    if debug_mode:
-                        print("[WARN] Poster download timeout reached, restarting anyway...")
-                    threading.Thread(target=restart_container_delayed, daemon=True).start()
+    if is_debug_mode():
+        print(f"[DEBUG] Setup complete - restart_delay: {restart_delay}, is_adaptive: {is_adaptive}")
+        print(f"[DEBUG] Changed settings: {changed_settings}")
     
-    elif from_setup:
-        # For setup form submissions, use the adaptive restart logic
-        if debug_mode:
-            print(f"[DEBUG] Setup form submission detected with changed settings: {changed_settings}")
-        
-        # For setup form submissions, always use adaptive restart since they change critical settings
-        if debug_mode:
-            print("[DEBUG] Adaptive restart detected for setup, starting poster downloads in background...")
-        
-        # Queue poster downloads in background threads - don't block the page render
-        def start_poster_downloads():
-            global poster_download_progress
-            try:
-                # Get Plex credentials directly from environment
-                plex_token = os.getenv("PLEX_TOKEN")
-                
-                if os.getenv("SETUP_COMPLETE") == "1" and plex_token:
-                    # Ensure worker is running
-                    ensure_worker_running()
-                    
-                    # Get selected libraries - no need to fetch from Plex API since we already have the IDs
-                    selected_ids = os.getenv("LIBRARY_IDS", "")
-                    selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
-                    
-                    # Create library objects from the IDs we already have
-                    libraries = []
-                    for lib_id in selected_ids:
-                        # Get library name from environment or use ID as fallback
-                        lib_name = os.getenv(f"LIBRARY_NAME_{lib_id}", f"Library {lib_id}")
-                        libraries.append({
-                            "key": lib_id,
-                            "title": lib_name,
-                            "type": "show"  # Default type, could be enhanced if needed
-                        })
-                    
-                    # Start Plex poster downloads first
-                    if libraries:
-                        if debug_mode:
-                            print(f"[INFO] Starting Plex poster download for {len(libraries)} libraries after setup")
-                        
-                        # Set a flag to indicate Plex downloads are starting
-                        with poster_download_lock:
-                            poster_download_progress['plex_setup'] = {
-                                'status': 'starting',
-                                'message': f'Starting Plex poster downloads for {len(libraries)} libraries...',
-                                'current': 0,
-                                'total': len(libraries),
-                                'start_time': time.time()
-                            }
-                        
-                        # Start Plex downloads
-                        download_and_cache_posters_for_libraries(libraries, background=True)
-                        
-                        if debug_mode:
-                            print(f"[INFO] Queued Plex poster download for {len(libraries)} libraries after setup")
-                    
-                    # Check if ABS is enabled and needs poster downloads
-                    abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
-                    if abs_enabled:
-                        def queue_abs_after_plex():
-                            global abs_download_in_progress, abs_download_queued
-                            
-                            if debug_mode:
-                                print("[INFO] Waiting for Plex poster downloads to complete before starting ABS...")
-                            
-                            # Update status to show waiting for Plex completion
-                            with poster_download_lock:
-                                if 'plex_setup' in poster_download_progress:
-                                    poster_download_progress['plex_setup']['status'] = 'waiting_for_completion'
-                                    poster_download_progress['plex_setup']['message'] = 'Waiting for Plex downloads to complete...'
-                            
-                            # Wait for Plex poster downloads to complete
-                            plex_completed = wait_for_poster_completion(POSTER_DOWNLOAD_TIMEOUT)
-                            
-                            if plex_completed:
-                                if debug_mode:
-                                    print("[INFO] Plex poster downloads completed, now starting ABS poster downloads")
-                                
-                                # Update status to show Plex completed and ABS starting
-                                with poster_download_lock:
-                                    if 'plex_setup' in poster_download_progress:
-                                        poster_download_progress['plex_setup']['status'] = 'completed'
-                                        poster_download_progress['plex_setup']['message'] = 'Plex poster downloads completed'
-                                        poster_download_progress['plex_setup']['end_time'] = time.time()
-                                    
-                                    # Add ABS download status
-                                    poster_download_progress['abs_setup'] = {
-                                        'status': 'starting',
-                                        'message': 'Starting Audiobookshelf poster downloads...',
-                                        'current': 0,
-                                        'total': 0,
-                                        'start_time': time.time()
-                                    }
-                                
-                                try:
-                                    # Set ABS download flags to track progress
-                                    abs_download_in_progress = True
-                                    abs_download_queued = True
-                                    
-                                    # Use the existing ABS poster download function in background thread
-                                    threading.Thread(target=download_abs_audiobook_posters, daemon=True).start()
-                                    if debug_mode:
-                                        print("[INFO] Queued ABS poster download after Plex completion")
-                                except Exception as e:
-                                    if debug_mode:
-                                        print(f"Warning: Could not queue ABS poster downloads after Plex completion: {e}")
-                                    # Update status to show ABS failed
-                                    with poster_download_lock:
-                                        if 'abs_setup' in poster_download_progress:
-                                            poster_download_progress['abs_setup']['status'] = 'failed'
-                                            poster_download_progress['abs_setup']['message'] = f'Failed to start ABS downloads: {e}'
-                                            poster_download_progress['abs_setup']['end_time'] = time.time()
-                            else:
-                                if debug_mode:
-                                    print("[WARN] Plex poster download timeout reached, skipping ABS downloads")
-                                # Update status to show Plex timeout
-                                with poster_download_lock:
-                                    if 'plex_setup' in poster_download_progress:
-                                        poster_download_progress['plex_setup']['status'] = 'timeout'
-                                        poster_download_progress['plex_setup']['message'] = 'Plex downloads timed out, skipping ABS'
-                                        poster_download_progress['plex_setup']['end_time'] = time.time()
-                        
-                        # Start ABS downloads in a separate thread that waits for Plex
-                        threading.Thread(target=queue_abs_after_plex, daemon=True).start()
-                    else:
-                        # ABS not enabled, just wait for Plex to complete
-                        def wait_for_plex_only():
-                            
-                            if debug_mode:
-                                print("[INFO] ABS not enabled, waiting for Plex downloads to complete...")
-                            
-                            # Wait for Plex poster downloads to complete
-                            plex_completed = wait_for_poster_completion(POSTER_DOWNLOAD_TIMEOUT)
-                            
-                            if plex_completed:
-                                if debug_mode:
-                                    print("[INFO] Plex poster downloads completed")
-                                # Update status to show Plex completed
-                                with poster_download_lock:
-                                    if 'plex_setup' in poster_download_progress:
-                                        poster_download_progress['plex_setup']['status'] = 'completed'
-                                        poster_download_progress['plex_setup']['message'] = 'Plex poster downloads completed'
-                                        poster_download_progress['plex_setup']['end_time'] = time.time()
-                            else:
-                                if debug_mode:
-                                    print("[WARN] Plex poster download timeout reached")
-                                # Update status to show Plex timeout
-                                with poster_download_lock:
-                                    if 'plex_setup' in poster_download_progress:
-                                        poster_download_progress['plex_setup']['status'] = 'timeout'
-                                        poster_download_progress['plex_setup']['message'] = 'Plex downloads timed out'
-                                        poster_download_progress['plex_setup']['end_time'] = time.time()
-                        
-                        # Start the wait thread
-                        threading.Thread(target=wait_for_plex_only, daemon=True).start()
-                
-                # Fix any missing metadata files after a delay
-                def fix_metadata_delayed():
-                    time.sleep(5)  # Wait for poster downloads to complete
-                    if debug_mode:
-                        print("[INFO] Checking for missing metadata files after setup")
-                    fix_missing_metadata_files()
-                    if debug_mode:
-                        print("[INFO] Completed metadata file check after setup")
-                
-                threading.Thread(target=fix_metadata_delayed, daemon=True).start()
-            except Exception as e:
-                if debug_mode:
-                    print(f"Warning: Could not queue poster downloads after setup: {e}")
-                # Update status to show error
-                with poster_download_lock:
-                    poster_download_progress['setup_error'] = {
-                        'status': 'error',
-                        'message': f'Failed to start poster downloads: {e}',
-                        'error': str(e),
-                        'timestamp': time.time()
-                    }
-        
-        # Start poster downloads in background thread - don't block page render
-        threading.Thread(target=start_poster_downloads, daemon=True).start()
-        
-        # Don't wait for poster downloads here - let the page render first
-        # The restart will be triggered by the setup_complete page's JavaScript
-    
-    # Handle poster downloads for services form submissions (similar to setup form submissions)
-    if from_services:
-        if debug_mode:
-            print(f"[DEBUG] Services form submission detected with changed settings: {changed_settings}")
-        
-        # For services form submissions, use the same adaptive restart logic as setup
-        if debug_mode:
-            print("[DEBUG] Adaptive restart detected for services, starting poster downloads in background...")
-        
-        # Queue poster downloads in background threads - don't block the page render
-        def start_poster_downloads_services():
-            global poster_download_progress
-            try:
-                # Get Plex credentials directly from environment
-                plex_token = os.getenv("PLEX_TOKEN")
-                
-                if plex_token:
-                    # Ensure worker is running
-                    ensure_worker_running()
-                    
-                    # Get selected libraries - no need to fetch from Plex API since we already have the IDs
-                    selected_ids = os.getenv("LIBRARY_IDS", "")
-                    selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
-                    
-                    # Create library objects from the IDs we already have
-                    libraries = []
-                    for lib_id in selected_ids:
-                        # Get library name from environment or use ID as fallback
-                        lib_name = os.getenv(f"LIBRARY_NAME_{lib_id}", f"Library {lib_id}")
-                        libraries.append({
-                            "key": lib_id,
-                            "title": lib_name,
-                            "type": "show"  # Default type, could be enhanced if needed
-                        })
-                    
-                    if libraries:
-                        # Queue Plex poster downloads immediately
-                        if debug_mode:
-                            print(f"[INFO] Starting Plex poster download for {len(libraries)} libraries after services change")
-                        download_and_cache_posters_for_libraries(libraries, background=True)
-                        if debug_mode:
-                            print(f"[INFO] Queued Plex poster download for {len(libraries)} libraries after services change")
-                    
-                    # Queue ABS poster downloads if ABS is enabled and settings changed
-                    if (os.getenv("ABS_ENABLED", "yes") == "yes" and 
-                        any(setting in changed_settings for setting in ['audiobooks_id', 'audiobookshelf_url', 'audiobookshelf_token', 'abs_enabled'])):
-                        
-                        def queue_abs_after_plex_services():
-                            # Wait for Plex downloads to complete before starting ABS
-                            if debug_mode:
-                                print("[INFO] Waiting for Plex poster downloads to complete before starting ABS (services)...")
-                            
-                            # Wait for Plex poster downloads to complete
-                            if wait_for_poster_completion(POSTER_DOWNLOAD_TIMEOUT):
-                                if debug_mode:
-                                    print("[INFO] Plex poster downloads completed, now starting ABS poster downloads (services)")
-                                
-                                try:
-                                    # Set ABS download flags to track progress
-                                    global abs_download_in_progress, abs_download_queued
-                                    abs_download_in_progress = True
-                                    abs_download_queued = True
-                                    
-                                    # Use the existing ABS poster download function in background thread
-                                    threading.Thread(target=download_abs_audiobook_posters, daemon=True).start()
-                                    if debug_mode:
-                                        print("[INFO] Queued ABS poster download after Plex completion (services)")
-                                except Exception as e:
-                                    if debug_mode:
-                                        print(f"Warning: Could not queue ABS poster downloads after Plex completion (services): {e}")
-                            else:
-                                if debug_mode:
-                                    print("[WARN] Plex poster download timeout reached, skipping ABS downloads (services)")
-                        
-                        # Start ABS downloads in a separate thread that waits for Plex
-                        threading.Thread(target=queue_abs_after_plex_services, daemon=True).start()
-                
-                # Fix any missing metadata files after a delay
-                def fix_metadata_delayed():
-                    time.sleep(5)  # Wait for poster downloads to complete
-                    if debug_mode:
-                        print("[INFO] Checking for missing metadata files after services change")
-                    fix_missing_metadata_files()
-                    if debug_mode:
-                        print("[INFO] Completed metadata file check after services change")
-                
-                threading.Thread(target=fix_metadata_delayed, daemon=True).start()
-            except Exception as e:
-                if debug_mode:
-                    print(f"Warning: Could not queue poster downloads after services change: {e}")
-        
-        # Start poster downloads in background thread - don't block page render
-        threading.Thread(target=start_poster_downloads_services, daemon=True).start()
-        
-        # For services form submissions, we need to wait for poster downloads to complete
-        # before triggering the restart, unlike setup form submissions which use the page's JavaScript
-        if is_adaptive:
-            if debug_mode:
-                print("[DEBUG] Services adaptive restart: waiting for poster downloads to complete...")
-            # Wait for poster downloads to complete before restart
-            if wait_for_poster_completion(POSTER_DOWNLOAD_TIMEOUT):
-                if debug_mode:
-                    print("[DEBUG] Services poster downloads completed, proceeding with restart...")
-                threading.Thread(target=restart_container_delayed, daemon=True).start()
-            else:
-                if debug_mode:
-                    print("[WARN] Services poster download timeout reached, restarting anyway...")
-                threading.Thread(target=restart_container_delayed, daemon=True).start()
-        else:
-            # Only trigger restart immediately for non-adaptive changes that don't require poster downloads
-            if not should_wait_for_posters():
-                if debug_mode:
-                    print("[DEBUG] Services: No poster downloads in progress, triggering immediate restart...")
-                threading.Thread(target=restart_container_delayed, daemon=True).start()
-            else:
-                if debug_mode:
-                    print("[DEBUG] Services: Poster downloads in progress, waiting before restart...")
-                # Wait for poster downloads even for immediate changes
-                if wait_for_poster_completion(POSTER_DOWNLOAD_TIMEOUT):
-                    if debug_mode:
-                        print("[DEBUG] Services poster downloads completed, proceeding with restart...")
-                    threading.Thread(target=restart_container_delayed, daemon=True).start()
-                else:
-                    if debug_mode:
-                        print("[WARN] Services poster download timeout reached, restarting anyway...")
-                    threading.Thread(target=restart_container_delayed, daemon=True).start()
-    
+    # Show the setup_complete template instead of running downloads synchronously
+    # The template will handle the poster downloads asynchronously
     return render_template("setup_complete.html", 
                          restart_delay=restart_delay,
                          is_adaptive=is_adaptive,
                          changed_settings=changed_settings)
+
+@app.route("/ajax/setup-poster-downloads", methods=["POST"])
+@csrf.exempt
+def setup_poster_downloads():
+    """Handle poster downloads for setup completion"""
+    if is_debug_mode():
+        print("[DEBUG] Setup poster downloads route accessed")
+    
+    try:
+        # Get parameters
+        changed_settings = request.json.get('changed_settings', []) if request.json else []
+        
+        if is_debug_mode():
+            print(f"[DEBUG] Setup poster downloads - changed settings: {changed_settings}")
+        
+        # Get Plex credentials
+        plex_token = os.getenv("PLEX_TOKEN")
+        plex_url = os.getenv("PLEX_URL")
+        
+        if not plex_token or not plex_url:
+            if is_debug_mode():
+                print("[DEBUG] No Plex credentials available, skipping poster downloads")
+            return jsonify({"success": False, "error": "No Plex credentials available"})
+        
+        # Ensure worker is running
+        ensure_worker_running()
+        
+        # Get selected libraries
+        selected_ids = os.getenv("LIBRARY_IDS", "")
+        selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
+        
+        # Create library objects
+        libraries = []
+        for lib_id in selected_ids:
+            lib_name = os.getenv(f"LIBRARY_NAME_{lib_id}", f"Library {lib_id}")
+            libraries.append({
+                "key": lib_id,
+                "title": lib_name,
+                "type": "show"  # Default type
+            })
+        
+        # Determine what needs to be downloaded based on changed settings
+        needs_plex_download = any(setting in changed_settings for setting in ['plex_token', 'library_ids'])
+        needs_abs_download = any(setting in changed_settings for setting in ['audiobooks_id', 'audiobookshelf_url', 'audiobookshelf_token', 'abs_enabled'])
+        
+        # If no specific poster-related changes, check if posters need refreshing
+        if not needs_plex_download and not needs_abs_download:
+            # Check if any Plex libraries need refreshing
+            for lib in libraries:
+                if should_refresh_posters(lib["key"]):
+                    needs_plex_download = True
+                    break
+            
+            # Only check ABS refresh if no specific changes were made
+            # This prevents ABS from being refreshed when only Plex settings change
+            if not changed_settings:
+                abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
+                if abs_enabled and should_refresh_abs_posters():
+                    needs_abs_download = True
+        
+        if is_debug_mode():
+            print(f"[DEBUG] Download analysis - needs_plex: {needs_plex_download}, needs_abs: {needs_abs_download}")
+            print(f"[DEBUG] Changed settings: {changed_settings}")
+        
+        # Initialize unified progress tracking
+        with poster_download_lock:
+            poster_download_progress['unified'] = {
+                'status': 'starting',
+                'message': 'Starting poster downloads...',
+                'current': 0,
+                'total': 0,
+                'start_time': time.time()
+            }
+        
+        # Phase 1: Download Plex posters if needed
+        if libraries and needs_plex_download:
+            if is_debug_mode():
+                print(f"[INFO] Starting Plex poster downloads for {len(libraries)} libraries")
+            
+            # Update progress status
+            with poster_download_lock:
+                poster_download_progress['unified'].update({
+                    'status': 'plex_downloading',
+                    'message': 'Downloading Plex posters...',
+                    'current': 0,
+                    'total': len(libraries)
+                })
+            
+            # Queue Plex downloads to background worker
+            download_and_cache_posters_for_libraries(libraries, background=True, check_local_first=True)
+            
+        elif libraries:
+            if is_debug_mode():
+                print(f"[INFO] Skipping Plex poster downloads - no changes detected")
+        
+        # Phase 2: Queue ABS downloads if needed
+        abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
+        if abs_enabled and needs_abs_download:
+            if is_debug_mode():
+                print("[INFO] Queuing Audiobookshelf poster downloads")
+            
+            # Queue ABS downloads to background worker
+            poster_download_queue.put(('abs', None, None, False, True))  # work_type, data, limit, incremental_mode, check_local_first
+            
+        elif abs_enabled:
+            if is_debug_mode():
+                print(f"[INFO] Skipping ABS poster downloads - no changes detected")
+        
+        # Phase 3: Start periodic refresh in background
+        if libraries:
+            periodic_poster_refresh(libraries, 24)
+            if debug_mode:
+                print(f"[DEBUG] Started 24-hour periodic refresh for {len(libraries)} libraries")
+        
+        if debug_mode:
+            print("[INFO] Setup poster downloads initiated successfully")
+        
+        return jsonify({
+            "success": True,
+            "message": "Poster downloads initiated",
+            "needs_plex": needs_plex_download,
+            "needs_abs": needs_abs_download,
+            "libraries_count": len(libraries)
+        })
+        
+    except Exception as e:
+        if debug_mode:
+            print(f"[ERROR] Error in setup poster downloads: {e}")
+        
+        # Update progress status to show error
+        with poster_download_lock:
+            if 'unified' in poster_download_progress:
+                poster_download_progress['unified'].update({
+                    'status': 'error',
+                    'message': f'Error: {str(e)}',
+                    'end_time': time.time()
+                })
+        
+        return jsonify({"success": False, "error": str(e)})
 
 def periodic_poster_refresh_worker(libraries, interval_hours):
     """Background worker for periodic poster refresh"""
@@ -7314,11 +7264,12 @@ def save_ip_lists_to_env():
 
 def initialize_environment():
     """Initialize environment variables and global configuration"""
-    global MOVIES_SECTION_ID, SHOWS_SECTION_ID, AUDIOBOOKS_SECTION_ID
+    global MOVIES_SECTION_ID, SHOWS_SECTION_ID, AUDIOBOOKS_SECTION_ID, debug_mode
     MOVIES_SECTION_ID = os.getenv("MOVIES_ID")
     SHOWS_SECTION_ID = os.getenv("SHOWS_ID")
     AUDIOBOOKS_SECTION_ID = os.getenv("AUDIOBOOKS_ID")
     
+    # Update global debug_mode variable
     debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
     return debug_mode
 
@@ -7343,7 +7294,11 @@ def setup_library_notes(debug_mode):
 def setup_poster_worker():
     """Start background poster worker"""
     if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
-        start_background_poster_worker()
+        if not poster_download_running:
+            start_background_poster_worker()
+        else:
+            if is_debug_mode():
+                print("[DEBUG] Background poster worker already running, skipping setup")
 
 def setup_poster_downloads(debug_mode):
     """Setup poster downloads and periodic refresh - NON-BLOCKING"""
@@ -7354,7 +7309,7 @@ def setup_poster_downloads(debug_mode):
                 # Get Plex credentials directly from environment
                 plex_token = os.getenv("PLEX_TOKEN")
                 if not plex_token:
-                    if debug_mode:
+                    if is_debug_mode():
                         print("[WARN] Skipping poster download: PLEX_TOKEN is not set.")
                     return
                 
@@ -7368,10 +7323,10 @@ def setup_poster_downloads(debug_mode):
                 # Use local files for startup instead of relying on cache
                 try:
                     all_libraries = get_libraries_from_local_files()
-                    if debug_mode:
+                    if is_debug_mode():
                         print(f"[DEBUG] Using local files for startup, found {len(all_libraries)} libraries")
                 except Exception as e:
-                    if debug_mode:
+                    if is_debug_mode():
                         print(f"[DEBUG] Error getting libraries from local files: {e}")
                     all_libraries = []
                 
@@ -7387,10 +7342,10 @@ def setup_poster_downloads(debug_mode):
                     
                     if needs_download and not is_poster_download_in_progress():
                         download_and_cache_posters_for_libraries(libraries, background=True)
-                        if debug_mode:
+                        if is_debug_mode():
                             print(f"[INFO] Queued poster download for {len(libraries)} libraries")
                     else:
-                        if debug_mode:
+                        if is_debug_mode():
                             print("[INFO] Posters are recent or download already in progress, skipping")
                 
                 # Start periodic refresh in background
@@ -7401,10 +7356,10 @@ def setup_poster_downloads(debug_mode):
                     # Check if ABS posters need downloading
                     if should_refresh_abs_posters():
                         poster_download_queue.put(('abs', None, None))
-                        if debug_mode:
+                        if is_debug_mode():
                             print("[INFO] Queued ABS poster download")
                     else:
-                        if debug_mode:
+                        if is_debug_mode():
                             print("[INFO] ABS posters are recent, skipping download")
                         
             except Exception as e:
@@ -7639,7 +7594,7 @@ def get_library_poster_dir(library_id):
 
 if __name__ == "__main__":
     # --- Dynamic configuration for section IDs ---
-    debug_mode = initialize_environment()
+    initialize_environment()  # This will update the global debug_mode variable
     
     # Load IP lists from environment variables
     load_ip_lists_from_env()
@@ -7648,13 +7603,13 @@ if __name__ == "__main__":
     is_first_run = os.getenv("SETUP_COMPLETE", "0") != "1"
     
     # Setup components
-    setup_library_notes(debug_mode)
+    setup_library_notes(is_debug_mode())
     setup_poster_worker()
     
     try:
-        setup_poster_downloads(debug_mode)
+        setup_poster_downloads(is_debug_mode())
     except Exception as e:
-        if debug_mode:
+        if is_debug_mode():
             print(f"Warning: Could not queue poster downloads: {e}")
     
     # Setup browser opening
@@ -7669,16 +7624,16 @@ if __name__ == "__main__":
                 cleanup_poster_progress()
                 cleanup_library_cache()
                 cleanup_expired_lockouts()
-                if debug_mode:
+                if is_debug_mode():
                     print("[DEBUG] Completed periodic cleanup")
             except Exception as e:
-                if debug_mode:
+                if is_debug_mode():
                     print(f"[ERROR] Periodic cleanup failed: {e}")
     
     cleanup_thread = threading.Thread(target=periodic_cleanup, daemon=True)
     cleanup_thread.start()
     
-    if debug_mode:
+    if is_debug_mode():
         print("[INFO] Started periodic cleanup thread")
     
-    app.run(host="0.0.0.0", port=APP_PORT, debug=debug_mode)
+    app.run(host="0.0.0.0", port=APP_PORT, debug=is_debug_mode())

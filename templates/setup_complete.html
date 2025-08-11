@@ -38,8 +38,8 @@
     <script>
         window.addEventListener('DOMContentLoaded', function() {
             // Get restart configuration from backend
-            const restartDelay = '{{ restart_delay|default('10') }}';
-            const isAdaptive = {% if is_adaptive %}true{% else %}false{% endif %};
+            const restartDelay = '{{ restart_delay|default("10") }}';
+            const isAdaptive = {{ 'true' if is_adaptive else 'false' }};
             const changedSettings = {{ changed_settings|tojson|safe }};
             
             // Check if restart was already triggered from backend
@@ -91,15 +91,7 @@
                         // Check if we're ready to restart
                         if (data.ready && !restartTriggered) {
                             // System is ready, trigger restart immediately
-                            // But for services form submissions, restart is already triggered from backend
-                            if (fromServices === 'true') {
-                                // For services, just redirect to login since restart is already triggered
-                                label.textContent = 'Restart triggered! Checking if login page is online...';
-                                checkLoginAndRedirect();
-                            } else {
-                                // For other cases, trigger restart
-                                triggerRestart();
-                            }
+                            triggerRestart();
                         } else if (data.should_wait_for_posters && !restartTriggered) {
                             // Still waiting for posters, extend countdown
                             if (isAdaptive) {
@@ -162,56 +154,19 @@
 
             // Function to update setup download status display
             function updateSetupDownloadStatus(setupStatus, currentPhase) {
-                if (setupStatus.error) {
-                    label.textContent = `Error: ${setupStatus.error.message}`;
+                if (setupStatus.unified && setupStatus.unified.status === 'error') {
+                    label.textContent = `Error: ${setupStatus.unified.message}`;
                     return;
                 }
                 
-                if (currentPhase === 'plex' && setupStatus.plex) {
-                    const plexStatus = setupStatus.plex;
-                    if (plexStatus.status === 'starting') {
-                        label.textContent = plexStatus.message || 'Starting Plex poster downloads...';
-                    } else if (plexStatus.status === 'waiting_for_completion') {
-                        label.textContent = plexStatus.message || 'Waiting for Plex downloads to complete...';
-                    } else if (plexStatus.status === 'in_progress') {
-                        if (plexStatus.total > 0) {
-                            const percent = Math.round((plexStatus.current / plexStatus.total) * 100);
-                            label.textContent = `Plex: ${plexStatus.current}/${plexStatus.total} (${percent}%)`;
-                        } else {
-                            label.textContent = 'Downloading Plex posters...';
-                        }
-                    } else if (plexStatus.status === 'completed') {
-                        label.textContent = 'Plex downloads completed, preparing for next phase...';
-                    } else if (plexStatus.status === 'timeout') {
-                        label.textContent = 'Plex downloads timed out, proceeding...';
-                    }
-                } else if (currentPhase === 'abs' && setupStatus.abs) {
-                    const absStatus = setupStatus.abs;
-                    if (absStatus.status === 'starting') {
-                        label.textContent = absStatus.message || 'Starting Audiobookshelf poster downloads...';
-                    } else if (absStatus.status === 'in_progress') {
-                        if (absStatus.total > 0) {
-                            const percent = Math.round((absStatus.current / absStatus.total) * 100);
-                            label.textContent = `Audiobookshelf: ${absStatus.current}/${absStatus.total} (${percent}%)`;
-                        } else {
-                            label.textContent = 'Downloading Audiobookshelf posters...';
-                        }
-                    } else if (absStatus.status === 'completed') {
-                        label.textContent = 'Audiobookshelf downloads completed!';
-                    } else if (absStatus.status === 'failed') {
-                        label.textContent = `Audiobookshelf download failed: ${absStatus.message}`;
-                    }
+                if (currentPhase === 'plex') {
+                    label.textContent = 'Downloading Plex posters...';
+                } else if (currentPhase === 'abs') {
+                    label.textContent = 'Downloading Audiobookshelf posters...';
+                } else if (currentPhase === 'completed') {
+                    label.textContent = 'All downloads completed!';
                 } else {
-                    // Fallback to generic status
-                    if (setupStatus.plex && setupStatus.plex.status === 'completed') {
-                        if (setupStatus.abs) {
-                            label.textContent = 'Plex completed, processing Audiobookshelf...';
-                        } else {
-                            label.textContent = 'Plex downloads completed!';
-                        }
-                    } else {
-                        label.textContent = 'Downloading posters...';
-                    }
+                    label.textContent = 'Downloading posters...';
                 }
             }
 
@@ -265,17 +220,8 @@
                     setTimeout(updateBar, 100);
                 } else {
                     waiting = true;
-                    if (isAdaptive) {
-                        // For adaptive restarts, check if we're ready
-                        checkRestartReadiness();
-                    } else if (fromServices === 'true') {
-                        // For services form submissions, restart is already triggered from backend
-                        // Just check if we're ready to redirect
-                        checkRestartReadiness();
-                    } else {
-                        // For standard restarts, trigger immediately
-                        triggerRestart();
-                    }
+                    // Always check restart readiness for adaptive behavior
+                    checkRestartReadiness();
                 }
             }
 
@@ -290,56 +236,61 @@
                 }, 2000); // Check every 2 seconds
             }
 
-            // Initialize based on restart type
-            if (isAdaptive) {
-                // For adaptive restarts, start polling immediately
-                startAdaptivePolling();
-                
-                // Start countdown but be ready to adjust
-                updateBar();
-                
-                // Check readiness immediately
-                setTimeout(function() {
-                    checkRestartReadiness();
-                }, 1000);
-            } else {
-                // For standard restarts, only trigger restart if not from services
-                if (!fromServices) {
-                    setTimeout(function() {
-                        fetch('/trigger_restart', {method: 'POST'});
-                    }, 1000);
-                }
-                
-                // Start countdown
-                updateBar();
+            // Initialize - always use adaptive logic for consistency
+            console.log('Starting adaptive restart logic');
+            
+            // For setup form submissions, trigger poster downloads first
+            if (isAdaptive && changedSettings && changedSettings.length > 0) {
+                console.log('Setup detected - triggering poster downloads');
+                triggerSetupPosterDownloads();
             }
             
-            // For setup form submissions, always use adaptive logic regardless of isAdaptive flag
-            if (fromServices === null && urlParams.get('from_setup') === 'true') {
-                console.log('Setup form detected, forcing adaptive restart logic');
-                // Start adaptive polling for setup forms
-                startAdaptivePolling();
-                
-                // Override the countdown to be adaptive
-                setTimeout(function() {
-                    checkRestartReadiness();
-                }, 1000);
-            }
+            // Start adaptive polling immediately
+            startAdaptivePolling();
             
-            // For services form submissions, the restart is already triggered from the backend
-            // so we just need to monitor progress and redirect when ready
-            if (fromServices === 'true') {
-                console.log('Services form detected, monitoring poster downloads and waiting for restart...');
-                // Start adaptive polling for services forms
-                startAdaptivePolling();
+            // Start countdown but be ready to adjust
+            updateBar();
+            
+            // Check readiness immediately
+            setTimeout(function() {
+                checkRestartReadiness();
+            }, 1000);
+            
+            // Function to trigger setup poster downloads
+            function triggerSetupPosterDownloads() {
+                console.log('Triggering setup poster downloads...');
+                label.textContent = 'Starting poster downloads...';
                 
-                // Start countdown but don't trigger restart (it's already triggered from backend)
-                updateBar();
-                
-                // Check readiness immediately
-                setTimeout(function() {
-                    checkRestartReadiness();
-                }, 1000);
+                fetch('/ajax/setup-poster-downloads', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        changed_settings: changedSettings
+                    })
+                })
+                .then(function(response) {
+                    if (response.ok) {
+                        return response.json();
+                    } else {
+                        throw new Error('Network response was not ok');
+                    }
+                })
+                .then(function(data) {
+                    console.log('Setup poster downloads response:', data);
+                    if (data.success) {
+                        label.textContent = 'Poster downloads initiated successfully';
+                        console.log(`Downloads initiated - Plex: ${data.needs_plex}, ABS: ${data.needs_abs}, Libraries: ${data.libraries_count}`);
+                    } else {
+                        label.textContent = 'Error initiating poster downloads';
+                        console.error('Setup poster downloads error:', data.error);
+                    }
+                })
+                .catch(function(error) {
+                    console.error('Error triggering setup poster downloads:', error);
+                    label.textContent = 'Error starting poster downloads';
+                });
             }
         });
     </script>
