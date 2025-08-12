@@ -104,9 +104,8 @@ Method of making your local server publicly accessible:
 
 [Audiobookshelf](https://www.audiobookshelf.org/) Server and public URL to share with users
 
-[Pulsarr](https://github.com/jamcalli/Pulsarr) - Per-user content requests integrated w/ Sonarr & Radarr via Plex watchlist
-- Pulsarr is also able to push "media added" notifications through the Plex mobile app via Tautulli integration. Works fine for movies, but does not handle every new episode of shows.*
-  * According to Pulsarr dev there should be notifs for individual eps, but I only get notified for when a watchlisted show is first added, and not for eps after. We tried to figure it out [here](https://github.com/jamcalli/Pulsarr/issues/442#issuecomment-3177110566) but I haven't been able to get them working yet. Once everything is resolved, I'll update some of the html text to reflect it.
+[Pulsarr v0.5.1+](https://github.com/jamcalli/Pulsarr) - Per-user content requests integrated w/ Sonarr & Radarr via Plex watchlist
+- Pulsarr is also able to push "movie/show/episode added" notifications through the Plex Mobile App via Tautulli notification agent.
 
 [Overseerr](https://github.com/sct/overseerr) - User media requesting site
 
@@ -115,9 +114,7 @@ Method of making your local server publicly accessible:
 Depending if you have Pulsarr, Overseerr, Jellyseerr, or none, some body content (5. Requests on `/onboarding`) will change.
 
 [Tautulli](https://github.com/Tautulli/Tautulli) - Per-user specific "episode/media item added" notifications on Discord
-- If a user wants notifications for each new episode of a show, I create a new private text channel that is only for them on my discord server, then use the info for that channel in Tautulli for a new notification agent. Condition for the Show Name and it directs those notifs to the channel I made.*
-- If Tautulli is not enabled, some body text "...ask me about my Discord" is hidden.*
-* Once the Pulsarr situation is resolved, these actions won't be needed
+- Required for Pulsarr notifications
 
 [Sonarr](https://github.com/Sonarr/Sonarr) & [Radarr](https://github.com/Radarr/Radarr) - to grab the watchlisted content
 
