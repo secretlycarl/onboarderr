@@ -217,6 +217,8 @@ docker run -d -p 10000:10000 secretlycarl/onboarderr:latest
 # Restarting the App
 
 - **After setup or changing settings, the app will automatically restart itself to apply changes**
+  - Submission goes to `/setup_complete` where the status of settings changes and poster downloads will be monitored
+  - When ready, it will redirect to login
 - You do **not** need to manually restart the container after setup or settings changes
 - If you ever need to restart manually (e.g., after updating code), use:
   - `docker restart onboarderr` (for Docker)
