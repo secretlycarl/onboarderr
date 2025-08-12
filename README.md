@@ -42,6 +42,8 @@ See recent changelog [here](https://github.com/secretlycarl/onboarderr/pull/35).
 
 Let me know of any bugs and other feedback :)
 
+**>> [Jump to Main Content](https://github.com/secretlycarl/onboarderr/blob/main/README.md#features) <<**
+
 ## To Do
 [View issues with to-do label](https://github.com/secretlycarl/onboarderr/issues?q=is%3Aissue%20state%3Aopen%20label%3Ato-do)
 
