@@ -30,7 +30,7 @@ Huge thanks to [@mon5termatt](https://github.com/mon5termatt) for making the fir
 
 Thanks to reddit user u/Jeffizzleforshizzle for intial testing of v1
 
-# New Features
+# New Features in v2.1
 
 ## Quicker Setup
 Setup is much easier now! 
