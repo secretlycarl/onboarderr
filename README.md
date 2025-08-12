@@ -42,7 +42,7 @@ Setup is much easier now!
 Added new security features:
 - **Rate limiting** on login and forms to prevent brute force attacks
   - Default login attempt limit is 5 wrong in 15 min per IP
-    - Lockout increases on more failed attempts
+    - 1hr lockout when limit is reached
   - Default form submission is 2 submissions each to Plex and ABS forms per user per hour
   - Customizable on setup
 - **IP white/blacklisting** - you can now block specific IPs or ranges, or whitelist only trusted ones
