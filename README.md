@@ -37,16 +37,15 @@ This is the start of my security improvements. Check any `in progress` issues to
 
 See recent changelog [here](https://github.com/secretlycarl/onboarderr/pull/35).
 
+[How to Update](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#updates)
+
+Let me know of any bugs and other feedback :)
+
 ## To Do
 - Add change languages feature
 - Replace password system with PIN system
   - Admin pin w/full access
   - User group pins, different libraries available per group
-
-
-[How to Update](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#updates)
-
-Let me know of any bugs and other feedback :)
 
 # Onboarderr v2
 Onboarderr is a customizable onboarding site for a host's Plex and (optional) Audiobookshelf servers. It includes user instructions, server highlights, and an admin dashboard.
