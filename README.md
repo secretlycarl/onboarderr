@@ -33,7 +33,7 @@ This is the start of my security improvements. Check any `in progress` issues to
 - Changed Plex "Requests" section logic to show generic text if no requesting services is configured
 - And more
 
-    **[Screenshots](https://github.com/secretlycarl/onboarderr/tree/main/screenshots)**
+**[Screenshots](https://github.com/secretlycarl/onboarderr/tree/main/screenshots)**
 
 See recent changelog [here](https://github.com/secretlycarl/onboarderr/pull/35).
 
