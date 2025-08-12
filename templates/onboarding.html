@@ -27,6 +27,10 @@
           Plex Media Server (or just <a href="https://support.plex.tv/articles/200288286-what-is-plex/" target="_blank" class="accent">Plex</a>) lets me share my collection of movies and shows with you, just like Netflix, but you don't have to pay. You can watch on your TV, computer, phone, or tablet!
         </p>
 
+        <p class="onboarding-intro">
+          See below to request access and check out the setup instructions.
+        </p>
+
         {% set library_list = carousel_libraries|map(attribute='title')|list %}
 
         <!-- Single Carousel with Library Selector -->
@@ -35,12 +39,14 @@
             <div class="poster-carousel animate" id="main-carousel"></div>
           </div>
           
+          {% if carousel_libraries|length > 1 %}
           <div class="library-selector">
             <button class="library-tab {% if default_library == 'random-all' %}active{% endif %}" data-library="random-all">🎲 Random All</button>
             {% for lib in carousel_libraries %}
               <button class="library-tab {% if default_library == lib.title %}active{% endif %}" data-library="{{ lib.title }}">{{ lib.title }}</button>
             {% endfor %}
           </div>
+          {% endif %}
           
           {% if not carousel_libraries %}
           <div class="info-box">
@@ -51,8 +57,13 @@
         </div>
 
         <p class="carousel-note">
+          {% if carousel_libraries|length > 1 %}
           Random selection of posters from each library. Go <a href="/medialists" class="accent" id="medialists-link">here</a> for the full list. <br>
           <span class="mobile-only">On mobile, scroll horizontally to browse through posters.</span>
+          {% else %}
+          Random selection of posters from my library. Go <a href="/medialists" class="accent" id="medialists-link">here</a> for the full list. <br>
+          <span class="mobile-only">On mobile, scroll horizontally to browse through posters.</span>
+          {% endif %}
         </p>
 
         <h3>Desktop and Mobile UI</h3>
@@ -110,6 +121,13 @@
             <div class="info-box">
               <span>✅</span>
               <span><strong>Thanks! Your request has been submitted.</strong></span>
+            </div>
+          </div>
+          
+          <div id="onboarding-duplicate-warning" style="display:none;">
+            <div class="warning-box">
+              <span>⚠️</span>
+              <span><strong>Email already submitted!</strong> This email address has already been used for a request. Please use a different email address or contact the administrator if you need to update your request.</span>
             </div>
           </div>
           
@@ -236,86 +254,90 @@
       
       </details>
 
-      {% if pulsarr_enabled or overseerr_enabled or jellyseerr_enabled %}
       <details class="collapsible-section">
         <summary class="collapsible-heading">5. Requests</summary>
-          {% if pulsarr_enabled %}
-          <h3>Plex Watchlist Requests</h3>
-          <p>
-            Through some technomancy, requesting movies and shows you want is pretty easy.
-          </p>
-          <p>
-            We have to be "friends" on Plex (different than adding you to my server) for this feature to work so tell me to do that first before you request anything.
-          </p>
-          <p class="accent">
-            Note: This feature does not work for new movies currently in theaters. Anything older or already on streaming services should be available.
-          </p>
-          <ul class="text-left max-800">
-            <li>Go to the search bar or search menu</li>
-            <li>Enable "More Ways to Watch" if not already enabled</li>
-            <li>Search for the media you want</li>
-            <li>Click the "Add to watchlist" icon</li>
-          </ul>
-          <div class="screenshot-section">
-            <img src="{{ url_for('static', filename='watchlist.webp') }}" alt="Watchlist" class="toggle-grow" />
-            <p class="screenshot-caption">Click to enlarge</p>
-          </div>
-          <p>
-            Movies should show up in less than 30 minutes. Shows can take longer. The first season will show up to start, and others as you watch. If it's a show that's airing now and you want a more recent season, let me know.
-          </p>
-          <p class="accent">
-            Be nice to my hard drives, don't request too much!
-          </p>
-          <h3>Notifications</h3>
-          <p>
-            If I added you as a friend, you can receive notifications on phones and tablets when your Watchlisted media is available. For shows, this only applies when it is added for the first time.{% if tautulli_enabled %} For per-episode notifications about currently airing shows, ask me about my Discord.{% endif %}
-          </p>
-          <ul class="text-left max-800">
-            <li>Make sure notifications are enabled for Plex on your phone (Settings app)</li>
-            <li>Go to settings in Plex > Notifications</li>
-            <li>Turn off anything you'd like in Plex News, Friends, Discover, Live TV</li>
-            <li>Scroll down to Personal Media > New Content Added to Library</li>
-            <li>Set the toggles to how they look below (all off except for top one)</li>
-          </ul>
-          <div class="screenshot-section">
-            <img src="{{ url_for('static', filename='notifs.webp') }}" alt="Notification Settings" class="toggle-grow" />
-          </div>
-          {% endif %}
-          {% if overseerr_enabled %}
-          <h3>Overseerr Requests</h3>
-          <p>
-            You can request movies and shows directly using Overseerr.
-          </p>
-          <p>
-            Click the link below to open the request page:
-          </p>
-          <p>
-            <a href="{{ overseerr_url }}" target="_blank" class="accent">Open Overseerr</a>
-          </p>
-          <p class="muted">
-            Requests made here will be sent to me for approval and processing.
-          </p>
-          {% endif %}
-          {% if jellyseerr_enabled %}
-          <h3>Jellyseerr Requests</h3>
-          <p>
-            You can request movies and shows directly using Jellyseerr.
-          </p>
-          <p>
-            Click the link below to open the request page:
-          </p>
-          <p>
-            <a href="{{ jellyseerr_url }}" target="_blank" class="accent">Open Jellyseerr</a>
-          </p>
-          <p class="muted">
-            Requests made here will be sent to me for approval and processing.
-          </p>
+          {% if pulsarr_enabled or overseerr_enabled or jellyseerr_enabled %}
+            {% if pulsarr_enabled %}
+            <h3>Plex Watchlist Requests</h3>
+            <p>
+              I have an easy to use system for requesting/adding movies and shows you want to my Plex.
+            </p>
+            <p>
+              We have to be "friends" on Plex (different than adding you to my server) for this feature to work so tell me to do that first.
+            </p>
+            <p class="accent">
+              Note: Requesting does not work for new movies currently in theaters. Anything older or already on streaming services should be available.
+            </p>
+            <ul class="text-left max-800">
+              <li>Go to the search bar or search menu</li>
+              <li>Enable "More Ways to Watch" if not already enabled</li>
+              <li>Search for the media you want</li>
+              <li>Click the "Add to watchlist" icon</li>
+            </ul>
+            <div class="screenshot-section">
+              <img src="{{ url_for('static', filename='watchlist.webp') }}" alt="Watchlist" class="toggle-grow" />
+              <p class="screenshot-caption">Click to enlarge</p>
+            </div>
+            <p>
+              Movies should show up in less than 30 minutes. Shows can take longer. The first season will show up to start, and others as you watch. If it's a show that's airing now and you want a more recent season, let me know.
+            </p>
+            <p class="accent">
+              Be nice to my hard drives, don't request too much!
+            </p>
+            <h3>Notifications</h3>
+            <p>
+              If I added you as a friend, you can receive notifications on phones and tablets when your Watchlisted media is available. For shows, this only applies when it is added for the first time.{% if tautulli_enabled %} For per-episode notifications about currently airing shows, ask me about my Discord.{% endif %}
+            </p>
+            <ul class="text-left max-800">
+              <li>Make sure notifications are enabled for Plex on your phone (Settings app)</li>
+              <li>Go to settings in Plex > Notifications</li>
+              <li>Turn off anything you'd like in Plex News, Friends, Discover, Live TV</li>
+              <li>Scroll down to Personal Media > New Content Added to Library</li>
+              <li>Set the toggles to how they look below (all off except for top one)</li>
+            </ul>
+            <div class="screenshot-section">
+              <img src="{{ url_for('static', filename='notifs.webp') }}" alt="Notification Settings" class="toggle-grow" />
+            </div>
+            {% endif %}
+            {% if overseerr_enabled %}
+            <h3>Overseerr Requests</h3>
+            <p>
+              You can request movies and shows directly using Overseerr.
+            </p>
+            <p>
+              Click the link below to open the request page:
+            </p>
+            <p>
+              <a href="{{ overseerr_url }}" target="_blank" class="accent">Open Overseerr</a>
+            </p>
+            <p class="muted">
+              Requests made here will be sent to me for approval and processing.
+            </p>
+            {% endif %}
+            {% if jellyseerr_enabled %}
+            <h3>Jellyseerr Requests</h3>
+            <p>
+              You can request movies and shows directly using Jellyseerr.
+            </p>
+            <p>
+              Click the link below to open the request page:
+            </p>
+            <p>
+              <a href="{{ jellyseerr_url }}" target="_blank" class="accent">Open Jellyseerr</a>
+            </p>
+            <p class="muted">
+              Requests made here will be sent to me for approval and processing.
+            </p>
+            {% endif %}
+          {% else %}
+            <p>
+              If you want a movie or show I don't have, just ask. I should be able to help you out.
+            </p>
           {% endif %}
       </details>
-      {% endif %}
 
       <details class="collapsible-section">
-        <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled or jellyseerr_enabled %}6{% else %}5{% endif %}. Issues</summary>
+        <summary class="collapsible-heading">6. Issues</summary>
       
           <p>
             If you have issues playing a specific piece of media, find a movie or episode with bad subs, or any other issues, you can report it through Plex or just tell me.
@@ -327,7 +349,7 @@
       </details>
 
       <details class="collapsible-section">
-        <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled or jellyseerr_enabled %}7{% else %}6{% endif %}. The End</summary>
+        <summary class="collapsible-heading">7. The End</summary>
           {% include "onboarding_section7.html" %}
       </details>
     </div>
@@ -360,6 +382,10 @@
           const submitBtn = form.querySelector('button[type="submit"]');
           if (submitBtn) submitBtn.disabled = true;
           Array.from(form.elements).forEach(el => el.disabled = true);
+          
+          // Hide any existing warning messages
+          document.getElementById('onboarding-duplicate-warning').style.display = 'none';
+          
           try {
             const response = await fetch('/onboarding', {
               method: 'POST',
@@ -374,9 +400,17 @@
                 document.getElementById('onboarding-success').style.display = '';
                 form.style.display = 'none';
               } else {
-                alert(result.error || 'Submission failed.');
-                Array.from(form.elements).forEach(el => el.disabled = false);
-                if (submitBtn) submitBtn.disabled = false;
+                if (result.error && result.error.includes('already been submitted')) {
+                  // Show duplicate email warning
+                  document.getElementById('onboarding-duplicate-warning').style.display = '';
+                  // Re-enable form for correction
+                  Array.from(form.elements).forEach(el => el.disabled = false);
+                  if (submitBtn) submitBtn.disabled = false;
+                } else {
+                  alert(result.error || 'Submission failed.');
+                  Array.from(form.elements).forEach(el => el.disabled = false);
+                  if (submitBtn) submitBtn.disabled = false;
+                }
               }
             } else {
               alert('Submission failed.');
@@ -507,15 +541,19 @@
       // Load initial carousel with default library
       const defaultLibrary = '{{ default_library }}';
       const defaultTab = document.querySelector(`.library-tab[data-library="${defaultLibrary}"]`);
+      const availableLibraryTabs = document.querySelectorAll('.library-tab');
+      const hasMultipleLibraries = availableLibraryTabs.length > 1;
       
-      console.log('Available library data:', libraryPosters);
-      console.log('Default library:', defaultLibrary);
-      console.log('Default tab:', defaultTab);
-      
-      if (defaultTab) {
-        console.log(`Loading carousel with ${defaultLibrary}`);
+      if (hasMultipleLibraries && defaultTab) {
+        // Multiple libraries available, use default library
         currentLibrary = defaultLibrary;
         loadCarousel('main-carousel', defaultLibrary);
+      } else if (!hasMultipleLibraries && Object.keys(libraryPosters).length === 1) {
+        // Only one library available, load it directly
+        const singleLibrary = Object.keys(libraryPosters)[0];
+        console.log(`Single library detected, loading ${singleLibrary}`);
+        currentLibrary = singleLibrary;
+        loadCarousel('main-carousel', singleLibrary);
       } else if (Object.keys(libraryPosters).length === 0) {
         // No libraries available, show message
         const carousel = document.getElementById('main-carousel');
@@ -532,6 +570,8 @@
         }
         
         console.log(`Loading carousel ${carouselId} with library ${library}`);
+        console.log('Available library posters:', libraryPosters);
+        console.log('Library posters for this library:', libraryPosters[library]);
         
         // Stop any existing animation
         if (carousel.rafId) {
@@ -1011,8 +1051,6 @@
           
           // Only reload if library actually changed
           if (currentLibrary !== targetLibrary) {
-            console.log(`Switching from ${currentLibrary} to ${targetLibrary}`);
-            
             // Update active tab
             libraryTabs.forEach(t => t.classList.remove('active'));
             this.classList.add('active');
@@ -1039,7 +1077,7 @@
         const container = carousel.parentElement;
         const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         
-        console.log('Carousel setup - Mobile detected:', isMobile);
+
         
         // Clear any existing auto-scroll instance
         if (carousel.autoScrollInstance) {

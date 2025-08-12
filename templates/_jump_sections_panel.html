@@ -1,0 +1,75 @@
+{% if request.endpoint == 'services' %}
+  <div class="jump-sections-panel" id="jumpSectionsPanel">
+    <div class="jump-sections-toggle" id="jumpSectionsToggle" title="Toggle Jump to Sections">
+      <svg class="toggle-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="jump-sections-content">
+      <div class="jump-sections-title">
+        <button class="jump-sections-title-toggle" id="jumpSectionsTitleToggle" title="Minimize Jump to Sections" aria-label="Minimize Jump to Sections">
+          <svg class="title-toggle-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path d="M4 9L7 6L4 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        Jump to:
+      </div>
+      <div class="jump-sections-list">
+        <a href="#services-section" class="jump-sections-link" onclick="scrollToSection('services-section')">
+          <span class="jump-sections-icon">🔗</span>
+          <span>Services</span>
+        </a>
+        <a href="#plex-requests-section" class="jump-sections-link" onclick="scrollToSection('plex-requests-section')">
+          <span class="jump-sections-icon">📺</span>
+          <span>Plex Requests</span>
+        </a>
+        {% if ABS_ENABLED == 'yes' %}
+        <a href="#audiobookshelf-requests-section" class="jump-sections-link" onclick="scrollToSection('audiobookshelf-requests-section')">
+          <span class="jump-sections-icon">📚</span>
+          <span>Audiobookshelf Requests</span>
+        </a>
+        {% endif %}
+        <a href="#storage-section" class="jump-sections-link" onclick="scrollToSection('storage-section')">
+          <span class="jump-sections-icon">💾</span>
+          <span>Storage</span>
+        </a>
+        <a href="#authentication-section" class="jump-sections-link" onclick="scrollToSection('authentication-section')">
+          <span class="jump-sections-icon">🔐</span>
+          <span>Authentication</span>
+        </a>
+        <a href="#branding-section" class="jump-sections-link" onclick="scrollToSection('branding-section')">
+          <span class="jump-sections-icon">🎨</span>
+          <span>Branding</span>
+        </a>
+        <a href="#plex-config-section" class="jump-sections-link" onclick="scrollToSection('plex-config-section')">
+          <span class="jump-sections-icon">🎬</span>
+          <span>Plex Settings</span>
+        </a>
+        <a href="#audiobookshelf-config-section" class="jump-sections-link" onclick="scrollToSection('audiobookshelf-config-section')">
+          <span class="jump-sections-icon">📚</span>
+          <span>Audiobookshelf Settings</span>
+        </a>
+        <a href="#discord-section" class="jump-sections-link" onclick="scrollToSection('discord-section')">
+          <span class="jump-sections-icon">📢</span>
+          <span>Discord Notifications</span>
+        </a>
+        <a href="#ip-management-section" class="jump-sections-link" onclick="scrollToSection('ip-management-section')">
+          <span class="jump-sections-icon">🛡️</span>
+          <span>IP Management</span>
+        </a>
+        <a href="#quick-access-section" class="jump-sections-link" onclick="scrollToSection('quick-access-section')">
+          <span class="jump-sections-icon">⚡</span>
+          <span>Quick Access Links</span>
+        </a>
+        <a href="#rate-limit-settings-section" class="jump-sections-link" onclick="scrollToSection('rate-limit-settings-section')">
+          <span class="jump-sections-icon">📈</span>
+          <span>Rate Limiting Settings</span>
+        </a>
+        <a href="#service-urls-section" class="jump-sections-link" onclick="scrollToSection('service-urls-section')">
+          <span class="jump-sections-icon">🔗</span>
+          <span>Service URLs</span>
+        </a>
+      </div>
+    </div>
+  </div>
+{% endif %} 

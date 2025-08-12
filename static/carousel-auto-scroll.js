@@ -19,6 +19,7 @@ class CarouselAutoScroll {
       resumeDelay: options.resumeDelay || 1000, // ms after user interaction
       minPosters: options.minPosters || 8,
       loadMoreThreshold: options.loadMoreThreshold || 15,
+      debug: options.debug || false, // Add debug mode option
       ...options
     };
 
@@ -30,6 +31,7 @@ class CarouselAutoScroll {
     this.isLoading = false;
     this.rafId = null;
     this.resumeTimeout = null;
+    this.destroyed = false;
 
     // Mobile detection
     this.isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -50,10 +52,17 @@ class CarouselAutoScroll {
     this.init();
   }
 
+  // Debug logging helper
+  log(message, ...args) {
+    if (this.options.debug) {
+      console.log(`[CarouselAutoScroll] ${message}`, ...args);
+    }
+  }
+
   init() {
-    console.log(`Initializing carousel auto-scroll for ${this.carousel.id}`);
-    console.log('Device type:', this.isMobile ? 'Mobile' : 'Desktop');
-    console.log('Configuration:', this.options);
+    this.log(`Initializing carousel auto-scroll for ${this.carousel.id}`);
+    this.log('Device type:', this.isMobile ? 'Mobile' : 'Desktop');
+    this.log('Configuration:', this.options);
 
     // Set up event listeners
     this.setupEventListeners();
@@ -88,14 +97,14 @@ class CarouselAutoScroll {
         this.resumeTimeout = null;
       }
       
-      console.log('Manual scroll started - auto-scroll paused');
+      this.log('Manual scroll started - auto-scroll paused');
     }, { passive: true });
 
     this.container.addEventListener('touchmove', (e) => {
       if (this.isManualScrolling) {
         const now = Date.now();
-        // Throttle touch move events to reduce jumpiness - reduced from 16ms to 8ms for better fast scroll handling
-        if (now - this.lastTouchMoveTime < 8) { // ~120fps for better fast scroll responsiveness
+        // Throttle touch move events to reduce jumpiness - use 16ms for realistic 60fps
+        if (now - this.lastTouchMoveTime < 16) { // ~60fps for better performance and battery life
           return;
         }
         this.lastTouchMoveTime = now;
@@ -123,7 +132,7 @@ class CarouselAutoScroll {
       // Reset interaction flag after a delay to allow momentum to settle
       setTimeout(() => {
         this.isUserInteracting = false;
-        console.log('Manual scroll ended - auto-scroll resumed');
+        this.log('Manual scroll ended - auto-scroll resumed');
         this.resumeAnimation();
       }, 300);
     }, { passive: true });
@@ -152,7 +161,7 @@ class CarouselAutoScroll {
         // Only resume auto-scroll if scroll has been stable for multiple checks - reduced threshold for faster response
         if (this.scrollStableCount >= 2) { // Reduced from 3 to 2 for faster response
           this.isUserInteracting = false;
-          console.log('Momentum scrolling ended - auto-scroll resumed');
+          this.log('Momentum scrolling ended - auto-scroll resumed');
           this.resumeAnimation();
         }
       }, 50); // Reduced from 100ms to 50ms for faster scroll detection
@@ -160,7 +169,7 @@ class CarouselAutoScroll {
   }
 
   startAnimation() {
-    console.log('Starting carousel animation');
+    this.log('Starting carousel animation');
     this.animate();
   }
 
@@ -174,7 +183,7 @@ class CarouselAutoScroll {
     // Set a delay before resuming
     this.resumeTimeout = setTimeout(() => {
       this.isUserInteracting = false;
-      console.log('Auto-scroll resumed after delay');
+      this.log('Auto-scroll resumed after delay');
       // Force immediate animation frame to resume scrolling
       if (this.rafId) {
         cancelAnimationFrame(this.rafId);
@@ -187,8 +196,11 @@ class CarouselAutoScroll {
     try {
       // Don't animate if there are no images or if we have a loading/error message
       if (this.carousel.children.length === 0 || this.carousel.querySelector('div')) {
-        console.log('Animation skipped - no children or loading message');
-        this.rafId = requestAnimationFrame(() => this.animate());
+        this.log('Animation skipped - no children or loading message');
+        // Only schedule next frame if we're not already destroyed
+        if (!this.destroyed) {
+          this.rafId = requestAnimationFrame(() => this.animate());
+        }
         return;
       }
       
@@ -196,8 +208,11 @@ class CarouselAutoScroll {
       if (!this.isPaused && !this.isUserInteracting) {
         // Check if we have enough images before scrolling
         if (this.carousel.children.length < 3) {
-          console.log('Not enough images to scroll, pausing animation');
-          this.rafId = requestAnimationFrame(() => this.animate());
+          this.log('Not enough images to scroll, pausing animation');
+          // Only schedule next frame if we're not already destroyed
+          if (!this.destroyed) {
+            this.rafId = requestAnimationFrame(() => this.animate());
+          }
           return;
         }
         
@@ -217,7 +232,7 @@ class CarouselAutoScroll {
               
               // Update width after removing image
               this.updateWidth();
-              console.log('Removed image, remaining children:', this.carousel.children.length);
+              this.log('Removed image, remaining children:', this.carousel.children.length);
             }
           }
         }
@@ -230,7 +245,10 @@ class CarouselAutoScroll {
         }
       }
       
-      this.rafId = requestAnimationFrame(() => this.animate());
+      // Only schedule next frame if we're not already destroyed
+      if (!this.destroyed) {
+        this.rafId = requestAnimationFrame(() => this.animate());
+      }
     } catch (error) {
       console.error('Animation error:', error);
       // Stop animation on error
@@ -265,11 +283,11 @@ class CarouselAutoScroll {
     if (this.options.onLoadMore && !this.isLoading) {
       const remainingImages = this.carousel.children.length;
       if (remainingImages <= this.options.loadMoreThreshold) {
-        console.log(`Near end during auto-scroll - loading more posters quickly!`);
+        this.log(`Near end during auto-scroll - loading more posters quickly!`);
         this.isLoading = true;
         this.options.onLoadMore().then(() => {
           this.isLoading = false;
-          console.log('Poster loading completed successfully');
+          this.log('Poster loading completed successfully');
         }).catch(error => {
           console.error('Error loading more posters:', error);
           this.isLoading = false;
@@ -282,10 +300,10 @@ class CarouselAutoScroll {
   ensureMinimumPosters() {
     const currentPosters = this.carousel.children.length;
     if (currentPosters < this.options.minPosters) {
-      console.log(`Only ${currentPosters} posters left, adding more...`);
+      this.log(`Only ${currentPosters} posters left, adding more...`);
       if (this.options.onLoadMore) {
         this.options.onLoadMore().then(() => {
-          console.log('Minimum posters ensured');
+          this.log('Minimum posters ensured');
         }).catch(error => {
           console.error('Error ensuring minimum posters:', error);
         });
@@ -294,6 +312,8 @@ class CarouselAutoScroll {
   }
 
   destroy() {
+    this.destroyed = true;
+    
     if (this.rafId) {
       cancelAnimationFrame(this.rafId);
       this.rafId = null;
@@ -309,7 +329,7 @@ class CarouselAutoScroll {
       this.scrollTimeout = null;
     }
     
-    console.log('Carousel auto-scroll destroyed');
+    this.log('Carousel auto-scroll destroyed');
   }
 }
 

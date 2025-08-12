@@ -17,12 +17,310 @@
     <div class="login-card">
       <img src="{{ url_for('static', filename=logo_filename) }}" alt="Logo" class="login-logo">
       <h1 class="login-title" style="color: white;">Welcome to {{ SERVER_NAME }}!</h1>
-      <form method="POST" class="login-form">
+      
+      <div id="message-container">
+        {% if error %}
+        <div class="error-box">
+          <span>❌</span>
+          <span>{{ error }}</span>
+        </div>
+        {% endif %}
+      </div>
+      
+      <div id="rate-limit-message" class="rate-limit-message hidden">
+        <div>Too many failed attempts</div>
+        <div class="countdown" id="countdown"></div>
+      </div>
+      
+      <form method="POST" class="login-form" id="login-form" onsubmit="handleLoginSubmit(event)">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="password" name="password" id="password" placeholder="Enter password" required autofocus>
-        <button type="submit" class="login-btn">Enter</button>
+        <button type="submit" class="login-btn" id="login-btn">Enter</button>
       </form>
+      
     </div>
   </div>
+  
+  <script>
+    // Check rate limit status on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM loaded, checking rate limit status...');
+      
+      // Check if there's already an error message from server-side rate limiting
+      const errorBox = document.querySelector('.error-box');
+      if (errorBox && errorBox.textContent.includes('Too many failed attempts')) {
+        console.log('Server-side rate limit detected, hiding form...');
+        hideLoginForm();
+        // Extract time remaining from error message if possible
+        const errorText = errorBox.textContent;
+        const timeMatch = errorText.match(/try again in (.+)/);
+        if (timeMatch) {
+          // Parse the time format and start countdown
+          const timeString = timeMatch[1];
+          const secondsRemaining = parseTimeString(timeString);
+          if (secondsRemaining > 0) {
+            showRateLimitMessage(secondsRemaining);
+          }
+        }
+      } else {
+        checkRateLimitStatus();
+      }
+    });
+    
+    // Handle form submission with rate limit check
+    async function handleLoginSubmit(event) {
+      event.preventDefault();
+      console.log('Form submitted, checking rate limit...');
+      
+      const submitButton = document.getElementById('login-btn');
+      const originalText = submitButton.textContent;
+      submitButton.textContent = 'Checking...';
+      submitButton.disabled = true;
+      
+      try {
+        const response = await fetch('/ajax/check-rate-limit', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const result = await response.json();
+        console.log('Rate limit check result:', result);
+        
+        if (result.rate_limited) {
+          console.log('Rate limited! Preventing form submission...');
+          hideLoginForm();
+          showRateLimitMessage(result.time_remaining);
+          return false;
+        } else {
+          console.log('Not rate limited, submitting form...');
+          // Submit the form via AJAX to prevent page reload
+          await submitFormAjax();
+        }
+      } catch (error) {
+        console.error('Error checking rate limit:', error);
+        // If there's an error checking rate limit, allow the form to submit
+        await submitFormAjax();
+      } finally {
+        submitButton.textContent = originalText;
+        submitButton.disabled = false;
+      }
+    }
+    
+    // Submit form via AJAX to prevent page reload
+    async function submitFormAjax() {
+      const form = document.getElementById('login-form');
+      const formData = new FormData(form);
+      
+      // Get intended URL from sessionStorage (set by other pages when redirecting to login)
+      const intendedUrl = sessionStorage.getItem('intended_url_after_login');
+      if (intendedUrl) {
+        formData.append('intended_url_after_login', intendedUrl);
+        // Don't remove from sessionStorage yet - we need it for hash fragment handling
+      }
+      
+      try {
+        const response = await fetch('/login', {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+          },
+          body: formData
+        });
+        
+        if (response.redirected) {
+          // Successful login, redirect to the target page
+          // Check if we need to preserve hash fragment
+          if (intendedUrl && intendedUrl.includes('#')) {
+            // Extract hash fragment and append to redirect URL
+            const hashFragment = intendedUrl.split('#')[1];
+            const redirectUrl = response.url.includes('#') ? response.url : `${response.url}#${hashFragment}`;
+            console.log('Preserving hash fragment:', hashFragment, 'Redirecting to:', redirectUrl);
+            window.location.href = redirectUrl;
+          } else {
+            console.log('No hash fragment to preserve, redirecting to:', response.url);
+            window.location.href = response.url;
+          }
+          // Now remove from sessionStorage after we're done with it
+          sessionStorage.removeItem('intended_url_after_login');
+        } else if (response.status === 401) {
+          // Failed login with JSON response
+          const result = await response.json();
+          showErrorMessage(result.error || 'Incorrect password');
+          
+          // Record the failed attempt and check rate limit
+          await recordFailedAttempt();
+        } else if (response.ok) {
+          // Successful login with JSON response
+          const result = await response.json();
+          if (result.success) {
+            if (result.redirect_url) {
+              // Redirect to the specified URL
+              window.location.href = result.redirect_url;
+            } else {
+              // Default redirect for admin users
+              window.location.href = '/services';
+            }
+          } else {
+            showErrorMessage(result.error || 'Login failed');
+            await recordFailedAttempt();
+          }
+        } else {
+          // Unexpected response, reload the page
+          window.location.reload();
+        }
+      } catch (error) {
+        console.error('Error submitting form:', error);
+        showErrorMessage('An error occurred. Please try again.');
+      }
+    }
+    
+    // Record failed attempt and check rate limit
+    async function recordFailedAttempt() {
+      try {
+        const response = await fetch('/ajax/check-rate-limit', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const result = await response.json();
+        console.log('Rate limit check after failed attempt:', result);
+        
+        if (result.rate_limited) {
+          console.log('Rate limited after failed attempt!');
+          hideLoginForm();
+          showRateLimitMessage(result.time_remaining);
+        }
+      } catch (error) {
+        console.error('Error checking rate limit after failed attempt:', error);
+      }
+    }
+    
+    // Show error message without page reload
+    function showErrorMessage(message) {
+      const messageContainer = document.getElementById('message-container');
+      messageContainer.innerHTML = `
+        <div class="error-box">
+          <span>❌</span>
+          <span>${message}</span>
+        </div>
+      `;
+      
+      // Clear password field
+      document.getElementById('password').value = '';
+      document.getElementById('password').focus();
+    }
+    
+    // Check rate limit status
+    async function checkRateLimitStatus() {
+      try {
+        console.log('Making rate limit check request...');
+        const response = await fetch('/ajax/check-rate-limit', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log('Rate limit response status:', response.status);
+        const result = await response.json();
+        console.log('Rate limit check result:', result);
+        
+        if (result.rate_limited) {
+          console.log('Rate limited! Hiding login form...');
+          hideLoginForm();
+          showRateLimitMessage(result.time_remaining);
+        } else {
+          console.log('Not rate limited, login form should be visible');
+        }
+      } catch (error) {
+        console.error('Error checking rate limit:', error);
+      }
+    }
+    
+    // Hide login form
+    function hideLoginForm() {
+      console.log('Hiding login form...');
+      const loginForm = document.getElementById('login-form');
+      const rateLimitMessage = document.getElementById('rate-limit-message');
+      
+      if (loginForm) {
+        loginForm.classList.add('hidden');
+        console.log('Login form hidden');
+      } else {
+        console.error('Login form element not found!');
+      }
+      
+      if (rateLimitMessage) {
+        rateLimitMessage.classList.remove('hidden');
+        console.log('Rate limit message shown');
+      } else {
+        console.error('Rate limit message element not found!');
+      }
+    }
+    
+    // Parse time string from server response
+    function parseTimeString(timeString) {
+      // Handle formats like "1 hour and 30 minutes", "45 minutes", "30 seconds"
+      let totalSeconds = 0;
+      
+      // Check for hours
+      const hourMatch = timeString.match(/(\d+)\s*hour/);
+      if (hourMatch) {
+        totalSeconds += parseInt(hourMatch[1]) * 3600;
+      }
+      
+      // Check for minutes
+      const minuteMatch = timeString.match(/(\d+)\s*minute/);
+      if (minuteMatch) {
+        totalSeconds += parseInt(minuteMatch[1]) * 60;
+      }
+      
+      // Check for seconds
+      const secondMatch = timeString.match(/(\d+)\s*second/);
+      if (secondMatch) {
+        totalSeconds += parseInt(secondMatch[1]);
+      }
+      
+      return totalSeconds;
+    }
+    
+    // Show rate limit message with countdown
+    function showRateLimitMessage(secondsRemaining) {
+      const countdownElement = document.getElementById('countdown');
+      
+      function updateCountdown() {
+        if (secondsRemaining <= 0) {
+          // Rate limit expired, show login form again
+          document.getElementById('login-form').classList.remove('hidden');
+          document.getElementById('rate-limit-message').classList.add('hidden');
+          return;
+        }
+        
+        // Convert to integer to remove decimal points
+        const totalSeconds = Math.floor(secondsRemaining);
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        
+        let timeString;
+        if (hours > 0) {
+          timeString = `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        } else {
+          timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+        
+        countdownElement.textContent = `Try again in ${timeString}`;
+        
+        secondsRemaining--;
+        setTimeout(updateCountdown, 1000);
+      }
+      
+      updateCountdown();
+    }
+  </script>
 </body>
 </html>

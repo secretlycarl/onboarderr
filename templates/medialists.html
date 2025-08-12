@@ -30,12 +30,16 @@
       <div class="form-group">
         <label for="list-select" class="form-label">Select Library:</label>
         <select id="list-select" class="form-input" style="max-width: 350px;">
+          {% set all_libraries = [] %}
           {% for lib_name in library_media.keys() %}
-            <option value="plex-{{ loop.index0 }}" {% if selected_service == 'plex' and selected_library == lib_name %}selected{% endif %}>{{ lib_name }}</option>
+            {% set _ = all_libraries.append(('plex-' + loop.index0|string, lib_name, 'plex')) %}
           {% endfor %}
           {% if abs_book_groups %}
-            <option value="abs" {% if selected_service == 'abs' %}selected{% endif %}>Audiobooks</option>
+            {% set _ = all_libraries.append(('abs', 'Audiobooks', 'abs')) %}
           {% endif %}
+          {% for value, name, service in all_libraries|sort(attribute=1) %}
+            <option value="{{ value }}" {% if (service == 'plex' and selected_service == 'plex' and selected_library == name) or (service == 'abs' and selected_service == 'abs') %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
         </select>
       </div>
       
@@ -133,6 +137,9 @@
       const sections = document.querySelectorAll(".medialist-section");
       const loadedLetters = new Map(); // Track which letters have been loaded per library
       const loadedContent = new Map(); // Store the actual content for each letter
+      
+      // Handle hash fragments on page load
+      handleHashFragment();
       
       // URL state management functions
       function updateURL(service, library, letter = null) {
@@ -236,12 +243,15 @@
         let html = '<ul>';
         for (const book of allBooks) {
           html += '<li>';
-          html += `<img src="${book.cover || '{{ url_for("static", filename=logo_filename) }}'}" alt="${book.title} cover" onerror="this.onerror=null;this.src='{{ url_for("static", filename=logo_filename) }}';" />`;
+          const goodreadsUrl = `https://www.goodreads.com/search?q=${encodeURIComponent((book.author || '') + ' ' + book.title)}`;
+          html += `<a href="${goodreadsUrl}" target="_blank" style="display: block;">`;
+          html += `<img src="${book.cover || '{{ url_for("static", filename=logo_filename) }}'}" alt="${book.title} cover" style="cursor: pointer;" onerror="this.onerror=null;this.src='{{ url_for("static", filename=logo_filename) }}';" />`;
+          html += '</a>';
           if (book.author) {
             html += `<div style="font-size: 0.9em; color: #aaa; margin-bottom: 0.25rem;">${book.author}</div>`;
           }
           html += `<div style="font-weight: bold; margin-bottom: 0.25rem;">${book.title}</div>`;
-          html += `<a href="https://www.goodreads.com/search?q=${encodeURIComponent((book.author || '') + ' ' + book.title)}" target="_blank" class="accent">Goodreads</a>`;
+          html += `<a href="${goodreadsUrl}" target="_blank" class="accent">Goodreads</a>`;
           html += '</li>';
         }
         html += '</ul>';
@@ -281,12 +291,27 @@
             
             for (const item of data.items) {
               html += '<li>';
+              
+              // Determine the primary link for the poster
+              let posterLink = null;
+              if (item.imdb) {
+                posterLink = `https://www.imdb.com/title/${item.imdb}`;
+              } else if (item.lastfm_url && item.is_artist === true) {
+                posterLink = item.lastfm_url;
+              }
+              
               if (item.poster) {
-                html += `<img src="${item.poster}" alt="${item.title} poster" />`;
+                if (posterLink) {
+                  html += `<a href="${posterLink}" target="_blank" style="display: block;">`;
+                  html += `<img src="${item.poster}" alt="${item.title} poster" style="cursor: pointer;" />`;
+                  html += '</a>';
+                } else {
+                  html += `<img src="${item.poster}" alt="${item.title} poster" />`;
+                }
               }
               html += `<div style="font-weight: bold; margin-bottom: 0.25rem;">${item.title}</div>`;
               
-              // Add external links
+              // Add external links (keep the text links for accessibility)
               const links = [];
               if (item.imdb) {
                 links.push(`<a href="https://www.imdb.com/title/${item.imdb}" target="_blank" class="accent">IMDB</a>`);
@@ -359,10 +384,13 @@
           let html = '<ul>';
           for (const book of letterBooks) {
             html += '<li>';
-            html += `<img src="${book.cover || '{{ url_for("static", filename=logo_filename) }}'}" alt="${book.title} cover" onerror="this.onerror=null;this.src='{{ url_for("static", filename=logo_filename) }}';" />`;
+            const goodreadsUrl = `https://www.goodreads.com/search?q=${encodeURIComponent((book.author || '') + ' ' + book.title)}`;
+            html += `<a href="${goodreadsUrl}" target="_blank" style="display: block;">`;
+            html += `<img src="${book.cover || '{{ url_for("static", filename=logo_filename) }}'}" alt="${book.title} cover" style="cursor: pointer;" onerror="this.onerror=null;this.src='{{ url_for("static", filename=logo_filename) }}';" />`;
+            html += '</a>';
             html += `<div style="font-size: 0.9em; color: #aaa; margin-bottom: 0.25rem;">${book.author}</div>`;
             html += `<div style="font-weight: bold; margin-bottom: 0.25rem;">${book.title}</div>`;
-            html += `<a href="https://www.goodreads.com/search?q=${encodeURIComponent((book.author || '') + ' ' + book.title)}" target="_blank" class="accent">Goodreads</a>`;
+            html += `<a href="${goodreadsUrl}" target="_blank" class="accent">Goodreads</a>`;
             html += '</li>';
           }
           html += '</ul>';
@@ -405,12 +433,27 @@
             
             for (const item of data.items) {
               html += '<li>';
+              
+              // Determine the primary link for the poster
+              let posterLink = null;
+              if (item.imdb) {
+                posterLink = `https://www.imdb.com/title/${item.imdb}`;
+              } else if (item.lastfm_url && item.is_artist === true) {
+                posterLink = item.lastfm_url;
+              }
+              
               if (item.poster) {
-                html += `<img src="${item.poster}" alt="${item.title} poster" />`;
+                if (posterLink) {
+                  html += `<a href="${posterLink}" target="_blank" style="display: block;">`;
+                  html += `<img src="${item.poster}" alt="${item.title} poster" style="cursor: pointer;" />`;
+                  html += '</a>';
+                } else {
+                  html += `<img src="${item.poster}" alt="${item.title} poster" />`;
+                }
               }
               html += `<div style="font-weight: bold; margin-bottom: 0.25rem;">${item.title}</div>`;
               
-              // Add external links
+              // Add external links (keep the text links for accessibility)
               const links = [];
               if (item.imdb) {
                 links.push(`<a href="https://www.imdb.com/title/${item.imdb}" target="_blank" class="accent">IMDB</a>`);
@@ -530,6 +573,34 @@
       
       // Initialize the page
       initializeFromURL();
+      
+      // Handle hash fragments on page load
+      function handleHashFragment() {
+        const hash = window.location.hash;
+        if (hash) {
+          // Remove the # from the hash
+          const sectionId = hash.substring(1);
+          
+          // Check if this is a letter hash (e.g., #A, #B, etc.)
+          if (sectionId.length === 1 && /^[A-Z]$/.test(sectionId)) {
+            // This is a letter hash, we'll handle it after the page initializes
+            setTimeout(() => {
+              const letterButton = document.querySelector(`.letter-button[data-letter="${sectionId}"]`);
+              if (letterButton) {
+                letterButton.click();
+              }
+            }, 500);
+          } else {
+            // This might be a library section hash, try to scroll to it
+            setTimeout(() => {
+              const element = document.getElementById(sectionId);
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            }, 100);
+          }
+        }
+      }
     });
   </script>
 

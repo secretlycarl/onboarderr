@@ -27,6 +27,10 @@
         <a href="https://www.audiobookshelf.org/showcase/" target="_blank" class="accent">Audiobookshelf</a> (or just ABS) lets me share my collection of audiobooks with you (still for free). You can listen on your phone or computer like Audible or Spotify.
       </p>
 
+      <p class="onboarding-intro">
+        See below to request access and check out the setup instructions.
+      </p>
+
       <!-- Single Carousel with Library Selector -->
       <div class="carousel-section">
         <div class="poster-carousel-container">
@@ -73,7 +77,10 @@
           <label for="password" class="form-label">Password:</label>
           <input type="text" id="password" name="password" placeholder="Choose a password" required
                  class="form-input"
+                 minlength="8"
+                 pattern=".{8,}"
                  {% if submitted %}disabled{% endif %}>
+          <div class="form-help-text">Must be at least 8 characters</div>
         </div>
     
         <div class="submit-section">
@@ -84,6 +91,13 @@
         <div class="info-box">
           <span>✅</span>
           <span><strong>Thanks! Your request has been submitted.</strong></span>
+        </div>
+      </div>
+      
+      <div id="audiobookshelf-duplicate-warning" style="display:none;">
+        <div class="warning-box">
+          <span>⚠️</span>
+          <span><strong>Email already submitted!</strong> This email address has already been used for a request. Please use a different email address or contact the administrator if you need to update your request.</span>
         </div>
       </div>
     </details>
@@ -135,12 +149,15 @@
     <details class="collapsible-section">
       <summary class="collapsible-heading">4. Requests</summary>
       <p>
-        I don't have an automated system for requesting audiobooks (yet), but I can add them manually if available.
+        If you want a new book added, try and find it before you ask me.
       </p>
-
       <p>
-        If you want a book, look for it before you ask me. See <a href="https://fmhy.pages.dev/readingpiracyguide#audiobooks" target="_blank" class="accent">this</a> list of sites.
+        Some places to look:
       </p>
+      <ul class="text-left max-800">
+        <li><a href="https://tokybook.com/" target="_blank" class="accent">Tokybook</a> has a lot of audiobooks that I can grab easily.</li>
+        <li>Do searches on <a href="https://fmhy.pages.dev/readingpiracyguide#audiobooks" target="_blank" class="accent">these</a> sites.
+      </ul>
 
       {% if tautulli_enabled %}
       <h3>Notifications</h3>
@@ -429,6 +446,26 @@
     // AJAX audiobookshelf form submission
     document.addEventListener('DOMContentLoaded', function() {
       const form = document.getElementById('audiobookshelf-form');
+      const passwordField = document.getElementById('password');
+      
+      // Password validation
+      if (passwordField) {
+        passwordField.addEventListener('input', function() {
+          const password = this.value;
+          const isValid = password.length >= 8;
+          
+          if (isValid) {
+            this.setCustomValidity('');
+            this.classList.remove('invalid');
+            this.classList.add('valid');
+          } else {
+            this.setCustomValidity('Password must be at least 8 characters long');
+            this.classList.remove('valid');
+            this.classList.add('invalid');
+          }
+        });
+      }
+      
       if (form) {
         form.addEventListener('submit', async function(e) {
           e.preventDefault();
@@ -440,6 +477,10 @@
           const submitBtn = form.querySelector('button[type="submit"]');
           if (submitBtn) submitBtn.disabled = true;
           Array.from(form.elements).forEach(el => el.disabled = true);
+          
+          // Hide any existing warning messages
+          document.getElementById('audiobookshelf-duplicate-warning').style.display = 'none';
+          
           try {
             const response = await fetch('/audiobookshelf', {
               method: 'POST',
@@ -454,9 +495,17 @@
                 document.getElementById('audiobookshelf-success').style.display = '';
                 form.style.display = 'none';
               } else {
-                alert(result.error || 'Submission failed.');
-                Array.from(form.elements).forEach(el => el.disabled = false);
-                if (submitBtn) submitBtn.disabled = false;
+                if (result.error && result.error.includes('already been submitted')) {
+                  // Show duplicate email warning
+                  document.getElementById('audiobookshelf-duplicate-warning').style.display = '';
+                  // Re-enable form for correction
+                  Array.from(form.elements).forEach(el => el.disabled = false);
+                  if (submitBtn) submitBtn.disabled = false;
+                } else {
+                  alert(result.error || 'Submission failed.');
+                  Array.from(form.elements).forEach(el => el.disabled = false);
+                  if (submitBtn) submitBtn.disabled = false;
+                }
               }
             } else {
               alert('Submission failed.');
