@@ -6,7 +6,7 @@ Setup is much easier now!
 - Docker compose (tweak mounts first on `compose.yml`) and set all initial settings on the site itself
 
 ## Security Features
-Added new security features-
+Added new security features:
 - **Rate limiting** on login and forms to prevent brute force attacks
   - Default login attempt limit is 5 wrong in 15 min per IP
     - Lockout increases on more failed attempts
@@ -34,6 +34,12 @@ This is the start of my security improvements. Check any `in progress` issues to
 - And more
 
 See recent changelog [here](https://github.com/secretlycarl/onboarderr/pull/35).
+
+## To Do
+- Add change languages feature
+- Replace password system with PIN system
+  - Admin pin w/full access
+  - User group pins, different libraries available per group
 
 
 [How to Update](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#updates)
