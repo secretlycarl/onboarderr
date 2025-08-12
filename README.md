@@ -1,5 +1,6 @@
 # Onboarderr v2
 Onboarderr is a customizable onboarding site for a host's Plex and (optional) Audiobookshelf servers. It includes user instructions, server highlights, and an admin dashboard.
+[New Features](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#new-features-in-v21)
 
 **[ [Example Docker Setup Video](https://www.youtube.com/watch?v=9eIXwEeC0xU) ]** **[ [Example Mobile User Video](https://www.youtube.com/watch?v=a1SVSuqSs74) ]** **[ [Docker Hub Repo](https://hub.docker.com/r/secretlycarl/onboarderr) ]**
 
