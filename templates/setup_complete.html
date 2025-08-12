@@ -161,12 +161,14 @@
                 
                 if (currentPhase === 'plex') {
                     label.textContent = 'Downloading Plex posters...';
+                } else if (currentPhase === 'plex_completed') {
+                    label.textContent = 'Plex downloads completed, waiting for Audiobookshelf...';
                 } else if (currentPhase === 'abs') {
                     label.textContent = 'Downloading Audiobookshelf posters...';
                 } else if (currentPhase === 'completed') {
                     label.textContent = 'All downloads completed!';
                 } else {
-                    label.textContent = 'Downloading posters...';
+                    label.textContent = 'Downloading Audiobookshelf posters...';
                 }
             }
 
@@ -233,7 +235,7 @@
                 
                 posterCheckInterval = setInterval(function() {
                     checkRestartReadiness();
-                }, 2000); // Check every 2 seconds
+                }, 5000); // Check every 5 seconds to avoid rate limiting
             }
 
             // Initialize - always use adaptive logic for consistency

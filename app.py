@@ -1098,6 +1098,8 @@ limiter = Limiter(
 
 
 
+
+
 # Plex details
 PLEX_TOKEN = config.get("PLEX_TOKEN")
 PLEX_URL = config.get("PLEX_URL")
@@ -4119,6 +4121,7 @@ def download_abs_audiobook_posters(check_local_first=False):
                 poster_download_progress['unified']['message'] = 'Downloading Audiobookshelf posters...'
                 poster_download_progress['unified']['current'] = 0
                 poster_download_progress['unified']['total'] = len(book_libraries)
+                poster_download_progress['unified']['last_update'] = time.time()
             
             # Update setup status to show ABS is in progress
             if 'abs_setup' in poster_download_progress:
@@ -4200,6 +4203,17 @@ def download_abs_audiobook_posters(check_local_first=False):
         abs_download_in_progress = False
         abs_download_completed = True
         abs_download_queued = False  # Reset queued flag when download completes
+        
+        # Update unified status to show completion
+        with poster_download_lock:
+            if 'unified' in poster_download_progress:
+                poster_download_progress['unified'].update({
+                    'status': 'completed',
+                    'message': f'All downloads completed! ({poster_count} ABS posters)',
+                    'last_update': time.time(),
+                    'end_time': time.time()
+                })
+        
         if debug_mode:
             print(f"[DEBUG] ABS poster download completed, flags cleared (abs_download_queued={abs_download_queued}, abs_download_completed={abs_download_completed})")
         
@@ -4585,6 +4599,17 @@ def background_poster_worker():
                     retry_operation(download_libraries, max_retries=3, delay=5.0, 
                                   operation_name=f"library_poster_download_{len(data)}_libraries")
                     log_debug("worker", f"Completed library poster download for {len(data)} libraries", {"libraries_count": len(data)})
+                    
+                    # Update unified status to show Plex downloads completed
+                    with poster_download_lock:
+                        if 'unified' in poster_download_progress and poster_download_progress['unified']['status'] == 'plex_downloading':
+                            poster_download_progress['unified'].update({
+                                'status': 'plex_completed',
+                                'message': 'Plex downloads completed, waiting for ABS...',
+                                'last_update': time.time()
+                            })
+                            if debug_mode:
+                                print("[DEBUG] Updated unified status to plex_completed")
                 except Exception as e:
                     log_error("worker", f"Failed to download library posters after retries", {"libraries_count": len(data)}, e)
                     
@@ -4677,7 +4702,7 @@ def should_wait_for_posters():
     with poster_download_lock:
         if 'unified' in poster_download_progress:
             unified_status = poster_download_progress['unified']['status']
-            if unified_status in ['plex_downloading', 'abs_downloading', 'starting']:
+            if unified_status in ['plex_downloading', 'abs_downloading', 'starting', 'plex_completed']:
                 if debug_mode:
                     print(f"[DEBUG] Unified downloads in progress (status: {unified_status}), waiting...")
                 return True
@@ -4701,22 +4726,24 @@ def should_wait_for_posters():
             print("[DEBUG] ABS poster downloads queued, waiting...")
         return True
     
-    # Check if there are items in the download queue
+    # Check if there are items in the download queue (but exclude periodic refresh jobs)
     try:
         queue_size = poster_download_queue.qsize()
         if queue_size > 0:
+            # Don't wait for periodic refresh jobs - they can run in the background
+            # Only wait for essential setup downloads
             if debug_mode:
-                print(f"[DEBUG] Found {queue_size} items in poster download queue, waiting...")
-            return True
+                print(f"[DEBUG] Found {queue_size} items in poster download queue, but not waiting for periodic refresh")
+            return False  # Changed from True to False - don't wait for queue items
     except Exception as e:
         if debug_mode:
             print(f"[DEBUG] Error checking queue size: {e}")
     
-    # Check if worker is actively processing
+    # Check if worker is actively processing (but don't wait for periodic refresh)
     if poster_download_running and not poster_download_queue.empty():
         if debug_mode:
-            print("[DEBUG] Worker is running but queue not empty, waiting...")
-        return True
+            print("[DEBUG] Worker is running but queue not empty, but not waiting for periodic refresh")
+        return False  # Changed from True to False - don't wait for queue processing
     
     return False
 
@@ -5174,6 +5201,7 @@ def trigger_restart():
     return jsonify({"status": "restarting"})
 
 @app.route("/check-restart-readiness", methods=["GET"])
+@limiter.exempt  # Exempt from rate limiting
 @csrf.exempt
 def check_restart_readiness():
     """Check if the system is ready for restart"""
@@ -5199,6 +5227,8 @@ def check_restart_readiness():
                 # Determine current phase based on unified status
                 if unified_status['status'] == 'plex_downloading':
                     current_phase = "plex"
+                elif unified_status['status'] == 'plex_completed':
+                    current_phase = "plex_completed"
                 elif unified_status['status'] == 'abs_downloading':
                     current_phase = "abs"
                 elif unified_status['status'] == 'completed':
@@ -5895,7 +5925,8 @@ def setup_poster_downloads():
                     'status': 'plex_downloading',
                     'message': 'Downloading Plex posters...',
                     'current': 0,
-                    'total': len(libraries)
+                    'total': len(libraries),
+                    'last_update': time.time()
                 })
             
             # Queue Plex downloads to background worker
@@ -5911,6 +5942,15 @@ def setup_poster_downloads():
             if is_debug_mode():
                 print("[INFO] Queuing Audiobookshelf poster downloads")
             
+            # Update unified status to show ABS downloads will start after Plex
+            with poster_download_lock:
+                if 'unified' in poster_download_progress:
+                    poster_download_progress['unified'].update({
+                        'status': 'plex_downloading',
+                        'message': 'Downloading Plex posters... (ABS will follow)',
+                        'last_update': time.time()
+                    })
+            
             # Queue ABS downloads to background worker
             poster_download_queue.put(('abs', None, None, False, True))  # work_type, data, limit, incremental_mode, check_local_first
             
@@ -5918,11 +5958,17 @@ def setup_poster_downloads():
             if is_debug_mode():
                 print(f"[INFO] Skipping ABS poster downloads - no changes detected")
         
-        # Phase 3: Start periodic refresh in background
+        # Phase 3: Start periodic refresh in background (but don't wait for it)
         if libraries:
-            periodic_poster_refresh(libraries, 24)
-            if debug_mode:
-                print(f"[DEBUG] Started 24-hour periodic refresh for {len(libraries)} libraries")
+            # Start periodic refresh in a separate thread that won't block restart
+            def start_periodic_refresh_delayed():
+                # Wait a bit before starting periodic refresh to avoid blocking restart
+                time.sleep(5)
+                periodic_poster_refresh(libraries, 24)
+                if debug_mode:
+                    print(f"[DEBUG] Started 24-hour periodic refresh for {len(libraries)} libraries")
+            
+            threading.Thread(target=start_periodic_refresh_delayed, daemon=True).start()
         
         if debug_mode:
             print("[INFO] Setup poster downloads initiated successfully")
