@@ -10,7 +10,7 @@ Added new security features-
 - **Rate limiting** on login and forms to prevent brute force attacks
   - Default login attempt limit is 5 wrong in 15 min per IP
     - Lockout increases on more failed attempts
-  - Default form submission is 1 submission each to Plex and ABS forms per user per hour
+  - Default form submission is 2 submissions each to Plex and ABS forms per user per hour
   - Customizable on setup
 - **IP white/blacklisting** - you can now block specific IPs or ranges, or whitelist only trusted ones
   - Whitelisting excludes from rate limiting. I put in 127.0.0.1 to disable it for me in testing
@@ -19,7 +19,7 @@ Added new security features-
 
 A new `security_log.json` is created to track the security events.
 
-This is just the start of my security improvements. Check any `in progress` issues to see what's being worked on.
+This is the start of my security improvements. Check any `in progress` issues to see what's being worked on.
 
 ## Misc Frontend and Backend Tweaks
 - `/services` has a new 2 column layout, and a new "jump to:" panel to quickly jump to your desired section
@@ -35,8 +35,10 @@ This is just the start of my security improvements. Check any `in progress` issu
 
 See recent changelog [here](https://github.com/secretlycarl/onboarderr/pull/35).
 
+
 [How to Update](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#updates)
 
+Let me know of any bugs and other feedback :)
 
 # Onboarderr v2
 Onboarderr is a customizable onboarding site for a host's Plex and (optional) Audiobookshelf servers. It includes user instructions, server highlights, and an admin dashboard.
