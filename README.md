@@ -25,9 +25,14 @@ This is just the start of my security improvements. Check any `in progress` issu
 - `/services` has a new 2 column layout, and a new "jump to:" panel to quickly jump to your desired section
 - Improved and adaptive `/setup_complete` page, no longer 15s wait every time. Adapts to library poster downloads.
 - Improved poster and info grabbing logic, smart poster refresh every 24hr
+- Options to customize carousel order and hide certain plex carousels
+- Email fields on Plex and ABS request forms no longer accept duplicate emails
+- Added #settings-sections hashed links to /services
+    - Used for new "jump to" menu
+    - Used in plex and abs request discord notifs so you are redirected and jump to that section after admin login
 - And more
 
-See recent changelog HERE.
+See recent changelog [here](https://github.com/secretlycarl/onboarderr/pull/35).
 
 [How to Update](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#updates)
 
@@ -259,7 +264,7 @@ git pull	# gets updates
 git stash pop	# re-applies your changes on top
 ```
 
-If you ever have trouble with an update, just make a new clean instance, copy/paste your previous `.env`,`/posters` folder, `library_notes.json`, and any log files to the correct locations in the new one and it should bring everything you need to skip setup. You'll just have to go to settings to customize all of the new features.
+If you ever have trouble with an update, just make a new clean instance, copy/paste your previous `.env`,`/posters` folder, `library_notes.json`, and any log files to the correct locations in the new one and it should bring everything you need to skip setup.
 
 Keep copies of custom assets in another folder!
 
