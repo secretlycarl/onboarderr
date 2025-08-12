@@ -241,7 +241,7 @@ Create and activate a venv (conda or through system python), then:
 - After submission, the app will restart to apply the new ```.env```, wait for poster downloads, then direct to `/login`
 - ```ADMIN_PASSWORD``` will take you to services page, but you can browse the others from the links at the top
 - ```SITE_PASSWORD``` will not allow access to admin page
-- After submission, it will pull all posters from selected libraries for use across the site. This can take a while for large libraries, so keep an eye on the console to see when it finishes.
+- After submission, it will pull all posters from selected libraries for use across the site. This can take a while for large libraries.
 
 
 # Per-Host Tweaks
