@@ -254,86 +254,90 @@
       
       </details>
 
-      {% if pulsarr_enabled or overseerr_enabled or jellyseerr_enabled %}
       <details class="collapsible-section">
         <summary class="collapsible-heading">5. Requests</summary>
-          {% if pulsarr_enabled %}
-          <h3>Plex Watchlist Requests</h3>
-          <p>
-            Through some technomancy, requesting movies and shows you want is pretty easy.
-          </p>
-          <p>
-            We have to be "friends" on Plex (different than adding you to my server) for this feature to work so tell me to do that first before you request anything.
-          </p>
-          <p class="accent">
-            Note: This feature does not work for new movies currently in theaters. Anything older or already on streaming services should be available.
-          </p>
-          <ul class="text-left max-800">
-            <li>Go to the search bar or search menu</li>
-            <li>Enable "More Ways to Watch" if not already enabled</li>
-            <li>Search for the media you want</li>
-            <li>Click the "Add to watchlist" icon</li>
-          </ul>
-          <div class="screenshot-section">
-            <img src="{{ url_for('static', filename='watchlist.webp') }}" alt="Watchlist" class="toggle-grow" />
-            <p class="screenshot-caption">Click to enlarge</p>
-          </div>
-          <p>
-            Movies should show up in less than 30 minutes. Shows can take longer. The first season will show up to start, and others as you watch. If it's a show that's airing now and you want a more recent season, let me know.
-          </p>
-          <p class="accent">
-            Be nice to my hard drives, don't request too much!
-          </p>
-          <h3>Notifications</h3>
-          <p>
-            If I added you as a friend, you can receive notifications on phones and tablets when your Watchlisted media is available. For shows, this only applies when it is added for the first time.{% if tautulli_enabled %} For per-episode notifications about currently airing shows, ask me about my Discord.{% endif %}
-          </p>
-          <ul class="text-left max-800">
-            <li>Make sure notifications are enabled for Plex on your phone (Settings app)</li>
-            <li>Go to settings in Plex > Notifications</li>
-            <li>Turn off anything you'd like in Plex News, Friends, Discover, Live TV</li>
-            <li>Scroll down to Personal Media > New Content Added to Library</li>
-            <li>Set the toggles to how they look below (all off except for top one)</li>
-          </ul>
-          <div class="screenshot-section">
-            <img src="{{ url_for('static', filename='notifs.webp') }}" alt="Notification Settings" class="toggle-grow" />
-          </div>
-          {% endif %}
-          {% if overseerr_enabled %}
-          <h3>Overseerr Requests</h3>
-          <p>
-            You can request movies and shows directly using Overseerr.
-          </p>
-          <p>
-            Click the link below to open the request page:
-          </p>
-          <p>
-            <a href="{{ overseerr_url }}" target="_blank" class="accent">Open Overseerr</a>
-          </p>
-          <p class="muted">
-            Requests made here will be sent to me for approval and processing.
-          </p>
-          {% endif %}
-          {% if jellyseerr_enabled %}
-          <h3>Jellyseerr Requests</h3>
-          <p>
-            You can request movies and shows directly using Jellyseerr.
-          </p>
-          <p>
-            Click the link below to open the request page:
-          </p>
-          <p>
-            <a href="{{ jellyseerr_url }}" target="_blank" class="accent">Open Jellyseerr</a>
-          </p>
-          <p class="muted">
-            Requests made here will be sent to me for approval and processing.
-          </p>
+          {% if pulsarr_enabled or overseerr_enabled or jellyseerr_enabled %}
+            {% if pulsarr_enabled %}
+            <h3>Plex Watchlist Requests</h3>
+            <p>
+              Through some technomancy, requesting movies and shows you want is pretty easy.
+            </p>
+            <p>
+              We have to be "friends" on Plex (different than adding you to my server) for this feature to work so tell me to do that first before you request anything.
+            </p>
+            <p class="accent">
+              Note: This feature does not work for new movies currently in theaters. Anything older or already on streaming services should be available.
+            </p>
+            <ul class="text-left max-800">
+              <li>Go to the search bar or search menu</li>
+              <li>Enable "More Ways to Watch" if not already enabled</li>
+              <li>Search for the media you want</li>
+              <li>Click the "Add to watchlist" icon</li>
+            </ul>
+            <div class="screenshot-section">
+              <img src="{{ url_for('static', filename='watchlist.webp') }}" alt="Watchlist" class="toggle-grow" />
+              <p class="screenshot-caption">Click to enlarge</p>
+            </div>
+            <p>
+              Movies should show up in less than 30 minutes. Shows can take longer. The first season will show up to start, and others as you watch. If it's a show that's airing now and you want a more recent season, let me know.
+            </p>
+            <p class="accent">
+              Be nice to my hard drives, don't request too much!
+            </p>
+            <h3>Notifications</h3>
+            <p>
+              If I added you as a friend, you can receive notifications on phones and tablets when your Watchlisted media is available. For shows, this only applies when it is added for the first time.{% if tautulli_enabled %} For per-episode notifications about currently airing shows, ask me about my Discord.{% endif %}
+            </p>
+            <ul class="text-left max-800">
+              <li>Make sure notifications are enabled for Plex on your phone (Settings app)</li>
+              <li>Go to settings in Plex > Notifications</li>
+              <li>Turn off anything you'd like in Plex News, Friends, Discover, Live TV</li>
+              <li>Scroll down to Personal Media > New Content Added to Library</li>
+              <li>Set the toggles to how they look below (all off except for top one)</li>
+            </ul>
+            <div class="screenshot-section">
+              <img src="{{ url_for('static', filename='notifs.webp') }}" alt="Notification Settings" class="toggle-grow" />
+            </div>
+            {% endif %}
+            {% if overseerr_enabled %}
+            <h3>Overseerr Requests</h3>
+            <p>
+              You can request movies and shows directly using Overseerr.
+            </p>
+            <p>
+              Click the link below to open the request page:
+            </p>
+            <p>
+              <a href="{{ overseerr_url }}" target="_blank" class="accent">Open Overseerr</a>
+            </p>
+            <p class="muted">
+              Requests made here will be sent to me for approval and processing.
+            </p>
+            {% endif %}
+            {% if jellyseerr_enabled %}
+            <h3>Jellyseerr Requests</h3>
+            <p>
+              You can request movies and shows directly using Jellyseerr.
+            </p>
+            <p>
+              Click the link below to open the request page:
+            </p>
+            <p>
+              <a href="{{ jellyseerr_url }}" target="_blank" class="accent">Open Jellyseerr</a>
+            </p>
+            <p class="muted">
+              Requests made here will be sent to me for approval and processing.
+            </p>
+            {% endif %}
+          {% else %}
+            <p>
+              If you want a movie or show I don't have, just ask. I should be able to help you out.
+            </p>
           {% endif %}
       </details>
-      {% endif %}
 
       <details class="collapsible-section">
-        <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled or jellyseerr_enabled %}6{% else %}5{% endif %}. Issues</summary>
+        <summary class="collapsible-heading">6. Issues</summary>
       
           <p>
             If you have issues playing a specific piece of media, find a movie or episode with bad subs, or any other issues, you can report it through Plex or just tell me.
@@ -345,7 +349,7 @@
       </details>
 
       <details class="collapsible-section">
-        <summary class="collapsible-heading">{% if pulsarr_enabled or overseerr_enabled or jellyseerr_enabled %}7{% else %}6{% endif %}. The End</summary>
+        <summary class="collapsible-heading">7. The End</summary>
           {% include "onboarding_section7.html" %}
       </details>
     </div>

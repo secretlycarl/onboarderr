@@ -214,7 +214,7 @@
             // Function to update countdown bar
             function updateBar() {
                 if (waiting) return;
-                elapsed += 0.1;
+                elapsed += 0.05;
                 var percent = Math.min(100, (elapsed / totalSeconds) * 100);
                 bar.style.width = percent + '%';
                 

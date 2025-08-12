@@ -103,21 +103,24 @@ Method of making your local server publicly accessible:
 
 [Pulsarr](https://github.com/jamcalli/Pulsarr) - Per-user content requests integrated w/ Sonarr & Radarr via Plex watchlist
 - Pulsarr is also able to push "media added" notifications through the Plex mobile app via Tautulli integration. Works fine for movies, but does not handle every new episode of shows.*
-  * according to Pulsarr dev there should be notifs for individual eps, but he tested and also doesn't get them. if that's resolved I'll update some bod content
+  * According to Pulsarr dev there should be notifs for individual eps, but I only get notified for when a watchlisted show is first added, and not for eps after. We tried to figure it out [here](https://github.com/jamcalli/Pulsarr/issues/442#issuecomment-3177110566) but I haven't been able to get them working yet. Once everything is resolved, I'll update some of the html text to reflect it.
 
 [Overseerr](https://github.com/sct/overseerr) - User media requesting site
 
 [Jellyseerr](https://github.com/fallenbagel/jellyseerr) - Overseerr fork
 
-Depending if you have Pulsarr, Overseerr, Jellyseerr, or none, some body content (section 5 on `/onboarding`) will change/disappear.
+Depending if you have Pulsarr, Overseerr, Jellyseerr, or none, some body content (5. Requests on `/onboarding`) will change.
 
 [Tautulli](https://github.com/Tautulli/Tautulli) - Per-user specific "episode/media item added" notifications on Discord
-- If a user wants notifications for each new episode of a show, I create a new private text channel that is only for them on my discord server, then use the info for that channel in Tautulli for a new notification agent. Condition for the Show Name and it directs those notifs to the channel I made.
-- If Tautulli is not enabled, some body text "...ask me about my Discord" is hidden.
+- If a user wants notifications for each new episode of a show, I create a new private text channel that is only for them on my discord server, then use the info for that channel in Tautulli for a new notification agent. Condition for the Show Name and it directs those notifs to the channel I made.*
+- If Tautulli is not enabled, some body text "...ask me about my Discord" is hidden.*
+* Once the Pulsarr situation is resolved, these actions won't be needed
 
 [Sonarr](https://github.com/Sonarr/Sonarr) & [Radarr](https://github.com/Radarr/Radarr) - to grab the watchlisted content
 
-Discord - to handle certain admin & user notifications
+[Tokybook Downloader](https://github.com/SajaDevil/Tokybook-audiobook-downloader) - On ABS page, I direct users to tokybook.com to search for books that I can grab easily with this program. There are other programs that have similar functions.
+
+Discord - To serve security, access request, and other notifications from Onboarderr and Tautulli
 
 # First Time Setup
 
