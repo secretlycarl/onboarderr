@@ -74,9 +74,6 @@ See recent changelog [here](https://github.com/secretlycarl/onboarderr/pull/35).
 
 Let me know of any bugs and other feedback :)
 
-## To Do
-[View issues with to-do label](https://github.com/secretlycarl/onboarderr/issues?q=is%3Aissue%20state%3Aopen%20label%3Ato-do)
-
 # Features
 
 - Docker & UNRAID (needs testing) support (also Win/Mac/Linux)
@@ -92,6 +89,8 @@ Let me know of any bugs and other feedback :)
    	- Add Audiobookshelf users
    	- Storage bars
    	- Change settings
+ 
+[To-Do List](https://github.com/secretlycarl/onboarderr/issues?q=is%3Aissue%20state%3Aopen%20label%3Ato-do)
 
 # Requirements
 
