@@ -30,6 +30,7 @@ This is just the start of my security improvements. Check any `in progress` issu
 - Added #settings-sections hashed links to /services
     - Used for new "jump to" menu
     - Used in plex and abs request discord notifs so you are redirected and jump to that section after admin login
+- Changed Plex "Requests" section logic to show generic text if no requesting services is configured
 - And more
 
 See recent changelog [here](https://github.com/secretlycarl/onboarderr/pull/35).
