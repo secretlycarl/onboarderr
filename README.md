@@ -42,10 +42,7 @@ See recent changelog [here](https://github.com/secretlycarl/onboarderr/pull/35).
 Let me know of any bugs and other feedback :)
 
 ## To Do
-- Add change languages feature
-- Replace password system with PIN system
-  - Admin pin w/full access
-  - User group pins, different libraries available per group
+[View issues with to-do label](https://github.com/secretlycarl/onboarderr/issues?q=is%3Aissue%20state%3Aopen%20label%3Ato-do)
 
 # Onboarderr v2
 Onboarderr is a customizable onboarding site for a host's Plex and (optional) Audiobookshelf servers. It includes user instructions, server highlights, and an admin dashboard.
