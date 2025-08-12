@@ -9,6 +9,8 @@ Onboarderr is a customizable onboarding site for a host's Plex and (optional) Au
 
 ![Customization 2](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/10c_custom-example2.png)
 
+**[More Screenshots](https://github.com/secretlycarl/onboarderr/tree/main/screenshots)**
+
 #
 
 As someone who's never made a website before, I wanted to: 
@@ -61,8 +63,6 @@ This is the start of my security improvements. Check any `in progress` issues to
     - Used in plex and abs request discord notifs so you are redirected and jump to that section after admin login
 - Changed Plex onboarding "Requests" section logic to show generic text if no requesting services are configured
 - And more
-
-**[Screenshots](https://github.com/secretlycarl/onboarderr/tree/main/screenshots)**
 
 See recent changelog [here](https://github.com/secretlycarl/onboarderr/pull/35).
 
