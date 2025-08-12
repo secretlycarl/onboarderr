@@ -250,7 +250,7 @@ Most customization is done on setup and settings in the admin panel, but you may
 
 - Delete placeholder `plex_submissions.json` and `audiobookshelf_submissions.json`. The ones that come with it have example data to populate the requests sections on `/services`
 
-- I have my Pulsarr instance set up to use the "First Season Rolliing" Sonarr monitoring option, so my instructions for Pulsarr watchlist requesting reflect that. Change if you use a different monitoring option.
+- I have my Pulsarr instance set up to use the "First Season Rolling" Sonarr monitoring option, so my instructions for Pulsarr watchlist requesting reflect that. Change if you use a different monitoring option.
   
 # Sharing
 
