@@ -7503,36 +7503,42 @@ def ajax_load_all_items():
     
     try:
         data = request.get_json()
-        library_index = data.get("library_index")
-        
-        if library_index is None:
-            return jsonify({"success": False, "error": "Library index required"})
-        
-        # Convert library_index to integer
-        try:
-            library_index = int(library_index)
-            if debug_mode:
-                print(f"DEBUG: library_index = {library_index} (type: {type(library_index)})")
-        except (ValueError, TypeError):
-            return jsonify({"success": False, "error": "Invalid library index format"})
-        
-        # Get all libraries - use local files for better performance
-        libraries = get_libraries_from_local_files()
-        selected_ids = os.getenv("LIBRARY_IDS", "")
-        selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
-        filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
+        library_name = data.get("library_name")
         
         if debug_mode:
-            print(f"DEBUG: len(filtered_libraries) = {len(filtered_libraries)}")
+            print(f"DEBUG: Received request - library_name: '{library_name}'")
         
-        if library_index >= len(filtered_libraries):
-            return jsonify({"success": False, "error": "Invalid library index"})
+        if library_name is None:
+            return jsonify({"success": False, "error": "Library name required"})
         
-        library = filtered_libraries[library_index]
+        # Get ordered libraries using the helper function
+        ordered_libraries = get_ordered_libraries()
+        
+        # Find library by name
+        library = None
+        for lib in ordered_libraries:
+            if lib["title"] == library_name:
+                library = lib
+                break
+        
+        if library is None:
+            if debug_mode:
+                print(f"DEBUG: Library '{library_name}' not found in ordered libraries")
+                print(f"DEBUG: Available libraries: {[lib['title'] for lib in ordered_libraries]}")
+            return jsonify({"success": False, "error": "Library not found"})
+        
         section_id = library["key"]
+        
+        if debug_mode:
+            print(f"DEBUG: Found library '{library_name}' with section_id '{section_id}'")
         
         # Load cached poster metadata for this specific library
         poster_dir = get_library_poster_dir(section_id)
+        
+        if debug_mode:
+            print(f"DEBUG: Poster directory: {poster_dir}")
+            print(f"DEBUG: Poster directory exists: {os.path.exists(poster_dir)}")
+        
         items_with_posters = []
         
         if os.path.exists(poster_dir):
@@ -7592,33 +7598,44 @@ def ajax_load_posters_by_letter():
     
     try:
         data = request.get_json()
-        library_index = data.get("library_index")
+        library_name = data.get("library_name")
         letter = data.get("letter")
         
-        if library_index is None or letter is None:
-            return jsonify({"success": False, "error": "Library index and letter required"})
+        if debug_mode:
+            print(f"DEBUG: Received request - library_name: '{library_name}', letter: '{letter}'")
         
-        # Convert library_index to integer
-        try:
-            library_index = int(library_index)
-        except (ValueError, TypeError):
-            return jsonify({"success": False, "error": "Invalid library index format"})
+        if library_name is None or letter is None:
+            return jsonify({"success": False, "error": "Library name and letter required"})
         
-        # Get the library info - use local files for better performance
-        libraries = get_libraries_from_local_files()
-        selected_ids = os.getenv("LIBRARY_IDS", "")
-        selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
-        filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
+        # Get ordered libraries using the helper function
+        ordered_libraries = get_ordered_libraries()
         
-        if library_index >= len(filtered_libraries):
-            return jsonify({"success": False, "error": "Invalid library index"})
+        # Find library by name
+        library = None
+        for lib in ordered_libraries:
+            if lib["title"] == library_name:
+                library = lib
+                break
         
-        library = filtered_libraries[library_index]
+        if library is None:
+            if debug_mode:
+                print(f"DEBUG: Library '{library_name}' not found in ordered libraries")
+                print(f"DEBUG: Available libraries: {[lib['title'] for lib in ordered_libraries]}")
+            return jsonify({"success": False, "error": "Library not found"})
+        
         section_id = library["key"]
         name = library["title"]
         
+        if debug_mode:
+            print(f"DEBUG: Found library '{name}' with section_id '{section_id}'")
+        
         # Load cached poster metadata for this specific library
         poster_dir = get_library_poster_dir(section_id)
+        
+        if debug_mode:
+            print(f"DEBUG: Poster directory: {poster_dir}")
+            print(f"DEBUG: Poster directory exists: {os.path.exists(poster_dir)}")
+        
         unified_items = []
         
         if os.path.exists(poster_dir):
@@ -8619,6 +8636,56 @@ def medialists():
     selected_service = request.args.get("service", "plex")
     selected_library = request.args.get("library", "all")
 
+    # Get ordered libraries using the helper function
+    ordered_libraries = get_ordered_libraries()
+
+    library_media = {}
+    library_counts = {}  # Track total counts for each library
+    # Only load titles for libraries (posters will be loaded on-demand via AJAX)
+    for lib in ordered_libraries:
+        section_id = lib["key"]
+        name = lib["title"]
+        titles = fetch_titles_for_library(section_id)
+        
+        grouped_titles = group_titles_by_letter(titles)
+        library_media[name] = grouped_titles
+        library_counts[name] = len(titles)  # Store total count
+
+    abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
+    audiobooks = {}
+    if abs_enabled:
+        # Use the cache function instead of the non-existent fetch_audiobooks
+        audiobooks = fetch_audiobooks_from_cache()
+
+    # Use the cache function instead of the non-existent fetch_abs_books
+    abs_books = fetch_abs_books_from_cache() if abs_enabled else []
+    abs_book_groups = group_books_by_letter(abs_books) if abs_books else {}
+    abs_book_count = len(abs_books) if abs_books else 0
+
+    # Get template context with quick_access_services
+    context = get_template_context()
+    
+    # Add page-specific variables
+    context.update({
+        "library_media": library_media,
+        "library_counts": library_counts,  # Pass library counts
+        "audiobooks": audiobooks,
+        "abs_enabled": abs_enabled,
+        "library_posters": {},  # Empty - will be loaded on-demand
+        "library_poster_groups": {},  # Empty - will be loaded on-demand
+        "abs_books": abs_books,
+        "abs_book_groups": abs_book_groups,
+        "abs_book_count": abs_book_count,
+        "filtered_libraries": ordered_libraries,  # Pass library info for AJAX
+        "logo_filename": get_logo_filename(),
+        "selected_library": selected_library,
+        "selected_service": selected_service
+    })
+    
+    return render_template("medialists.html", **context)
+
+def get_ordered_libraries():
+    """Get libraries with the same ordering logic as the main medialists route"""
     # Get all libraries - use local files for better performance (no Plex API calls)
     try:
         libraries = get_libraries_from_local_files()
@@ -8678,52 +8745,7 @@ def medialists():
     libraries_without_carousels.sort(key=lambda lib: lib["title"].lower())
     
     # Combine the lists: carousel libraries first, then non-carousel libraries
-    ordered_libraries = libraries_with_carousels + libraries_without_carousels
-
-    library_media = {}
-    library_counts = {}  # Track total counts for each library
-    # Only load titles for libraries (posters will be loaded on-demand via AJAX)
-    for lib in ordered_libraries:
-        section_id = lib["key"]
-        name = lib["title"]
-        titles = fetch_titles_for_library(section_id)
-        
-        grouped_titles = group_titles_by_letter(titles)
-        library_media[name] = grouped_titles
-        library_counts[name] = len(titles)  # Store total count
-
-    abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
-    audiobooks = {}
-    if abs_enabled:
-        # Use the cache function instead of the non-existent fetch_audiobooks
-        audiobooks = fetch_audiobooks_from_cache()
-
-    # Use the cache function instead of the non-existent fetch_abs_books
-    abs_books = fetch_abs_books_from_cache() if abs_enabled else []
-    abs_book_groups = group_books_by_letter(abs_books) if abs_books else {}
-    abs_book_count = len(abs_books) if abs_books else 0
-
-    # Get template context with quick_access_services
-    context = get_template_context()
-    
-    # Add page-specific variables
-    context.update({
-        "library_media": library_media,
-        "library_counts": library_counts,  # Pass library counts
-        "audiobooks": audiobooks,
-        "abs_enabled": abs_enabled,
-        "library_posters": {},  # Empty - will be loaded on-demand
-        "library_poster_groups": {},  # Empty - will be loaded on-demand
-        "abs_books": abs_books,
-        "abs_book_groups": abs_book_groups,
-        "abs_book_count": abs_book_count,
-        "filtered_libraries": filtered_libraries,  # Pass library info for AJAX
-        "logo_filename": get_logo_filename(),
-        "selected_library": selected_library,
-        "selected_service": selected_service
-    })
-    
-    return render_template("medialists.html", **context)
+    return libraries_with_carousels + libraries_without_carousels
 
 def get_library_poster_dir(library_id):
     """Get the poster directory path for a library using the old naming format (just ID)"""

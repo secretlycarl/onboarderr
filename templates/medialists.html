@@ -170,7 +170,20 @@
           return 'Audiobooks';
         }
         // For Plex libraries, we need to get the name from the select options
-        const option = select.querySelector(`option[value="${libraryIndex}"]`);
+        console.log(`DEBUG: getLibraryNameFromIndex(${libraryIndex}) - searching for option with value="${libraryIndex}"`);
+        console.log(`DEBUG: Available options:`, Array.from(select.options).map(opt => ({value: opt.value, text: opt.textContent})));
+        
+        // Try to find the option with the exact libraryIndex first
+        let option = select.querySelector(`option[value="${libraryIndex}"]`);
+        
+        // If not found and libraryIndex is a number, try with "plex-" prefix
+        if (!option && /^\d+$/.test(libraryIndex)) {
+          const plexValue = `plex-${libraryIndex}`;
+          console.log(`DEBUG: Trying with plex prefix: ${plexValue}`);
+          option = select.querySelector(`option[value="${plexValue}"]`);
+        }
+        
+        console.log(`DEBUG: getLibraryNameFromIndex(${libraryIndex}) - found option:`, option);
         return option ? option.textContent : null;
       }
       
@@ -268,11 +281,16 @@
         const postersContainer = document.getElementById(`posters-container-${libraryIndex}`);
         if (!postersContainer) return;
         
+        // Get library name from the select option
+        const libraryName = getLibraryNameFromIndex(libraryIndex);
+        if (!libraryName) return;
+        
         // Show loading indicator
         postersContainer.innerHTML = '<div style="color:#666; text-align:center; padding:1em;">Loading all items...</div>';
         postersContainer.style.display = 'block';
         
         // Load all items via AJAX
+        console.log(`DEBUG: Sending request to load-all-items with library_name: ${libraryName}`);
         fetch('/ajax/load-all-items', {
           method: 'POST',
           headers: {
@@ -280,7 +298,7 @@
             'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
           },
           body: JSON.stringify({ 
-            library_index: libraryIndex
+            library_name: libraryName
           })
         })
         .then(response => response.json())
@@ -414,6 +432,8 @@
         }
         
         // Load posters via AJAX for Plex
+        const posterLibraryName = getLibraryNameFromIndex(libraryIndex);
+        console.log(`DEBUG: Sending request to load-posters-by-letter with library_name: ${posterLibraryName}, letter: ${letter}`);
         fetch('/ajax/load-posters-by-letter', {
           method: 'POST',
           headers: {
@@ -421,7 +441,7 @@
             'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
           },
           body: JSON.stringify({ 
-            library_index: libraryIndex,
+            library_name: posterLibraryName,
             letter: letter
           })
         })
