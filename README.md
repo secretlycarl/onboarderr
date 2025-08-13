@@ -64,7 +64,9 @@ This is the start of my security improvements. Check any `in progress` issues to
     - Used for new "jump to" menu
     - Used in plex and abs request discord notifs so you are redirected and jump to that section after admin login
 - Changed Plex onboarding "Requests" section logic to show generic text if no requesting services are configured
-- And more
+- Added settings section for personal message at bottom of Plex Onboarding
+  - This replaces the old method of having to edit `section7.html`
+- And more!
 
 See recent changelog [here](https://github.com/secretlycarl/onboarderr/pull/35).
 
