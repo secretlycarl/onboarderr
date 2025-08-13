@@ -35,7 +35,7 @@ Thanks to reddit user u/Jeffizzleforshizzle for intial testing of v1
 ## Quicker Setup
 Setup is much easier now! 
 - Set port with `python changeport.py [PORT_NUMBER]` if you don't want to use the default `10000`
-- Docker compose (tweak mounts first on `compose.yml`) and set all initial settings on the site itself
+- Tweak mounts on `compose.yml`, then `docker compose up -d` and set all initial settings on the site itself
 - Customize HTML content, CSS, whatever you'd like
 
 ## Security Features
