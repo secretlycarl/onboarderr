@@ -506,8 +506,8 @@ IMMEDIATE_RESTART_DELAY = config.get_int("IMMEDIATE_RESTART_DELAY", 5)
 STANDARD_RESTART_DELAY = config.get_int("STANDARD_RESTART_DELAY", 5)
 
 # Library caching infrastructure
-LIBRARY_CACHE_TTL = config.get_int("LIBRARY_CACHE_TTL", 86400)
-POSTER_REFRESH_INTERVAL = config.get_int("POSTER_REFRESH_INTERVAL", 86400)
+LIBRARY_CACHE_TTL = config.get_int("LIBRARY_CACHE_TTL", 43200)
+POSTER_REFRESH_INTERVAL = config.get_int("POSTER_REFRESH_INTERVAL", 43200)
 library_cache = {}
 library_cache_timestamp = 0
 library_cache_lock = Lock()
@@ -1298,6 +1298,589 @@ def get_plex_libraries(force_refresh=False):
         raise
 
 # --- File read/write: always use utf-8 encoding and os.path.join ---
+def compare_local_vs_server_metadata(local_meta, server_item):
+    """
+    Compare local metadata with server metadata to detect changes.
+    Returns True if metadata has changed and needs re-download.
+    
+    Args:
+        local_meta: Local metadata dictionary
+        server_item: Server item dictionary with attributes
+        
+    Returns:
+        bool: True if metadata has changed
+    """
+    if not local_meta or not server_item:
+        return True
+    
+    # Compare key metadata fields - only thumb changes should trigger re-download
+    # Title and year changes are usually just metadata updates, not poster changes
+    thumb_local = local_meta.get('thumb', '')
+    thumb_server = server_item.get('thumb', '')
+    
+    # If local metadata doesn't have thumb field, it's an old format file
+    # We should only trigger re-download if the server has a thumb and local doesn't
+    if not thumb_local and thumb_server:
+        if debug_mode:
+            print(f"[DEBUG] Old metadata format detected, adding thumb field: '{thumb_server}'")
+        return True
+    
+    # Only trigger re-download if the thumb URL has actually changed
+    if str(thumb_local).strip() != str(thumb_server).strip():
+        if debug_mode:
+            print(f"[DEBUG] Thumb URL change detected: '{thumb_local}' -> '{thumb_server}'")
+        return True
+    
+    return False
+
+def smart_check_library_posters(library_id, plex_url, headers):
+    """
+    Smart check for library posters - compares local files with server and determines what needs updating.
+    
+    Args:
+        library_id: Library ID to check
+        plex_url: Plex server URL
+        headers: Request headers with token
+        
+    Returns:
+        dict: {
+            'needs_download': bool,
+            'new_items': list,
+            'changed_items': list,
+            'removed_count': int,
+            'server_offline': bool,
+            'error': str
+        }
+    """
+    result = {
+        'needs_download': False,
+        'new_items': [],
+        'changed_items': [],
+        'removed_count': 0,
+        'server_offline': False,
+        'error': None
+    }
+    
+    try:
+        # Check if server is reachable
+        test_url = f"{plex_url}/library/sections/{library_id}/all"
+        response = requests.get(test_url, headers=headers, timeout=5)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        if debug_mode:
+            print(f"[DEBUG] Server offline for library {library_id}: {e}")
+        result['server_offline'] = True
+        return result
+    
+    try:
+        # Get current server items
+        response = requests.get(test_url, headers=headers, timeout=10)
+        response.raise_for_status()
+        root = ET.fromstring(response.content)
+        
+        # Collect current items from server
+        current_items = []
+        current_rating_keys = set()
+        
+        for el in root.findall(".//Video"):
+            thumb = el.attrib.get("thumb")
+            rating_key = el.attrib.get("ratingKey")
+            title = el.attrib.get("title")
+            year = el.attrib.get("year")
+            if thumb and rating_key:
+                item = {"thumb": thumb, "ratingKey": rating_key, "title": title, "year": year}
+                current_items.append(item)
+                current_rating_keys.add(rating_key)
+        
+        for el in root.findall(".//Directory"):
+            thumb = el.attrib.get("thumb")
+            rating_key = el.attrib.get("ratingKey")
+            title = el.attrib.get("title")
+            if thumb and rating_key and not any(i["ratingKey"] == rating_key for i in current_items):
+                item = {"thumb": thumb, "ratingKey": rating_key, "title": title}
+                current_items.append(item)
+                current_rating_keys.add(rating_key)
+        
+        # Clean up deleted posters
+        result['removed_count'] = cleanup_deleted_posters(library_id, current_rating_keys)
+        
+        # Get existing poster rating keys and metadata
+        existing_keys = get_existing_poster_rating_keys(library_id)
+        poster_dir = get_library_poster_dir(library_id)
+        
+        # Check each server item
+        for item in current_items:
+            rating_key = item["ratingKey"]
+            
+            if rating_key not in existing_keys:
+                # New item - needs download
+                result['new_items'].append(item)
+                result['needs_download'] = True
+            else:
+                # Existing item - check if metadata changed
+                meta_file = os.path.join(poster_dir, f"poster_{rating_key}.json")
+                if os.path.exists(meta_file):
+                    try:
+                        with open(meta_file, 'r', encoding='utf-8') as f:
+                            local_meta = json.load(f)
+                        
+                        if compare_local_vs_server_metadata(local_meta, item):
+                            result['changed_items'].append(item)
+                            result['needs_download'] = True
+                    except (IOError, json.JSONDecodeError) as e:
+                        if debug_mode:
+                            print(f"[DEBUG] Error reading local metadata for {rating_key}: {e}")
+                        result['changed_items'].append(item)
+                        result['needs_download'] = True
+                else:
+                    # Missing metadata file
+                    result['changed_items'].append(item)
+                    result['needs_download'] = True
+        
+        if debug_mode:
+            print(f"[DEBUG] Smart check for library {library_id}: {len(result['new_items'])} new, {len(result['changed_items'])} changed, {result['removed_count']} removed")
+        
+    except Exception as e:
+        if debug_mode:
+            print(f"[ERROR] Error in smart check for library {library_id}: {e}")
+        result['error'] = str(e)
+    
+    return result
+
+def smart_check_abs_posters(abs_url, headers):
+    """
+    Smart check for ABS posters - compares local files with server and determines what needs updating.
+    
+    Args:
+        abs_url: ABS server URL
+        headers: Request headers with token
+        
+    Returns:
+        dict: {
+            'needs_download': bool,
+            'new_items': list,
+            'changed_items': list,
+            'removed_count': int,
+            'server_offline': bool,
+            'error': str
+        }
+    """
+    result = {
+        'needs_download': False,
+        'new_items': [],
+        'changed_items': [],
+        'removed_count': 0,
+        'server_offline': False,
+        'error': None
+    }
+    
+    try:
+        # Check if server is reachable
+        test_url = f"{abs_url}/api/libraries"
+        response = requests.get(test_url, headers=headers, timeout=5)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        if debug_mode:
+            print(f"[DEBUG] ABS server offline: {e}")
+        result['server_offline'] = True
+        return result
+    
+    try:
+        # Get ABS libraries
+        response = requests.get(test_url, headers=headers, timeout=10)
+        response.raise_for_status()
+        libraries_data = response.json()
+        
+        # Extract libraries from the response
+        libraries = libraries_data.get('libraries', [])
+        if not isinstance(libraries, list):
+            if debug_mode:
+                print(f"[DEBUG] Unexpected libraries format: {type(libraries)}")
+            return result
+        
+        audiobook_dir = os.path.join("static", "posters", "audiobooks")
+        os.makedirs(audiobook_dir, exist_ok=True)
+        
+        # Get existing ABS poster files - use the actual file naming convention
+        existing_books = set()
+        if os.path.exists(audiobook_dir):
+            # Load all existing audiobook metadata to get book IDs
+            for f in os.listdir(audiobook_dir):
+                if f.endswith('.json'):
+                    try:
+                        meta_path = os.path.join(audiobook_dir, f)
+                        with open(meta_path, 'r', encoding='utf-8') as meta_file:
+                            meta = json.load(meta_file)
+                            book_id = meta.get('id')
+                            library_id = meta.get('library_id')
+                            if book_id and library_id:
+                                book_key = f"abs_book_{library_id}_{book_id}"
+                                existing_books.add(book_key)
+                    except (IOError, json.JSONDecodeError):
+                        continue
+            
+            if debug_mode:
+                print(f"[DEBUG] Found {len(existing_books)} existing ABS books")
+                if len(existing_books) > 0:
+                    print(f"[DEBUG] Sample existing books: {list(existing_books)[:5]}")
+        
+        # Check each library
+        for library in libraries:
+            library_id = library.get('id')
+            if not library_id:
+                continue
+            
+            # Get books in this library
+            books_url = f"{abs_url}/api/libraries/{library_id}/items"
+            books_response = requests.get(books_url, headers=headers, timeout=10)
+            books_response.raise_for_status()
+            books_data = books_response.json()
+            
+            current_books = set()
+            
+            for book in books_data.get('results', []):
+                book_id = book.get('id')
+                if not book_id:
+                    continue
+                
+                book_key = f"abs_book_{library_id}_{book_id}"
+                current_books.add(book_key)
+                
+                if book_key not in existing_books:
+                    # New book - needs download
+                    if debug_mode:
+                        print(f"[DEBUG] New ABS book detected: {book_key}")
+                    result['new_items'].append({
+                        'library_id': library_id,
+                        'book_id': book_id,
+                        'book': book
+                    })
+                    result['needs_download'] = True
+                else:
+                    # Existing book - check if metadata changed
+                    meta_file = os.path.join(audiobook_dir, f"{book_key}.json")
+                    if os.path.exists(meta_file):
+                        try:
+                            with open(meta_file, 'r', encoding='utf-8') as f:
+                                local_meta = json.load(f)
+                            
+                            # Compare key metadata fields - use same field paths as when saving
+                            server_title = book.get('title', '')
+                            # Extract author from the same nested structure as when saving
+                            media = book.get('media', {})
+                            metadata = media.get('metadata', {})
+                            server_author = metadata.get('authorName', '')
+                            local_title = local_meta.get('title', '')
+                            local_author = local_meta.get('author', '')
+                            
+                            # Add debug logging to see what's being compared
+                            if debug_mode and (server_title != local_title or server_author != local_author):
+                                print(f"[DEBUG] Metadata mismatch for book {book_id}:")
+                                print(f"  Server title: '{server_title}' vs Local title: '{local_title}'")
+                                print(f"  Server author: '{server_author}' vs Local author: '{local_author}'")
+                            
+                            if (server_title != local_title or server_author != local_author):
+                                result['changed_items'].append({
+                                    'library_id': library_id,
+                                    'book_id': book_id,
+                                    'book': book
+                                })
+                                result['needs_download'] = True
+                        except (IOError, json.JSONDecodeError):
+                            result['changed_items'].append({
+                                'library_id': library_id,
+                                'book_id': book_id,
+                                'book': book
+                            })
+                            result['needs_download'] = True
+                    else:
+                        # Missing metadata file
+                        result['changed_items'].append({
+                            'library_id': library_id,
+                            'book_id': book_id,
+                            'book': book
+                        })
+                        result['needs_download'] = True
+            
+            # Clean up deleted books - this is more complex with the current file naming
+            # For now, we'll skip cleanup to avoid breaking existing files
+            # TODO: Implement proper cleanup when file naming is standardized
+            pass
+        
+        if debug_mode:
+            print(f"[DEBUG] Smart check for ABS: {len(result['new_items'])} new, {len(result['changed_items'])} changed, {result['removed_count']} removed")
+        
+    except Exception as e:
+        if debug_mode:
+            print(f"[ERROR] Error in smart ABS check: {e}")
+        result['error'] = str(e)
+    
+    return result
+
+def determine_download_needs(libraries, abs_enabled=True):
+    """
+    Determine what downloads are needed using smart logic.
+    
+    Args:
+        libraries: List of library dictionaries
+        abs_enabled: Whether ABS is enabled
+        
+    Returns:
+        dict: {
+            'plex_needs_download': bool,
+            'abs_needs_download': bool,
+            'plex_results': list of smart check results,
+            'abs_result': smart check result,
+            'any_server_offline': bool,
+            'total_new': int,
+            'total_changed': int,
+            'total_removed': int
+        }
+    """
+    result = {
+        'plex_needs_download': False,
+        'abs_needs_download': False,
+        'plex_results': [],
+        'abs_result': None,
+        'any_server_offline': False,
+        'total_new': 0,
+        'total_changed': 0,
+        'total_removed': 0
+    }
+    
+    # Get Plex credentials
+    plex_token = os.getenv("PLEX_TOKEN")
+    plex_url = os.getenv("PLEX_URL")
+    
+    if not plex_token or not plex_url:
+        if debug_mode:
+            print("[DEBUG] No Plex credentials available for smart check")
+        return result
+    
+    headers = {"X-Plex-Token": plex_token}
+    
+    # Check Plex libraries
+    for lib in libraries:
+        # Check if Plex downloads were recently completed for this library (within last 6 hours)
+        # This prevents unnecessary re-downloads when coming from services form or setup
+        plex_completion_file = os.path.join("static", "posters", str(lib["key"]), ".last_completion")
+        if os.path.exists(plex_completion_file):
+            try:
+                with open(plex_completion_file, 'r') as f:
+                    last_completion_time = float(f.read().strip())
+                time_since_completion = time.time() - last_completion_time
+                
+                # If completed within last 6hr, skip download for this library
+                if time_since_completion < 21600:  # 6hr
+                    if debug_mode:
+                        print(f"[DEBUG] Plex downloads for library {lib['key']} completed {time_since_completion:.1f} seconds ago, skipping re-download")
+                    result['plex_results'].append({
+                        'needs_download': False,
+                        'new_items': [],
+                        'changed_items': [],
+                        'removed_count': 0,
+                        'server_offline': False,
+                        'error': None,
+                        'skipped_recent_completion': True
+                    })
+                    continue
+            except (IOError, ValueError) as e:
+                if debug_mode:
+                    print(f"[DEBUG] Could not read Plex completion timestamp for library {lib['key']}: {e}")
+        
+        lib_result = smart_check_library_posters(lib["key"], plex_url, headers)
+        result['plex_results'].append(lib_result)
+        
+        if lib_result['server_offline']:
+            result['any_server_offline'] = True
+        
+        if lib_result['needs_download']:
+            result['plex_needs_download'] = True
+            result['total_new'] += len(lib_result['new_items'])
+            result['total_changed'] += len(lib_result['changed_items'])
+            result['total_removed'] += lib_result['removed_count']
+    
+    # Check ABS if enabled
+    if abs_enabled:
+        abs_url = os.getenv("AUDIOBOOKSHELF_URL")
+        if abs_url:
+            # Check if ABS downloads were recently completed (within last 6 hours)
+            # This prevents unnecessary re-downloads when coming from services form or setup
+            abs_completion_file = os.path.join("static", "posters", "audiobooks", ".last_completion")
+            if os.path.exists(abs_completion_file):
+                try:
+                    with open(abs_completion_file, 'r') as f:
+                        last_completion_time = float(f.read().strip())
+                    time_since_completion = time.time() - last_completion_time
+                    
+                    # If completed within last 6hr, skip download
+                    if time_since_completion < 21600:  # 6 hours = 21600 seconds
+                        if debug_mode:
+                            print(f"[DEBUG] ABS downloads completed {time_since_completion:.1f} seconds ago, skipping re-download")
+                        result['abs_result'] = {
+                            'needs_download': False,
+                            'new_items': [],
+                            'changed_items': [],
+                            'removed_count': 0,
+                            'server_offline': False,
+                            'error': None,
+                            'skipped_recent_completion': True
+                        }
+                        return result
+                except (IOError, ValueError) as e:
+                    if debug_mode:
+                        print(f"[DEBUG] Could not read ABS completion timestamp: {e}")
+            
+            abs_headers = get_abs_headers()
+            abs_result = smart_check_abs_posters(abs_url, abs_headers)
+            result['abs_result'] = abs_result
+            
+            if abs_result['server_offline']:
+                result['any_server_offline'] = True
+            
+            if abs_result['needs_download']:
+                result['abs_needs_download'] = True
+                result['total_new'] += len(abs_result['new_items'])
+                result['total_changed'] += len(abs_result['changed_items'])
+                result['total_removed'] += abs_result['removed_count']
+    
+    if debug_mode:
+        print(f"[DEBUG] Download needs determined: Plex={result['plex_needs_download']}, ABS={result['abs_needs_download']}")
+        print(f"[DEBUG] Totals: {result['total_new']} new, {result['total_changed']} changed, {result['total_removed']} removed")
+    
+    return result
+
+def process_smart_library_download(lib, smart_result):
+    """
+    Process smart library downloads using pre-determined smart check results.
+    
+    Args:
+        lib: Library dictionary with key and title
+        smart_result: Smart check result from smart_check_library_posters
+    """
+    section_id = lib["key"]
+    library_name = lib["title"]
+    
+    if debug_mode:
+        print(f"[DEBUG] Processing smart download for {library_name}: {len(smart_result['new_items'])} new, {len(smart_result['changed_items'])} changed")
+    
+    # Get Plex credentials
+    plex_token = os.getenv("PLEX_TOKEN")
+    plex_url = os.getenv("PLEX_URL")
+    
+    if not plex_token or not plex_url:
+        if debug_mode:
+            print(f"[ERROR] No Plex credentials available for smart download of {library_name}")
+        return
+    
+    headers = {"X-Plex-Token": plex_token}
+    lib_dir = get_library_poster_dir(section_id)
+    os.makedirs(lib_dir, exist_ok=True)
+    
+    # Combine new and changed items
+    items_to_download = smart_result['new_items'] + smart_result['changed_items']
+    
+    if not items_to_download:
+        if debug_mode:
+            print(f"[DEBUG] No items to download for {library_name}")
+        return
+    
+    # Download items with ThreadPoolExecutor
+    successful_downloads = 0
+    
+    with ThreadPoolExecutor(max_workers=POSTER_DOWNLOAD_LIMITS['max_concurrent_downloads']) as executor:
+        futures = []
+        for i, item in enumerate(items_to_download):
+            future = executor.submit(download_single_poster_with_metadata, item, lib_dir, i, headers)
+            futures.append(future)
+        
+        # Wait for completion and update progress
+        for i, future in enumerate(as_completed(futures)):
+            if future.result():
+                successful_downloads += 1
+            
+            # Update progress
+            with poster_download_lock:
+                lib_id = lib["key"]
+                if lib_id in poster_download_progress:
+                    poster_download_progress[lib_id].update({
+                        'current': successful_downloads,
+                        'last_update': time.time()
+                    })
+    
+    if debug_mode:
+        print(f"[INFO] Smart download for {library_name}: Downloaded {successful_downloads}/{len(items_to_download)} posters")
+    
+    # Save completion timestamp to prevent unnecessary re-downloads
+    try:
+        plex_completion_file = os.path.join(lib_dir, ".last_completion")
+        with open(plex_completion_file, 'w') as f:
+            f.write(str(time.time()))
+        if debug_mode:
+            print(f"[DEBUG] Saved Plex completion timestamp for library {section_id} to {plex_completion_file}")
+    except Exception as e:
+        if debug_mode:
+            print(f"[DEBUG] Could not save Plex completion timestamp for library {section_id}: {e}")
+
+def process_smart_abs_download(smart_result):
+    """
+    Process smart ABS downloads using pre-determined smart check results.
+    
+    Args:
+        smart_result: Smart check result from smart_check_abs_posters
+    """
+    if debug_mode:
+        print(f"[DEBUG] Processing smart ABS download: {len(smart_result['new_items'])} new, {len(smart_result['changed_items'])} changed")
+    
+    # Get ABS credentials
+    abs_url = os.getenv("AUDIOBOOKSHELF_URL")
+    if not abs_url:
+        if debug_mode:
+            print("[ERROR] No ABS URL available for smart download")
+        return
+    
+    headers = get_abs_headers()
+    audiobook_dir = os.path.join("static", "posters", "audiobooks")
+    os.makedirs(audiobook_dir, exist_ok=True)
+    
+    # Combine new and changed items
+    items_to_download = smart_result['new_items'] + smart_result['changed_items']
+    
+    if not items_to_download:
+        if debug_mode:
+            print("[DEBUG] No ABS items to download")
+        return
+    
+    # Download items
+    successful_downloads = 0
+    
+    for item in items_to_download:
+        try:
+            library_id = item['library_id']
+            book_id = item['book_id']
+            book = item['book']
+            
+            # Download the book poster
+            if download_abs_book_poster(abs_url, book, library_id, audiobook_dir, successful_downloads, headers):
+                successful_downloads += 1
+        except Exception as e:
+            if debug_mode:
+                print(f"[ERROR] Failed to download ABS poster for book {item.get('book_id', 'unknown')}: {e}")
+    
+    if debug_mode:
+        print(f"[INFO] Smart ABS download: Downloaded {successful_downloads}/{len(items_to_download)} posters")
+    
+    # Save completion timestamp to prevent unnecessary re-downloads
+    try:
+        abs_completion_file = os.path.join(audiobook_dir, ".last_completion")
+        with open(abs_completion_file, 'w') as f:
+            f.write(str(time.time()))
+        if debug_mode:
+            print(f"[DEBUG] Saved ABS completion timestamp to {abs_completion_file}")
+    except Exception as e:
+        if debug_mode:
+            print(f"[DEBUG] Could not save ABS completion timestamp: {e}")
+
 def should_refresh_posters(library_id, incremental_mode=False):
     """
     Check if posters for a library need refreshing based on age or missing metadata.
@@ -1487,20 +2070,24 @@ def process_library_posters_incremental(lib, plex_url, headers, background=False
         # Update status to indicate processing has started
         if background:
             with poster_download_lock:
-                if section_id in poster_download_progress:
-                    poster_download_progress[section_id].update({
-                        'current': 0,
-                        'total': len(new_items),
-                        'successful': 0,
-                        'status': 'processing_incremental'
-                    })
+                # Initialize or update progress for this library with library name
+                if section_id not in poster_download_progress:
+                    poster_download_progress[section_id] = {}
+                poster_download_progress[section_id].update({
+                    'current': 0,
+                    'total': len(new_items),
+                    'successful': 0,
+                    'status': 'processing_incremental',
+                    'library_name': library_name,
+                    'last_update': time.time()
+                })
                 
                 # Update unified progress for Plex downloads
                 if 'unified' in poster_download_progress and poster_download_progress['unified']['status'] == 'plex_downloading':
                     # Calculate overall progress across all libraries
                     total_libraries = poster_download_progress['unified'].get('total', 1)
                     current_library = poster_download_progress['unified'].get('current', 0)
-                    poster_download_progress['unified']['message'] = f'Processing {library_name}...'
+                    poster_download_progress['unified']['message'] = f'Downloading posters for {library_name}...'
         
         # Download new posters with ThreadPoolExecutor
         successful_downloads = 0
@@ -1522,7 +2109,9 @@ def process_library_posters_incremental(lib, plex_url, headers, background=False
                                 'current': i + 1,
                                 'total': len(new_items),
                                 'successful': successful_downloads,
-                                'status': 'processing_incremental'
+                                'status': 'processing_incremental',
+                                'library_name': library_name,
+                                'last_update': time.time()
                             })
                         
                         # Update unified progress for Plex downloads
@@ -2423,8 +3012,64 @@ def onboarding():
             # Update carousel_libraries with the custom order
             carousel_libraries = ordered_libraries
         
-        # For the template, use available_libraries for access requests and carousel_libraries for carousel display
-        libraries = available_libraries  # This is used for the "get access" checkboxes
+        # Order libraries for the "Select Libraries" section:
+        # 1. Libraries with carousels (in carousel tab order)
+        # 2. Libraries without carousels (in A-Z order)
+        
+        # Get carousel library IDs
+        carousel_ids = set()
+        if library_carousels:
+            carousel_ids = {str(id).strip() for id in library_carousels.split(",") if str(id).strip()}
+        
+        # Create a mapping of library keys to their carousel status from all_libraries
+        library_carousel_status = {}
+        for lib in all_libraries:
+            library_carousel_status[str(lib["key"])] = str(lib["key"]) in carousel_ids
+        
+        # Separate available libraries with and without carousels
+        libraries_with_carousels = []
+        libraries_without_carousels = []
+        
+        for lib in available_libraries:
+            if library_carousel_status.get(str(lib["key"]), False):
+                libraries_with_carousels.append(lib)
+            else:
+                libraries_without_carousels.append(lib)
+        
+        # Apply carousel tab order to libraries with carousels
+        if library_carousel_order and libraries_with_carousels:
+            custom_order_ids = [str(id).strip() for id in library_carousel_order.split(",") if str(id).strip()]
+            
+            # Create ordered list based on custom order
+            ordered_carousel_libraries = []
+            for lib_id in custom_order_ids:
+                matching_lib = next((lib for lib in libraries_with_carousels if str(lib["key"]) == lib_id), None)
+                if matching_lib:
+                    ordered_carousel_libraries.append(matching_lib)
+            
+            # Add any remaining carousel libraries that weren't in the custom order
+            remaining_carousel_libs = [lib for lib in libraries_with_carousels if str(lib["key"]) not in custom_order_ids]
+            ordered_carousel_libraries.extend(remaining_carousel_libs)
+            
+            libraries_with_carousels = ordered_carousel_libraries
+        elif libraries_with_carousels:
+            # If no custom order specified, sort carousel libraries alphabetically
+            libraries_with_carousels.sort(key=lambda lib: lib["title"].lower())
+        
+        # Sort libraries without carousels alphabetically by title
+        libraries_without_carousels.sort(key=lambda lib: lib["title"].lower())
+        
+        # Combine the lists: carousel libraries first, then non-carousel libraries
+        libraries = libraries_with_carousels + libraries_without_carousels
+        
+        if debug_mode:
+            print(f"[DEBUG] Library ordering for onboarding:")
+            print(f"[DEBUG] Carousel IDs: {carousel_ids}")
+            print(f"[DEBUG] Library carousel order: {library_carousel_order}")
+            print(f"[DEBUG] Available libraries: {[(lib['key'], lib['title']) for lib in available_libraries]}")
+            print(f"[DEBUG] Libraries with carousels ({len(libraries_with_carousels)}): {[(lib['key'], lib['title']) for lib in libraries_with_carousels]}")
+            print(f"[DEBUG] Libraries without carousels ({len(libraries_without_carousels)}): {[(lib['key'], lib['title']) for lib in libraries_without_carousels]}")
+            print(f"[DEBUG] Final library order: {[(lib['key'], lib['title']) for lib in libraries]}")
     except Exception as e:
         if debug_mode:
             print(f"Failed to get libraries from local files: {e}")
@@ -2545,7 +3190,7 @@ def onboarding():
     
     # Add page-specific variables
     context.update({
-        "libraries": available_libraries,  # Use filtered libraries for access requests
+        "libraries": libraries,  # Use ordered libraries for access requests
         "carousel_libraries": carousel_libraries,  # Use filtered libraries for carousel display
         "submitted": submitted,
         "pulsarr_enabled": pulsarr_enabled,
@@ -4121,6 +4766,7 @@ def download_abs_book_poster(abs_url, book, library_id, audiobook_dir, poster_co
             print(f"[ERROR] Failed to download cover for ABS book {title}: HTTP {cover_response.status_code}")
         return poster_count
     
+    # Use the existing naming convention to maintain compatibility
     out_path = os.path.join(audiobook_dir, f"audiobook{poster_count+1}.webp")
     meta_path = os.path.join(audiobook_dir, f"audiobook{poster_count+1}.json")
     
@@ -4237,12 +4883,12 @@ def download_abs_audiobook_posters(check_local_first=False):
                 # Update unified progress
                 if 'unified' in poster_download_progress:
                     poster_download_progress['unified']['current'] = i + 1
-                    poster_download_progress['unified']['message'] = f'Processing {library_name}...'
+                    poster_download_progress['unified']['message'] = f'Downloading posters for {library_name}...'
                 
                 # Update setup status
                 if 'abs_setup' in poster_download_progress:
                     poster_download_progress['abs_setup']['current'] = i + 1
-                    poster_download_progress['abs_setup']['message'] = f'Processing {library_name}...'
+                    poster_download_progress['abs_setup']['message'] = f'Downloading posters for {library_name}...'
             
             books = fetch_abs_books(abs_url, library_id, headers)
             
@@ -4290,6 +4936,18 @@ def download_abs_audiobook_posters(check_local_first=False):
         abs_download_completed = True
         abs_download_queued = False  # Reset queued flag when download completes
         
+        # Save completion timestamp to prevent unnecessary re-downloads
+        try:
+            abs_completion_file = os.path.join("static", "posters", "audiobooks", ".last_completion")
+            os.makedirs(os.path.dirname(abs_completion_file), exist_ok=True)
+            with open(abs_completion_file, 'w') as f:
+                f.write(str(time.time()))
+            if debug_mode:
+                print(f"[DEBUG] Saved ABS completion timestamp to {abs_completion_file}")
+        except Exception as e:
+            if debug_mode:
+                print(f"[DEBUG] Could not save ABS completion timestamp: {e}")
+        
         # Update unified status to show completion
         with poster_download_lock:
             if 'unified' in poster_download_progress:
@@ -4336,7 +4994,7 @@ def download_single_poster_with_metadata(item, lib_dir, index, headers):
     # Skip if already cached and recent (less than 24 hours old)
     if os.path.exists(out_path) and os.path.exists(meta_path):
         file_age = time.time() - os.path.getmtime(out_path)
-        if file_age < 86400:  # 24 hours
+        if file_age < 43200:  # 12 hours
             return True
     
     # Check download size limit before downloading
@@ -4437,6 +5095,7 @@ def download_single_poster_with_metadata(item, lib_dir, index, headers):
             "title": item["title"],
             "ratingKey": item["ratingKey"],
             "year": item.get("year"),
+            "thumb": item.get("thumb", ""),  # Add thumb field for comparison
             "imdb": guids["imdb"],
             "tmdb": guids["tmdb"],
             "tvdb": guids["tvdb"],
@@ -4525,20 +5184,24 @@ def process_library_posters(lib, plex_url, headers, limit=None, background=False
         # Update status to indicate processing has started
         if background:
             with poster_download_lock:
-                if section_id in poster_download_progress:
-                    poster_download_progress[section_id].update({
-                        'current': 0,
-                        'total': len(items),
-                        'successful': 0,
-                        'status': 'processing'
-                    })
+                # Initialize or update progress for this library with library name
+                if section_id not in poster_download_progress:
+                    poster_download_progress[section_id] = {}
+                poster_download_progress[section_id].update({
+                    'current': 0,
+                    'total': len(items),
+                    'successful': 0,
+                    'status': 'processing',
+                    'library_name': library_name,
+                    'last_update': time.time()
+                })
                 
                 # Update setup status to show Plex is in progress
                 if 'plex_setup' in poster_download_progress:
                     poster_download_progress['plex_setup']['status'] = 'in_progress'
                     poster_download_progress['plex_setup']['current'] = 0
                     poster_download_progress['plex_setup']['total'] = len(items)
-                    poster_download_progress['plex_setup']['message'] = f'Processing {library_name}...'
+                    poster_download_progress['plex_setup']['message'] = f'Downloading posters for {library_name}...'
         
         with ThreadPoolExecutor(max_workers=POSTER_DOWNLOAD_LIMITS['max_concurrent_downloads']) as executor:
             futures = []
@@ -4557,13 +5220,15 @@ def process_library_posters(lib, plex_url, headers, limit=None, background=False
                                 'current': i + 1,
                                 'total': len(items),
                                 'successful': successful_downloads,
-                                'status': 'processing'
+                                'status': 'processing',
+                                'library_name': library_name,
+                                'last_update': time.time()
                             })
                         
                         # Update setup status
                         if 'plex_setup' in poster_download_progress:
                             poster_download_progress['plex_setup']['current'] = i + 1
-                            poster_download_progress['plex_setup']['message'] = f'Processing {library_name} ({i + 1}/{len(items)})'
+                            poster_download_progress['plex_setup']['message'] = f'Downloading posters for {library_name} ({i + 1}/{len(items)})'
             
             if debug_mode:
                 log_info("library_posters", f"Downloaded {successful_downloads}/{len(items)} posters for library {lib['title']}", {"section_id": section_id, "successful": successful_downloads, "total": len(items)})
@@ -4637,7 +5302,7 @@ def download_and_cache_posters_for_libraries(libraries, limit=None, background=F
 
 def background_poster_worker():
     """Background worker for poster downloads with improved error handling and recovery"""
-    global poster_download_running
+    global poster_download_running, abs_download_in_progress, abs_download_completed, abs_download_queued
     poster_download_running = True
     
     log_debug("worker", "Background poster worker started", {"worker_type": "poster_download"})
@@ -4663,11 +5328,16 @@ def background_poster_worker():
                 work_type, data, limit = work_item
                 incremental_mode = False
                 check_local_first = False
+                smart_data = None
             elif len(work_item) == 4:
                 work_type, data, limit, incremental_mode = work_item
                 check_local_first = False
+                smart_data = None
             elif len(work_item) == 5:
                 work_type, data, limit, incremental_mode, check_local_first = work_item
+                smart_data = None
+            elif len(work_item) == 6:
+                work_type, data, limit, incremental_mode, check_local_first, smart_data = work_item
             else:
                 log_debug("worker", f"Invalid work item format: {work_item}", {"work_item_length": len(work_item)})
                 continue
@@ -4699,8 +5369,63 @@ def background_poster_worker():
                 except Exception as e:
                     log_error("worker", f"Failed to download library posters after retries", {"libraries_count": len(data)}, e)
                     
+            elif work_type == 'smart_plex':
+                log_debug("worker", f"Starting smart Plex poster download for {len(data)} libraries", {"libraries_count": len(data)})
+                
+                # Process smart Plex downloads using the smart check results
+                smart_results = smart_data if smart_data else []
+                
+                try:
+                    # Process each library with its smart results
+                    for i, lib in enumerate(data):
+                        if i < len(smart_results):
+                            smart_result = smart_results[i]
+                            
+                            # Update progress for this library
+                            with poster_download_lock:
+                                if 'unified' in poster_download_progress:
+                                    poster_download_progress['unified'].update({
+                                        'current': i + 1,
+                                        'total': len(data),
+                                        'message': f'Downloading posters for {lib["title"]}...',
+                                        'last_update': time.time()
+                                    })
+                                
+                                # Also update individual library progress for frontend compatibility
+                                lib_id = lib["key"]
+                                if lib_id not in poster_download_progress:
+                                    poster_download_progress[lib_id] = {}
+                                poster_download_progress[lib_id].update({
+                                    'current': 0,
+                                    'total': len(smart_result.get('new_items', [])) + len(smart_result.get('changed_items', [])),
+                                    'library_name': lib["title"],
+                                    'status': 'processing',
+                                    'last_update': time.time()
+                                })
+                            
+                            # Process new and changed items for this library
+                            if smart_result['new_items'] or smart_result['changed_items']:
+                                process_smart_library_download(lib, smart_result)
+                        
+                        # Small delay to prevent overwhelming the server
+                        time.sleep(0.1)
+                    
+                    log_debug("worker", f"Completed smart Plex poster download for {len(data)} libraries", {"libraries_count": len(data)})
+                    
+                    # Update unified status to show Plex downloads completed
+                    with poster_download_lock:
+                        if 'unified' in poster_download_progress and poster_download_progress['unified']['status'] == 'plex_downloading':
+                            poster_download_progress['unified'].update({
+                                'status': 'plex_completed',
+                                'message': 'Plex downloads completed, waiting for ABS...',
+                                'last_update': time.time()
+                            })
+                            if debug_mode:
+                                print("[DEBUG] Updated unified status to plex_completed")
+                except Exception as e:
+                    log_error("worker", f"Failed to download smart Plex posters", {"libraries_count": len(data)}, e)
+                    
             elif work_type == 'abs':
-                global abs_download_in_progress, abs_download_completed, abs_download_queued
                 abs_download_in_progress = True
                 abs_download_completed = False
                 abs_download_queued = False  # Reset queued flag since we're now processing
@@ -4721,11 +5446,67 @@ def background_poster_worker():
                     abs_download_in_progress = False
                     abs_download_completed = False
                     log_error("worker", "Failed to download ABS posters after retries", {"work_type": "abs_download"}, e)
+                    
+            elif work_type == 'smart_abs':
+                abs_download_in_progress = True
+                abs_download_completed = False
+                abs_download_queued = False
+                
+                log_debug("worker", "Starting smart ABS audiobook poster download", {"work_type": "smart_abs_download"})
+                
+                # Get smart ABS results
+                smart_result = smart_data if smart_data else None
+                
+                try:
+                    # Update unified status to show ABS downloads starting
+                    with poster_download_lock:
+                        if 'unified' in poster_download_progress:
+                            poster_download_progress['unified'].update({
+                                'status': 'abs_downloading',
+                                'message': 'Downloading Audiobookshelf posters...',
+                                'current': 0,
+                                'total': len(smart_result['new_items']) + len(smart_result['changed_items']) if smart_result else 0,
+                                'last_update': time.time()
+                            })
+                    
+                    # Process smart ABS downloads
+                    if smart_result and (smart_result['new_items'] or smart_result['changed_items']):
+                        process_smart_abs_download(smart_result)
+                    
+                    abs_download_in_progress = False
+                    abs_download_completed = True
+                    
+                    # Save completion timestamp to prevent unnecessary re-downloads
+                    try:
+                        abs_completion_file = os.path.join("static", "posters", "audiobooks", ".last_completion")
+                        os.makedirs(os.path.dirname(abs_completion_file), exist_ok=True)
+                        with open(abs_completion_file, 'w') as f:
+                            f.write(str(time.time()))
+                        if debug_mode:
+                            print(f"[DEBUG] Saved ABS completion timestamp to {abs_completion_file}")
+                    except Exception as e:
+                        if debug_mode:
+                            print(f"[DEBUG] Could not save ABS completion timestamp: {e}")
+                    
+                    # Update unified status to show completion
+                    with poster_download_lock:
+                        if 'unified' in poster_download_progress:
+                            poster_download_progress['unified'].update({
+                                'status': 'completed',
+                                'message': 'All downloads completed!',
+                                'end_time': time.time()
+                            })
+                    
+                    log_debug("worker", "Completed smart ABS poster download", {"work_type": "smart_abs_download"})
+                except Exception as e:
+                    abs_download_in_progress = False
+                    abs_download_completed = False
+                    log_error("worker", "Failed to download smart ABS posters", {"work_type": "smart_abs_download"}, e)
             
             # Clear regular progress when work is complete, but preserve setup status
             with poster_download_lock:
-                # Keep setup-specific status entries
-                setup_keys = ['plex_setup', 'abs_setup', 'setup_error']
+                # Keep setup-specific status entries including unified status
+                setup_keys = ['plex_setup', 'abs_setup', 'setup_error', 'unified']
                 regular_progress = {k: v for k, v in poster_download_progress.items() if k not in setup_keys}
                 poster_download_progress.clear()
                 # Restore setup status
@@ -4788,10 +5569,14 @@ def should_wait_for_posters():
     with poster_download_lock:
         if 'unified' in poster_download_progress:
             unified_status = poster_download_progress['unified']['status']
-            if unified_status in ['plex_downloading', 'abs_downloading', 'starting', 'plex_completed']:
+            if unified_status in ['plex_downloading', 'abs_downloading', 'starting', 'plex_completed', 'checking']:
                 if debug_mode:
                     print(f"[DEBUG] Unified downloads in progress (status: {unified_status}), waiting...")
                 return True
+            elif unified_status in ['no_downloads_needed', 'server_offline', 'completed']:
+                if debug_mode:
+                    print(f"[DEBUG] Unified downloads finished (status: {unified_status}), not waiting...")
+                return False
     
     # Check if poster downloads are in progress (for regular background downloads)
     if is_poster_download_in_progress():
@@ -5311,7 +6096,13 @@ def check_restart_readiness():
                 setup_download_status['unified'] = unified_status
                 
                 # Determine current phase based on unified status
-                if unified_status['status'] == 'plex_downloading':
+                if unified_status['status'] == 'checking':
+                    current_phase = "checking"
+                elif unified_status['status'] == 'no_downloads_needed':
+                    current_phase = "no_downloads_needed"
+                elif unified_status['status'] == 'server_offline':
+                    current_phase = "server_offline"
+                elif unified_status['status'] == 'plex_downloading':
                     current_phase = "plex"
                 elif unified_status['status'] == 'plex_completed':
                     current_phase = "plex_completed"
@@ -5888,9 +6679,19 @@ def trigger_poster_downloads():
             
             # Create library objects from the IDs we already have
             libraries = []
+            library_notes = load_library_notes()
             for lib_id in selected_ids:
-                # Get library name from environment or use ID as fallback
-                lib_name = os.getenv(f"LIBRARY_NAME_{lib_id}", f"Library {lib_id}")
+                # Get library name from library notes, fallback to environment variable, then to ID
+                lib_name = None
+                if lib_id in library_notes and library_notes[lib_id].get('title'):
+                    lib_name = library_notes[lib_id]['title']
+                else:
+                    # Fallback to environment variable
+                    lib_name = os.getenv(f"LIBRARY_NAME_{lib_id}")
+                    if not lib_name:
+                        # Final fallback to ID
+                        lib_name = f"Library {lib_id}"
+                
                 libraries.append({
                     "key": lib_id,
                     "title": lib_name,
@@ -5958,7 +6759,7 @@ def setup_complete():
 @app.route("/ajax/setup-poster-downloads", methods=["POST"])
 @csrf.exempt
 def setup_poster_downloads():
-    """Handle poster downloads for setup completion"""
+    """Handle poster downloads for setup completion using smart logic"""
     if is_debug_mode():
         print("[DEBUG] Setup poster downloads route accessed")
     
@@ -5987,49 +6788,82 @@ def setup_poster_downloads():
         
         # Create library objects
         libraries = []
+        library_notes = load_library_notes()
         for lib_id in selected_ids:
-            lib_name = os.getenv(f"LIBRARY_NAME_{lib_id}", f"Library {lib_id}")
+            # Get library name from library notes, fallback to environment variable, then to ID
+            lib_name = None
+            if lib_id in library_notes and library_notes[lib_id].get('title'):
+                lib_name = library_notes[lib_id]['title']
+            else:
+                # Fallback to environment variable
+                lib_name = os.getenv(f"LIBRARY_NAME_{lib_id}")
+                if not lib_name:
+                    # Final fallback to ID
+                    lib_name = f"Library {lib_id}"
+            
             libraries.append({
                 "key": lib_id,
                 "title": lib_name,
                 "type": "show"  # Default type
             })
         
-        # Determine what needs to be downloaded based on changed settings
-        needs_plex_download = any(setting in changed_settings for setting in ['plex_token', 'library_ids'])
-        needs_abs_download = any(setting in changed_settings for setting in ['audiobooks_id', 'audiobookshelf_url', 'audiobookshelf_token', 'abs_enabled'])
-        
-        # If no specific poster-related changes, check if posters need refreshing
-        if not needs_plex_download and not needs_abs_download:
-            # Check if any Plex libraries need refreshing
-            for lib in libraries:
-                if should_refresh_posters(lib["key"]):
-                    needs_plex_download = True
-                    break
-            
-            # Only check ABS refresh if no specific changes were made
-            # This prevents ABS from being refreshed when only Plex settings change
-            if not changed_settings:
-                abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
-                if abs_enabled and should_refresh_abs_posters():
-                    needs_abs_download = True
-        
-        if is_debug_mode():
-            print(f"[DEBUG] Download analysis - needs_plex: {needs_plex_download}, needs_abs: {needs_abs_download}")
-            print(f"[DEBUG] Changed settings: {changed_settings}")
-        
-        # Initialize unified progress tracking
+        # Initialize unified progress tracking with checking status
         with poster_download_lock:
             poster_download_progress['unified'] = {
-                'status': 'starting',
-                'message': 'Starting poster downloads...',
+                'status': 'checking',
+                'message': 'Checking poster downloads...',
                 'current': 0,
                 'total': 0,
                 'start_time': time.time()
             }
         
+        # Use smart logic to determine what needs downloading
+        abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
+        download_needs = determine_download_needs(libraries, abs_enabled)
+        
+        if is_debug_mode():
+            print(f"[DEBUG] Smart download analysis - Plex: {download_needs['plex_needs_download']}, ABS: {download_needs['abs_needs_download']}")
+            print(f"[DEBUG] Totals: {download_needs['total_new']} new, {download_needs['total_changed']} changed, {download_needs['total_removed']} removed")
+            print(f"[DEBUG] Server offline: {download_needs['any_server_offline']}")
+        
+        # Handle server offline case
+        if download_needs['any_server_offline']:
+            with poster_download_lock:
+                poster_download_progress['unified'].update({
+                    'status': 'server_offline',
+                    'message': 'Server offline, skipping...',
+                    'end_time': time.time()
+                })
+            
+            return jsonify({
+                "success": True,
+                "message": "Server offline, skipping poster downloads",
+                "needs_plex": False,
+                "needs_abs": False,
+                "libraries_count": len(libraries),
+                "server_offline": True
+            })
+        
+        # Handle no downloads needed case
+        if not download_needs['plex_needs_download'] and not download_needs['abs_needs_download']:
+            with poster_download_lock:
+                poster_download_progress['unified'].update({
+                    'status': 'no_downloads_needed',
+                    'message': 'No downloads needed',
+                    'end_time': time.time()
+                })
+            
+            return jsonify({
+                "success": True,
+                "message": "No downloads needed",
+                "needs_plex": False,
+                "needs_abs": False,
+                "libraries_count": len(libraries),
+                "no_downloads_needed": True
+            })
+        
         # Phase 1: Download Plex posters if needed
-        if libraries and needs_plex_download:
+        if libraries and download_needs['plex_needs_download']:
             if is_debug_mode():
                 print(f"[INFO] Starting Plex poster downloads for {len(libraries)} libraries")
             
@@ -6043,16 +6877,15 @@ def setup_poster_downloads():
                     'last_update': time.time()
                 })
             
-            # Queue Plex downloads to background worker
-            download_and_cache_posters_for_libraries(libraries, background=True, check_local_first=True)
+            # Queue Plex downloads to background worker with smart data
+            poster_download_queue.put(('smart_plex', libraries, None, True, True, download_needs['plex_results']))
             
         elif libraries:
             if is_debug_mode():
                 print(f"[INFO] Skipping Plex poster downloads - no changes detected")
         
         # Phase 2: Queue ABS downloads if needed
-        abs_enabled = os.getenv("ABS_ENABLED", "yes") == "yes"
-        if abs_enabled and needs_abs_download:
+        if abs_enabled and download_needs['abs_needs_download']:
             if is_debug_mode():
                 print("[INFO] Queuing Audiobookshelf poster downloads")
             
@@ -6065,8 +6898,8 @@ def setup_poster_downloads():
                         'last_update': time.time()
                     })
             
-            # Queue ABS downloads to background worker
-            poster_download_queue.put(('abs', None, None, False, True))  # work_type, data, limit, incremental_mode, check_local_first
+            # Queue ABS downloads to background worker with smart data
+            poster_download_queue.put(('smart_abs', None, None, True, True, download_needs['abs_result']))
             
         elif abs_enabled:
             if is_debug_mode():
@@ -6079,24 +6912,24 @@ def setup_poster_downloads():
                 # Wait a bit before starting periodic refresh to avoid blocking restart
                 time.sleep(5)
                 periodic_poster_refresh(libraries, 24)
-                if debug_mode:
+                if is_debug_mode():
                     print(f"[DEBUG] Started 24-hour periodic refresh for {len(libraries)} libraries")
             
             threading.Thread(target=start_periodic_refresh_delayed, daemon=True).start()
         
-        if debug_mode:
+        if is_debug_mode():
             print("[INFO] Setup poster downloads initiated successfully")
         
         return jsonify({
             "success": True,
             "message": "Poster downloads initiated",
-            "needs_plex": needs_plex_download,
-            "needs_abs": needs_abs_download,
+            "needs_plex": download_needs['plex_needs_download'],
+            "needs_abs": download_needs['abs_needs_download'],
             "libraries_count": len(libraries)
         })
         
     except Exception as e:
-        if debug_mode:
+        if is_debug_mode():
             print(f"[ERROR] Error in setup poster downloads: {e}")
         
         # Update progress status to show error
@@ -6113,7 +6946,7 @@ def setup_poster_downloads():
 def periodic_poster_refresh_worker(libraries, interval_hours):
     """Background worker for periodic poster refresh"""
     while True:
-        if debug_mode:
+        if is_debug_mode():
             print("[INFO] Refreshing library posters...")
         # Use configuration to determine refresh mode
         incremental_mode = config.get_poster_refresh_mode()
@@ -6133,9 +6966,19 @@ def refresh_posters_on_demand(libraries=None):
         
         # Create library objects from the IDs we already have - no need to fetch from Plex API
         libraries = []
+        library_notes = load_library_notes()
         for lib_id in selected_ids:
-            # Get library name from environment or use ID as fallback
-            lib_name = os.getenv(f"LIBRARY_NAME_{lib_id}", f"Library {lib_id}")
+            # Get library name from library notes, fallback to environment variable, then to ID
+            lib_name = None
+            if lib_id in library_notes and library_notes[lib_id].get('title'):
+                lib_name = library_notes[lib_id]['title']
+            else:
+                # Fallback to environment variable
+                lib_name = os.getenv(f"LIBRARY_NAME_{lib_id}")
+                if not lib_name:
+                    # Final fallback to ID
+                    lib_name = f"Library {lib_id}"
+            
             libraries.append({
                 "key": lib_id,
                 "title": lib_name,
@@ -6143,7 +6986,7 @@ def refresh_posters_on_demand(libraries=None):
             })
     
     if libraries:
-        if debug_mode:
+        if is_debug_mode():
             print(f"[INFO] Refreshing posters for {len(libraries)} libraries on demand")
         # Use configuration to determine refresh mode
         incremental_mode = config.get_poster_refresh_mode()
@@ -6153,23 +6996,23 @@ def refresh_posters_on_demand(libraries=None):
         if os.getenv("ABS_ENABLED", "yes") == "yes":
             def queue_abs_after_plex_on_demand():
                 # Wait for Plex downloads to complete before starting ABS
-                if debug_mode:
+                if is_debug_mode():
                     print("[INFO] Waiting for Plex poster downloads to complete before starting ABS (on demand)...")
                 
                 # Wait for Plex poster downloads to complete
                 if wait_for_poster_completion(POSTER_DOWNLOAD_TIMEOUT):
-                    if debug_mode:
+                    if is_debug_mode():
                         print("[INFO] Plex poster downloads completed, now starting ABS poster downloads (on demand)")
                     
                     try:
                         poster_download_queue.put(('abs', None, None))
-                        if debug_mode:
+                        if is_debug_mode():
                             print("[INFO] Queued ABS poster refresh on demand after Plex completion")
                     except Exception as e:
-                        if debug_mode:
+                        if is_debug_mode():
                             print(f"Warning: Could not queue ABS poster downloads after Plex completion (on demand): {e}")
                 else:
-                    if debug_mode:
+                    if is_debug_mode():
                         print("[WARN] Plex poster download timeout reached, skipping ABS downloads (on demand)")
             
             # Start ABS downloads in a separate thread that waits for Plex
@@ -6178,7 +7021,7 @@ def refresh_posters_on_demand(libraries=None):
     if libraries:
         # Queue for background processing
         download_and_cache_posters_for_libraries(libraries, background=True)
-        if debug_mode:
+        if is_debug_mode():
             print(f"[INFO] Queued poster refresh for {len(libraries)} libraries")
         return True
     return False
@@ -6270,8 +7113,10 @@ def save_json_file(filename, data):
     """Utility function to save JSON files with improved error handling and recovery"""
     def save_operation():
         file_path = os.path.join(os.getcwd(), filename)
-        # Create directory if it doesn't exist
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        # Create directory if it doesn't exist (only if there's a directory component)
+        dir_path = os.path.dirname(file_path)
+        if dir_path:
+            os.makedirs(dir_path, exist_ok=True)
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
     

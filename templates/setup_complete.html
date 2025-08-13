@@ -78,14 +78,15 @@
                         }
                     })
                     .then(function(data) {
-                        // Update poster status display
-                        if (data.poster_status) {
-                            updatePosterStatus(data.poster_status);
-                        }
-                        
-                        // Handle setup-specific download status
+                        // Handle setup-specific download status first (prioritize unified status)
                         if (data.setup_download_status) {
                             updateSetupDownloadStatus(data.setup_download_status, data.current_phase);
+                        }
+                        
+                        // During setup, always prioritize unified status over individual library progress
+                        // Only use individual library progress if no unified status is available at all
+                        if (data.poster_status && (!data.setup_download_status || !data.setup_download_status.unified)) {
+                            updatePosterStatus(data.poster_status);
                         }
                         
                         // Check if we're ready to restart
@@ -133,7 +134,8 @@
                             const libProgress = progress[libId];
                             if (libProgress && libProgress.total > 0) {
                                 const percent = Math.round((libProgress.current / libProgress.total) * 100);
-                                const libName = libProgress.library_name || `Library ${libId}`;
+                                // Try to get library name from progress, fallback to a more user-friendly message
+                                const libName = libProgress.library_name || `Downloading posters for library ${libId}`;
                                 return `${libName}: ${libProgress.current}/${libProgress.total} (${percent}%)`;
                             }
                             return 'processing';
@@ -159,6 +161,31 @@
                     return;
                 }
                 
+                // Handle new smart status states
+                if (setupStatus.unified) {
+                    const status = setupStatus.unified.status;
+                    const message = setupStatus.unified.message;
+                    
+                    if (status === 'checking') {
+                        label.textContent = 'Checking poster downloads...';
+                        return;
+                    } else if (status === 'no_downloads_needed') {
+                        label.textContent = 'No downloads needed';
+                        return;
+                    } else if (status === 'server_offline') {
+                        label.textContent = 'Server offline, skipping...';
+                        return;
+                    } else if (status === 'completed') {
+                        label.textContent = 'All downloads completed!';
+                        return;
+                    } else if (message) {
+                        // Use the message from the backend for other states
+                        label.textContent = message;
+                        return;
+                    }
+                }
+                
+                // Fallback to phase-based messages
                 if (currentPhase === 'plex') {
                     label.textContent = 'Downloading Plex posters...';
                 } else if (currentPhase === 'plex_completed') {
