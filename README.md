@@ -57,7 +57,7 @@ This is the start of my security improvements. Check any `in progress` issues to
 ## Misc Frontend and Backend Tweaks
 - `/services` has a new 2 column layout, and a new "jump to:" panel to quickly jump to your desired section
 - Improved and adaptive `/setup_complete` page, no longer 15s wait every time. Adapts to library poster downloads.
-- Improved poster and info grabbing logic, smart poster refresh every 24hr
+- Improved poster and info grabbing logic, smart poster refresh every 12hr and on app restart
 - Options to customize carousel order and hide certain plex carousels
 - Email fields on Plex and ABS request forms no longer accept duplicate emails
 - Added #settings-sections hashed links to /services
