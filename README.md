@@ -47,7 +47,7 @@ Added new security features:
   - Customizable on setup
 - **IP white/blacklisting** - you can now block specific IPs or ranges, or whitelist only trusted ones
   - Whitelisting excludes from rate limiting. I put in 127.0.0.1 to disable it for me in testing
-  - Blacklisting gives any devices in that range a 24hr lockout on whenever a page is loaded
+  - Blacklisting causes 24hr lockout whenever a page is loaded from the specified IP
 - **Discord notifications** on security events - get alerts for rate limits and other events
 
 A new `security_log.json` is created to track the security events.
