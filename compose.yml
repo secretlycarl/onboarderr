@@ -10,7 +10,7 @@ services:
       # - E:/:/mnt/e
       # - F:/:/mnt/f
     ports:
-      - "12345:12345"
+      - "10000:10000"
     command: >
       sh -c "pip install --no-cache-dir -r requirements.txt && python app.py"
     restart: unless-stopped 
