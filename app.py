@@ -1722,6 +1722,42 @@ def save_library_notes(notes):
     print(f"[DEBUG] save_json_file result: {result}")
     return result
 
+def load_section7_content():
+    """Load section 7 content from JSON file"""
+    if debug_mode:
+        print("[DEBUG] Loading section 7 content from file...")
+    content = load_json_file("section7_content.json", {})
+    if debug_mode:
+        print(f"[DEBUG] Loaded section 7 content: {content}")
+    
+    # Set defaults if file is empty or missing fields
+    if not content:
+        content = {
+            "personal_message": "Why did I do all this? I started out collecting all the Star Trek shows because they kept jumping around to different streaming services. At some point I joined r/datahoarder and now I have about 10TB of movies, shows, music, and books. And I wanted to share! So enjoy. 🖖",
+            "payment_services": [
+                {"title": "Venmo", "handle": "your-venmo"},
+                {"title": "Cashapp", "handle": "your-cashapp"},
+                {"title": "Zelle", "handle": "your-zelle"}
+            ]
+        }
+    elif "payment_services" not in content:
+        content["payment_services"] = [
+            {"title": "Venmo", "handle": "your-venmo"},
+            {"title": "Cashapp", "handle": "your-cashapp"},
+            {"title": "Zelle", "handle": "your-zelle"}
+        ]
+    elif "personal_message" not in content:
+        content["personal_message"] = "Why did I do all this? I started out collecting all the Star Trek shows because they kept jumping around to different streaming services. At some point I joined r/datahoarder and now I have about 10TB of movies, shows, music, and books. And I wanted to share! So enjoy. 🖖"
+    
+    return content
+
+def save_section7_content(content):
+    """Save section 7 content to JSON file"""
+    print(f"[DEBUG] save_section7_content called with: {content}")
+    result = save_json_file("section7_content.json", content)
+    print(f"[DEBUG] save_json_file result: {result}")
+    return result
+
 def recreate_library_notes():
     """Update library notes on startup by fetching current library information from Plex, preserving existing descriptions"""
     try:
@@ -2272,7 +2308,12 @@ def onboarding():
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return jsonify({"success": False, "error": f"Too many submissions. Please try again in {time_remaining}."})
             else:
-                return render_template("onboarding.html", error=f"Too many submissions. Please try again in {time_remaining}.")
+                context = get_template_context()
+                context.update({
+                    "error": f"Too many submissions. Please try again in {time_remaining}.",
+                    "section7_content": load_section7_content()
+                })
+                return render_template("onboarding.html", **context)
         
         email = request.form.get("email")
         selected_keys = request.form.getlist("libraries")
@@ -2283,7 +2324,12 @@ def onboarding():
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return jsonify({"success": False, "error": "Invalid email address."})
             else:
-                return render_template("onboarding.html", error="Invalid email address.")
+                context = get_template_context()
+                context.update({
+                    "error": "Invalid email address.",
+                    "section7_content": load_section7_content()
+                })
+                return render_template("onboarding.html", **context)
 
         # Check for duplicate email
         submissions = load_json_file("plex_submissions.json", [])
@@ -2292,7 +2338,12 @@ def onboarding():
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
                 return jsonify({"success": False, "error": "This email has already been submitted."})
             else:
-                return render_template("onboarding.html", error="This email has already been submitted.")
+                context = get_template_context()
+                context.update({
+                    "error": "This email has already been submitted.",
+                    "section7_content": load_section7_content()
+                })
+                return render_template("onboarding.html", **context)
 
         if email and selected_keys:
             all_libraries = get_libraries_from_local_files()  # Use local files for form submission
@@ -2322,6 +2373,13 @@ def onboarding():
         # AJAX error response
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             return jsonify({"success": False, "error": "Missing required fields."})
+        else:
+            context = get_template_context()
+            context.update({
+                "error": "Missing required fields.",
+                "section7_content": load_section7_content()
+            })
+            return render_template("onboarding.html", **context)
 
     # Initialize variables to prevent UnboundLocalError
     available_libraries = []
@@ -2500,6 +2558,7 @@ def onboarding():
         "poster_imdb_ids": poster_imdb_ids,
         "default_library": default_library_name,
         "has_music_library": has_music_library,
+        "section7_content": load_section7_content(),
     })
     
     return render_template("onboarding.html", **context)
@@ -3153,6 +3212,30 @@ def services():
                     context["error_message"] = str(e)
                     return render_template("services.html", **context)
 
+        # Handle section 7 content (personal message and payment services)
+        personal_message = request.form.get("personal_message", "").strip()
+        payment_services = []
+        for i in range(3):
+            title = request.form.get(f"payment_service_{i}_title", "").strip()
+            handle = request.form.get(f"payment_service_{i}_handle", "").strip()
+            if title or handle:  # Save even if only one field is filled
+                payment_services.append({
+                    "title": title,
+                    "handle": handle
+                })
+            else:
+                # Add empty service to maintain 3 slots
+                payment_services.append({
+                    "title": "",
+                    "handle": ""
+                })
+        
+        section7_content = {
+            "personal_message": personal_message,
+            "payment_services": payment_services
+        }
+        save_section7_content(section7_content)
+
         # Note: Poster downloads will be handled by setup_complete route to ensure proper flow
         # This prevents the user from staying on /services with loading animation
 
@@ -3374,6 +3457,9 @@ def services():
     
     # Add IP management data to context
     context['ip_lists'] = get_ip_lists()
+    
+    # Add section 7 content to context
+    context['section7_content'] = load_section7_content()
     
     # Handle Plex user invitation (parallel to ABS user creation)
     if request.method == "POST" and "invite_plex_users" in request.form:
@@ -5341,7 +5427,8 @@ def setup():
             "drives": drives,
             "server_name": os.getenv("SERVER_NAME", ""),
             "service_urls": service_urls,
-            "ip_lists": get_ip_lists()
+            "ip_lists": get_ip_lists(),
+            "section7_content": load_section7_content()
         })
         return render_template("setup.html", **template_context)
     if is_setup_complete():
@@ -5443,7 +5530,8 @@ def setup():
                 "drives": drives,
                 "server_name": os.getenv("SERVER_NAME", ""),
                 "service_urls": service_urls,
-                "ip_lists": get_ip_lists()
+                "ip_lists": get_ip_lists(),
+                "section7_content": load_section7_content()
             })
             return render_template("setup.html", **template_context)
         
@@ -5464,7 +5552,8 @@ def setup():
                 "drives": drives,
                 "server_name": os.getenv("SERVER_NAME", ""),
                 "service_urls": service_urls,
-                "ip_lists": get_ip_lists()
+                "ip_lists": get_ip_lists(),
+                "section7_content": load_section7_content()
             })
             return render_template("setup.html", **template_context)
         
@@ -5717,6 +5806,30 @@ def setup():
             except ValueError:
                 pass
         
+        # Handle section 7 content (personal message and payment services)
+        personal_message = form.get("personal_message", "").strip()
+        payment_services = []
+        for i in range(3):
+            title = form.get(f"payment_service_{i}_title", "").strip()
+            handle = form.get(f"payment_service_{i}_handle", "").strip()
+            if title or handle:  # Save even if only one field is filled
+                payment_services.append({
+                    "title": title,
+                    "handle": handle
+                })
+            else:
+                # Add empty service to maintain 3 slots
+                payment_services.append({
+                    "title": "",
+                    "handle": ""
+                })
+        
+        section7_content = {
+            "personal_message": personal_message,
+            "payment_services": payment_services
+        }
+        save_section7_content(section7_content)
+        
         safe_set_key(env_path, "SETUP_COMPLETE", "1")
         load_dotenv(override=True)
         
@@ -5746,7 +5859,8 @@ def setup():
     template_context = get_template_context()
     template_context.update({
         "error_message": error_message,
-        "ip_lists": get_ip_lists()
+        "ip_lists": get_ip_lists(),
+        "section7_content": load_section7_content()
     })
     return render_template("setup.html", **template_context)
 

@@ -135,6 +135,46 @@
         </div>
     </div>
 
+    <!-- Personal Message Section -->
+    <div class="setup-section">
+        <h2 class="form-section-title">
+            <span class="form-section-icon">💬</span>
+            Personal Message
+        </h2>
+        
+        <div class="form-group">
+            <label class="form-label">Personal Message:</label>
+            <textarea name="personal_message" id="personal_message" class="form-input" rows="4" placeholder="Enter your personal message that appears at the end of the Plex onboarding page...">{{ section7_content.personal_message if section7_content else "Why did I do all this? I started out collecting all the Star Trek shows because they kept jumping around to different streaming services. At some point I joined r/datahoarder and now I have about 10TB of movies, shows, music, and books. And I wanted to share! So enjoy. 🖖" }}</textarea>
+            <div class="file-help">
+                This message appears at the end of the Plex onboarding page.
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Payment Services (optional):</label>
+            <div class="file-help">
+                Add up to 3 payment services for donations. Leave fields empty to hide that service.
+            </div>
+            
+            {% for i in range(3) %}
+            <div class="payment-service-row" style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: center;">
+                <div style="flex: 1;">
+                    <label class="form-label">Service {{ i + 1 }}:</label>
+                    <input type="text" name="payment_service_{{ i }}_title" id="payment_service_{{ i }}_title" 
+                           value="{{ section7_content.payment_services[i].title if section7_content and section7_content.payment_services and section7_content.payment_services[i] else '' }}" 
+                           class="form-input" placeholder="e.g., Venmo, PayPal, Bitcoin">
+                </div>
+                <div style="flex: 1;">
+                    <label class="form-label">Handle:</label>
+                    <input type="text" name="payment_service_{{ i }}_handle" id="payment_service_{{ i }}_handle" 
+                           value="{{ section7_content.payment_services[i].handle if section7_content and section7_content.payment_services and section7_content.payment_services[i] else '' }}" 
+                           class="form-input" placeholder="e.g., @username, email, address">
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
     <!-- Plex Configuration Section -->
     <div class="setup-section">
         <h2 class="form-section-title">
@@ -634,6 +674,13 @@
         <input type="hidden" name="qa_overseerr_enabled" id="qa_overseerr_enabled_hidden">
         <input type="hidden" name="qa_jellyseerr_enabled" id="qa_jellyseerr_enabled_hidden">
         <input type="hidden" name="ip_management_enabled" id="ip_management_enabled_hidden">
+        <input type="hidden" name="personal_message" id="personal_message_hidden">
+        <input type="hidden" name="payment_service_0_title" id="payment_service_0_title_hidden">
+        <input type="hidden" name="payment_service_0_handle" id="payment_service_0_handle_hidden">
+        <input type="hidden" name="payment_service_1_title" id="payment_service_1_title_hidden">
+        <input type="hidden" name="payment_service_1_handle" id="payment_service_1_handle_hidden">
+        <input type="hidden" name="payment_service_2_title" id="payment_service_2_title_hidden">
+        <input type="hidden" name="payment_service_2_handle" id="payment_service_2_handle_hidden">
         
         <!-- Carousel Order Input -->
         <input type="hidden" name="library_carousel_order" id="carouselOrderInput" value="{{ LIBRARY_CAROUSEL_ORDER }}">
@@ -1192,6 +1239,15 @@
             document.getElementById('pulsarr_url_hidden_service').value = document.querySelector('input[name="PULSARR"]').value;
             document.getElementById('overseerr_url_hidden_service').value = document.querySelector('input[name="OVERSEERR"]').value;
             document.getElementById('jellyseerr_url_hidden_service').value = document.querySelector('input[name="JELLYSEERR"]').value;
+            
+            // Personal Message and Payment Services
+            document.getElementById('personal_message_hidden').value = document.getElementById('personal_message').value;
+            document.getElementById('payment_service_0_title_hidden').value = document.getElementById('payment_service_0_title').value;
+            document.getElementById('payment_service_0_handle_hidden').value = document.getElementById('payment_service_0_handle').value;
+            document.getElementById('payment_service_1_title_hidden').value = document.getElementById('payment_service_1_title').value;
+            document.getElementById('payment_service_1_handle_hidden').value = document.getElementById('payment_service_1_handle').value;
+            document.getElementById('payment_service_2_title_hidden').value = document.getElementById('payment_service_2_title').value;
+            document.getElementById('payment_service_2_handle_hidden').value = document.getElementById('payment_service_2_handle').value;
             
             // File inputs - sync visible file inputs with hidden ones
             var logoFileInput = document.getElementById('logo_file');

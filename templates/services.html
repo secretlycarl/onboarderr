@@ -106,6 +106,10 @@
           <span class="jump-nav-icon">🎨</span>
           <span>Branding</span>
         </a>
+        <a href="#personal-message-section" class="jump-nav-link" onclick="scrollToSection('personal-message-section')">
+          <span class="jump-nav-icon">💬</span>
+          <span>Personal Message</span>
+        </a>
         <a href="#plex-config-section" class="jump-nav-link" onclick="scrollToSection('plex-config-section')">
           <span class="jump-nav-icon">🎬</span>
           <span>Plex Settings</span>
@@ -518,6 +522,46 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Personal Message Section -->
+    <div class="onboarding-section" id="personal-message-section">
+      <h2 class="form-section-title">
+        <span class="form-section-icon">💬</span>
+        Personal Message
+      </h2>
+      
+      <div class="form-group">
+        <label class="form-label">Personal Message:</label>
+        <textarea name="personal_message" id="personal_message" class="form-input" rows="4" placeholder="Enter your personal message that appears at the end of the Plex onboarding page...">{{ section7_content.personal_message if section7_content else "Why did I do all this? I started out collecting all the Star Trek shows because they kept jumping around to different streaming services. At some point I joined r/datahoarder and now I have about 10TB of movies, shows, music, and books. And I wanted to share! So enjoy. 🖖" }}</textarea>
+        <div class="file-help">
+          This message appears at the end of the Plex onboarding page.
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Payment Services (optional):</label>
+        <div class="file-help">
+          Add up to 3 payment services for donations. Leave fields empty to hide that service.
+        </div>
+        
+        {% for i in range(3) %}
+        <div class="payment-service-row" style="display: flex; gap: 1rem; margin-bottom: 1rem; align-items: center;">
+          <div style="flex: 1;">
+            <label class="form-label">Service {{ i + 1 }}:</label>
+            <input type="text" name="payment_service_{{ i }}_title" id="payment_service_{{ i }}_title" 
+                   value="{{ section7_content.payment_services[i].title if section7_content and section7_content.payment_services and section7_content.payment_services[i] else '' }}" 
+                   class="form-input" placeholder="e.g., Venmo, PayPal, Bitcoin">
+          </div>
+          <div style="flex: 1;">
+            <label class="form-label">Handle:</label>
+            <input type="text" name="payment_service_{{ i }}_handle" id="payment_service_{{ i }}_handle" 
+                   value="{{ section7_content.payment_services[i].handle if section7_content and section7_content.payment_services and section7_content.payment_services[i] else '' }}" 
+                   class="form-input" placeholder="e.g., @username, email">
+          </div>
+        </div>
+        {% endfor %}
       </div>
     </div>
 
@@ -1068,6 +1112,13 @@
       <input type="hidden" name="rate_limit_settings_enabled" id="rate_limit_settings_enabled_hidden">
       <input type="hidden" name="max_login_attempts" id="max_login_attempts_hidden">
       <input type="hidden" name="max_form_submissions" id="max_form_submissions_hidden">
+      <input type="hidden" name="personal_message" id="personal_message_hidden">
+      <input type="hidden" name="payment_service_0_title" id="payment_service_0_title_hidden">
+      <input type="hidden" name="payment_service_0_handle" id="payment_service_0_handle_hidden">
+      <input type="hidden" name="payment_service_1_title" id="payment_service_1_title_hidden">
+      <input type="hidden" name="payment_service_1_handle" id="payment_service_1_handle_hidden">
+      <input type="hidden" name="payment_service_2_title" id="payment_service_2_title_hidden">
+      <input type="hidden" name="payment_service_2_handle" id="payment_service_2_handle_hidden">
       
       <!-- Carousel Order Input -->
       <input type="hidden" name="library_carousel_order" id="carouselOrderInput" value="{{ LIBRARY_CAROUSEL_ORDER or '' }}">
@@ -2826,6 +2877,15 @@
       {% for service in all_services %}
         document.getElementById('{{ service.env.lower() }}_hidden').value = document.querySelector('input[name="{{ service.env }}"]').value;
       {% endfor %}
+      
+      // Personal Message and Payment Services
+      document.getElementById('personal_message_hidden').value = document.getElementById('personal_message').value;
+      document.getElementById('payment_service_0_title_hidden').value = document.getElementById('payment_service_0_title').value;
+      document.getElementById('payment_service_0_handle_hidden').value = document.getElementById('payment_service_0_handle').value;
+      document.getElementById('payment_service_1_title_hidden').value = document.getElementById('payment_service_1_title').value;
+      document.getElementById('payment_service_1_handle_hidden').value = document.getElementById('payment_service_1_handle').value;
+      document.getElementById('payment_service_2_title_hidden').value = document.getElementById('payment_service_2_title').value;
+      document.getElementById('payment_service_2_handle_hidden').value = document.getElementById('payment_service_2_handle').value;
       
       // Library Carousels - collect selected carousel checkboxes
       var selectedCarouselIds = [];

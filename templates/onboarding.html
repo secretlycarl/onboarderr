@@ -353,7 +353,31 @@
 
       <details class="collapsible-section">
         <summary class="collapsible-heading">7. The End</summary>
-          {% include "onboarding_section7.html" %}
+        <p>
+          {{ section7_content.personal_message }}
+        </p>
+        
+        {% if section7_content.payment_services %}
+        <p>
+          Donate to my hard drive fund:
+        </p>
+        
+        <ul class="text-left max-800">
+          {% for service in section7_content.payment_services %}
+            {% if service.title and service.handle %}
+              <li>{{ service.title }} - <b>{{ service.handle }}</b></li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+        {% endif %}
+        
+        <!-- 
+        <p>
+          <a href="https://ko-fi.com/secretlycarl" target="_blank" class="accent">
+            <img src="https://cdn.ko-fi.com/cdn/kofi3.png?v=3" alt="Buy Me a Coffee at ko-fi.com" style="height:36px;">
+          </a>
+        </p> 
+        -->
       </details>
     </div>
   </div>
