@@ -153,7 +153,7 @@ To display storage bars for specific drives (e.g., E: and F: on Windows, or /mnt
     - E:\:/mnt/e
     - F:\:/mnt/f
   ```
-2. **Set the `DRIVES` During setup or via variable in your `.env` file** to the mount points inside the container (e.g., `/mnt/e,/mnt/f`).
+2. **Set the `DRIVES` During setup after running the app to the mount points inside the container (e.g., `/mnt/e,/mnt/f`).
 
   > **Note:** On Windows, you may need to allow Docker Desktop access to your drives (Docker Desktop > Settings > Resources > File Sharing).
 
