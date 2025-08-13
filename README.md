@@ -36,7 +36,7 @@ Thanks to reddit user u/Jeffizzleforshizzle for intial testing of v1
 Setup is much easier now! 
 - Set port with `python changeport.py [PORT_NUMBER]` if you don't want to use the default `10000`
 - Docker compose (tweak mounts first on `compose.yml`) and set all initial settings on the site itself
-    - Only thing to do outside of setup form is change [onboarding_section7.html](https://github.com/secretlycarl/onboarderr/blob/main/templates/onboarding_section7.html) and put your message/links
+- Customize HTML content, CSS, whatever you'd like
 
 ## Security Features
 Added new security features:
