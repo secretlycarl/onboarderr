@@ -275,14 +275,6 @@ If you ever have trouble with an update, just make a new clean instance, copy/pa
 
 Keep copies of custom assets in another folder!
 
-# Future goals
-
-I've never made a project this complex, or had a project this many people were interested in, so I'm not clear on how the future development for this will go. I just spent like two weeks on v2.
-
-Only missing feature I want to add is language switching. Someone already started that [here](https://github.com/secretlycarl/onboarderr/pull/24)
-
-
-
 # Thank You!
 
 Thanks for your interest in my project! I hope you find it useful. If you want to make it better, please do! Fork, PR, make an issue :)
