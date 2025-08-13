@@ -68,8 +68,6 @@ This is the start of my security improvements. Check any `in progress` issues to
   - This replaces the old method of having to edit `section7.html`
 - And more!
 
-See recent changelog [here](https://github.com/secretlycarl/onboarderr/pull/35).
-
 [How to Update](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#updates)
 
 Let me know of any bugs and other feedback :)
