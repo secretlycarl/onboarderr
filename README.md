@@ -66,6 +66,9 @@ This is the start of my security improvements. Check any `in progress` issues to
 - Changed Plex onboarding "Requests" section logic to show generic text if no requesting services are configured
 - Added settings section for personal message at bottom of Plex Onboarding
   - This replaces the old method of having to edit `section7.html`
+- Changed Pulsarr body text to reflect new Pulsarr behavior  
+  - Worked with Pulsarr dev to fix certain Plex Mobile app notifs not working
+  - Now users can receive per-ep notifications, no need to use Tautulli for that directly anymore
 - And more!
 
 [How to Update](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#updates)
