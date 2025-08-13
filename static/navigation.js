@@ -1,5 +1,5 @@
 // Navigation JavaScript - Loaded at end of body
-console.log('Navigation script file loaded!');
+// Navigation script loaded - debug logging controlled by debug-utils.js
 
 /**
  * Detects if the device is a mobile phone or tablet based on a combination of
@@ -48,17 +48,21 @@ function setDeviceClasses() {
     document.body.classList.remove('mobile-device');
   }
   
-  console.log('Device detection - Mobile:', isMobile);
-  console.log('Screen width:', window.innerWidth);
-  console.log('Screen height:', window.innerHeight);
-  console.log('Pointer type:', window.matchMedia('(pointer: coarse)').matches);
-  console.log('Touch support:', 'ontouchstart' in window);
-  console.log('Max touch points:', navigator.maxTouchPoints);
-  console.log('User agent:', navigator.userAgent);
+  if (window.debugLog) {
+    window.debugLog('Device detection - Mobile:', isMobile);
+    window.debugLog('Screen width:', window.innerWidth);
+    window.debugLog('Screen height:', window.innerHeight);
+    window.debugLog('Pointer type:', window.matchMedia('(pointer: coarse)').matches);
+    window.debugLog('Touch support:', 'ontouchstart' in window);
+    window.debugLog('Max touch points:', navigator.maxTouchPoints);
+    window.debugLog('User agent:', navigator.userAgent);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('Navigation script starting...');
+  if (window.debugLog) {
+    window.debugLog('Navigation script starting...');
+  }
   
   // Set device classes early
   setDeviceClasses();
@@ -66,28 +70,38 @@ document.addEventListener('DOMContentLoaded', function() {
   const navToggle = document.getElementById('nav-toggle');
   const navMenu = document.getElementById('nav-menu');
   const navHeader = document.querySelector('.nav-mobile-header');
-  console.log('Navigation elements found:', {
-    navToggle: !!navToggle,
-    navMenu: !!navMenu,
-    navHeader: !!navHeader
-  });
+  if (window.debugLog) {
+    window.debugLog('Navigation elements found:', {
+      navToggle: !!navToggle,
+      navMenu: !!navMenu,
+      navHeader: !!navHeader
+    });
+  }
   
   // Mobile navigation toggle
   if (navToggle && navMenu && navHeader) {
-    console.log('Setting up mobile navigation toggle');
+    if (window.debugLog) {
+      window.debugLog('Setting up mobile navigation toggle');
+    }
     
     // Function to handle toggle
     function handleToggle(e) {
-      console.log('Toggle triggered!');
+      if (window.debugLog) {
+        window.debugLog('Toggle triggered!');
+      }
       
       const isOpen = navMenu.classList.contains('open');
-      console.log('Menu is currently open:', isOpen);
+      if (window.debugLog) {
+        window.debugLog('Menu is currently open:', isOpen);
+      }
       
       navMenu.classList.toggle('open');
       navToggle.classList.toggle('active');
       
-      console.log('Menu classes after toggle:', navMenu.className);
-      console.log('Toggle classes after toggle:', navToggle.className);
+      if (window.debugLog) {
+        window.debugLog('Menu classes after toggle:', navMenu.className);
+        window.debugLog('Toggle classes after toggle:', navToggle.className);
+      }
       
       // Close menu when clicking outside
       if (!isOpen) {
@@ -106,7 +120,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Add touchstart for mobile devices on the header
     navHeader.addEventListener('touchstart', function(e) {
-      console.log('Touch event on nav header');
+      if (window.debugLog) {
+        window.debugLog('Touch event on nav header');
+      }
       e.preventDefault();
       e.stopPropagation();
       handleToggle(e);
@@ -119,7 +135,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     navToggle.addEventListener('touchstart', function(e) {
-      console.log('Touch event on nav toggle');
+      if (window.debugLog) {
+        window.debugLog('Touch event on nav toggle');
+      }
       e.preventDefault();
       e.stopPropagation();
       handleToggle(e);
@@ -134,12 +152,16 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
   } else {
-    console.error('Missing navigation elements:', {
-      navToggle: !!navToggle,
-      navMenu: !!navMenu,
-      navHeader: !!navHeader
-    });
+    if (window.debugError) {
+      window.debugError('Missing navigation elements:', {
+        navToggle: !!navToggle,
+        navMenu: !!navMenu,
+        navHeader: !!navHeader
+      });
+    }
   }
   
-  console.log('Navigation script completed');
+  if (window.debugLog) {
+    window.debugLog('Navigation script completed');
+  }
 }); 

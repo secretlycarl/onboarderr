@@ -54,8 +54,8 @@ class CarouselAutoScroll {
 
   // Debug logging helper
   log(message, ...args) {
-    if (this.options.debug) {
-      console.log(`[CarouselAutoScroll] ${message}`, ...args);
+    if (window.debugLog) {
+      window.debugLog(`[CarouselAutoScroll] ${message}`, ...args);
     }
   }
 

@@ -266,11 +266,15 @@
             }
 
             // Initialize - always use adaptive logic for consistency
-            console.log('Starting adaptive restart logic');
+            if (window.debugLog) {
+                window.debugLog('Starting adaptive restart logic');
+            }
             
             // For setup form submissions, trigger poster downloads first
             if (isAdaptive && changedSettings && changedSettings.length > 0) {
-                console.log('Setup detected - triggering poster downloads');
+                if (window.debugLog) {
+                    window.debugLog('Setup detected - triggering poster downloads');
+                }
                 triggerSetupPosterDownloads();
             }
             
@@ -287,7 +291,9 @@
             
             // Function to trigger setup poster downloads
             function triggerSetupPosterDownloads() {
-                console.log('Triggering setup poster downloads...');
+                if (window.debugLog) {
+                    window.debugLog('Triggering setup poster downloads...');
+                }
                 label.textContent = 'Starting poster downloads...';
                 
                 fetch('/ajax/setup-poster-downloads', {
@@ -307,21 +313,36 @@
                     }
                 })
                 .then(function(data) {
-                    console.log('Setup poster downloads response:', data);
+                    if (window.debugLog) {
+                        window.debugLog('Setup poster downloads response:', data);
+                    }
                     if (data.success) {
                         label.textContent = 'Poster downloads initiated successfully';
-                        console.log(`Downloads initiated - Plex: ${data.needs_plex}, ABS: ${data.needs_abs}, Libraries: ${data.libraries_count}`);
+                        if (window.debugLog) {
+                            window.debugLog(`Downloads initiated - Plex: ${data.needs_plex}, ABS: ${data.needs_abs}, Libraries: ${data.libraries_count}`);
+                        }
                     } else {
                         label.textContent = 'Error initiating poster downloads';
-                        console.error('Setup poster downloads error:', data.error);
+                        if (window.debugError) {
+                            window.debugError('Setup poster downloads error:', data.error);
+                        }
                     }
                 })
                 .catch(function(error) {
-                    console.error('Error triggering setup poster downloads:', error);
+                    if (window.debugError) {
+                        window.debugError('Error triggering setup poster downloads:', error);
+                    }
                     label.textContent = 'Error starting poster downloads';
                 });
             }
         });
+    </script>
+    
+    <!-- Debug Utilities -->
+    <script src="{{ url_for('static', filename='debug-utils.js') }}"></script>
+    <script>
+      // Initialize debug state from server
+      window.DEBUG_ENABLED = {{ JS_DEBUG|lower }};
     </script>
 </body>
 </html> 

@@ -37,7 +37,7 @@
           {% if abs_book_groups %}
             {% set _ = all_libraries.append(('abs', 'Audiobooks', 'abs')) %}
           {% endif %}
-          {% for value, name, service in all_libraries|sort(attribute=1) %}
+          {% for value, name, service in all_libraries %}
             <option value="{{ value }}" {% if (service == 'plex' and selected_service == 'plex' and selected_library == name) or (service == 'abs' and selected_service == 'abs') %}selected{% endif %}>{{ name }}</option>
           {% endfor %}
         </select>

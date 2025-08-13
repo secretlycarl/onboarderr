@@ -3037,6 +3037,13 @@
   <!-- Jump Sections Panel Script -->
   <script src="{{ url_for('static', filename='jump-sections.js') }}"></script>
 
+  <!-- Debug Utilities -->
+  <script src="{{ url_for('static', filename='debug-utils.js') }}"></script>
+  <script>
+    // Initialize debug state from server
+    window.DEBUG_ENABLED = {{ JS_DEBUG|lower }};
+  </script>
+
   <!-- Mobile Jump to Top Button -->
   <div class="mobile-jump-to-top" id="mobileJumpToTop" title="Jump to Top" aria-label="Jump to Top">
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -3094,18 +3101,20 @@
           servicesForm.addEventListener('submit', function(e) {
               // Debug: Log the carousel order before submission
               const carouselOrderInput = document.getElementById('carouselOrderInput');
-              if (carouselOrderInput) {
-                  console.log('[DEBUG] Services form submission - carouselOrderInput value:', carouselOrderInput.value);
-                  console.log('[DEBUG] Services form submission - carouselOrderInput name:', carouselOrderInput.name);
-              } else {
-                  console.log('[DEBUG] Services form submission - carouselOrderInput not found!');
+              if (carouselOrderInput && window.debugLog) {
+                  window.debugLog('Services form submission - carouselOrderInput value:', carouselOrderInput.value);
+                  window.debugLog('Services form submission - carouselOrderInput name:', carouselOrderInput.name);
+              } else if (window.debugLog) {
+                  window.debugLog('Services form submission - carouselOrderInput not found!');
               }
               
-              // Debug: Log all form data
-              const formData = new FormData(this);
-              console.log('[DEBUG] Services form submission - all form data:');
-              for (let [key, value] of formData.entries()) {
-                  console.log('[DEBUG] Services form submission -', key + ':', value);
+              // Debug: Log all form data (only if debug enabled)
+              if (window.debugLog) {
+                  const formData = new FormData(this);
+                  window.debugLog('Services form submission - all form data:');
+                  for (let [key, value] of formData.entries()) {
+                      window.debugLog('Services form submission -', key + ':', value);
+                  }
               }
           });
       }

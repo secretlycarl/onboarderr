@@ -336,12 +336,14 @@ config = Config()
 
 # Initialize debug_mode early to ensure logging works from the start
 debug_mode = config.get_bool("FLASK_DEBUG", False)
+js_debug_mode = config.get_bool("JS_DEBUG", False)
 
 def reload_config():
     """Reload configuration from environment variables"""
-    global config, debug_mode
+    global config, debug_mode, js_debug_mode
     config = Config()
     debug_mode = config.get_bool("FLASK_DEBUG", False)
+    js_debug_mode = config.get_bool("JS_DEBUG", False)
 
 # ============================================================================
 # IMPROVED STATE MANAGEMENT AND ERROR HANDLING
@@ -1027,8 +1029,11 @@ def cleanup_poster_progress():
                 if sorted_entries:
                     del poster_download_progress[sorted_entries[i][0]]
         
-        if debug_mode and poster_download_progress:
-            print(f"[DEBUG] Cleaned up poster progress, {len(poster_download_progress)} entries remaining")
+        if debug_mode:
+            if poster_download_progress:
+                print(f"[DEBUG] Cleaned up poster progress, {len(poster_download_progress)} entries remaining")
+                print(f"[DEBUG] Active progress entries: {list(poster_download_progress.keys())}")
+            # Only log when there's actually something to report, not when there's nothing to clean up
 
 def check_api_rate_limit(api_type):
     """Check and enforce API rate limits"""
@@ -1147,7 +1152,7 @@ def get_libraries_from_local_files():
     Get library information from local files only (no Plex API calls).
     Returns library data from library_notes.json and poster directories.
     """
-    if is_debug_mode():
+    if debug_mode:
         print("[DEBUG] Getting libraries from local files only...")
     
     libraries = []
@@ -1367,7 +1372,7 @@ def smart_check_library_posters(library_id, plex_url, headers):
         response = requests.get(test_url, headers=headers, timeout=5)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
-        if debug_mode:
+        if is_debug_mode():
             print(f"[DEBUG] Server offline for library {library_id}: {e}")
         result['server_offline'] = True
         return result
@@ -1428,7 +1433,7 @@ def smart_check_library_posters(library_id, plex_url, headers):
                             result['changed_items'].append(item)
                             result['needs_download'] = True
                     except (IOError, json.JSONDecodeError) as e:
-                        if debug_mode:
+                        if is_debug_mode():
                             print(f"[DEBUG] Error reading local metadata for {rating_key}: {e}")
                         result['changed_items'].append(item)
                         result['needs_download'] = True
@@ -1437,11 +1442,15 @@ def smart_check_library_posters(library_id, plex_url, headers):
                     result['changed_items'].append(item)
                     result['needs_download'] = True
         
-        if debug_mode:
+        if is_debug_mode():
             print(f"[DEBUG] Smart check for library {library_id}: {len(result['new_items'])} new, {len(result['changed_items'])} changed, {result['removed_count']} removed")
+            if result['server_offline']:
+                print(f"[DEBUG] Plex server is offline for library {library_id}")
+            if result['error']:
+                print(f"[DEBUG] Library check error: {result['error']}")
         
     except Exception as e:
-        if debug_mode:
+        if is_debug_mode():
             print(f"[ERROR] Error in smart check for library {library_id}: {e}")
         result['error'] = str(e)
     
@@ -1480,7 +1489,7 @@ def smart_check_abs_posters(abs_url, headers):
         response = requests.get(test_url, headers=headers, timeout=5)
         response.raise_for_status()
     except requests.exceptions.RequestException as e:
-        if debug_mode:
+        if is_debug_mode():
             print(f"[DEBUG] ABS server offline: {e}")
         result['server_offline'] = True
         return result
@@ -1494,7 +1503,7 @@ def smart_check_abs_posters(abs_url, headers):
         # Extract libraries from the response
         libraries = libraries_data.get('libraries', [])
         if not isinstance(libraries, list):
-            if debug_mode:
+            if is_debug_mode():
                 print(f"[DEBUG] Unexpected libraries format: {type(libraries)}")
             return result
         
@@ -1519,7 +1528,7 @@ def smart_check_abs_posters(abs_url, headers):
                     except (IOError, json.JSONDecodeError):
                         continue
             
-            if debug_mode:
+            if is_debug_mode():
                 print(f"[DEBUG] Found {len(existing_books)} existing ABS books")
                 if len(existing_books) > 0:
                     print(f"[DEBUG] Sample existing books: {list(existing_books)[:5]}")
@@ -1548,7 +1557,7 @@ def smart_check_abs_posters(abs_url, headers):
                 
                 if book_key not in existing_books:
                     # New book - needs download
-                    if debug_mode:
+                    if is_debug_mode():
                         print(f"[DEBUG] New ABS book detected: {book_key}")
                     result['new_items'].append({
                         'library_id': library_id,
@@ -1574,10 +1583,13 @@ def smart_check_abs_posters(abs_url, headers):
                             local_author = local_meta.get('author', '')
                             
                             # Add debug logging to see what's being compared
-                            if debug_mode and (server_title != local_title or server_author != local_author):
-                                print(f"[DEBUG] Metadata mismatch for book {book_id}:")
-                                print(f"  Server title: '{server_title}' vs Local title: '{local_title}'")
-                                print(f"  Server author: '{server_author}' vs Local author: '{local_author}'")
+                            if is_debug_mode():
+                                if (server_title != local_title or server_author != local_author):
+                                    print(f"[DEBUG] Metadata mismatch for book {book_id}:")
+                                    print(f"  Server title: '{server_title}' vs Local title: '{local_title}'")
+                                    print(f"  Server author: '{server_author}' vs Local author: '{local_author}'")
+                                else:
+                                    print(f"[DEBUG] Metadata match for book {book_id}: '{server_title}' by '{server_author}'")
                             
                             if (server_title != local_title or server_author != local_author):
                                 result['changed_items'].append({
@@ -1609,10 +1621,15 @@ def smart_check_abs_posters(abs_url, headers):
         
         if debug_mode:
             print(f"[DEBUG] Smart check for ABS: {len(result['new_items'])} new, {len(result['changed_items'])} changed, {result['removed_count']} removed")
+            if result['server_offline']:
+                print(f"[DEBUG] ABS server is offline")
+            if result['error']:
+                print(f"[DEBUG] ABS check error: {result['error']}")
         
     except Exception as e:
+        print(f"[ERROR] Error in smart ABS check: {e}")
         if debug_mode:
-            print(f"[ERROR] Error in smart ABS check: {e}")
+            print(f"[DEBUG] Smart ABS check error details: {e}")
         result['error'] = str(e)
     
     return result
@@ -1653,7 +1670,7 @@ def determine_download_needs(libraries, abs_enabled=True):
     plex_url = os.getenv("PLEX_URL")
     
     if not plex_token or not plex_url:
-        if debug_mode:
+        if is_debug_mode():
             print("[DEBUG] No Plex credentials available for smart check")
         return result
     
@@ -1672,7 +1689,7 @@ def determine_download_needs(libraries, abs_enabled=True):
                 
                 # If completed within last 6hr, skip download for this library
                 if time_since_completion < 21600:  # 6hr
-                    if debug_mode:
+                    if is_debug_mode():
                         print(f"[DEBUG] Plex downloads for library {lib['key']} completed {time_since_completion:.1f} seconds ago, skipping re-download")
                     result['plex_results'].append({
                         'needs_download': False,
@@ -1685,7 +1702,7 @@ def determine_download_needs(libraries, abs_enabled=True):
                     })
                     continue
             except (IOError, ValueError) as e:
-                if debug_mode:
+                if is_debug_mode():
                     print(f"[DEBUG] Could not read Plex completion timestamp for library {lib['key']}: {e}")
         
         lib_result = smart_check_library_posters(lib["key"], plex_url, headers)
@@ -1715,7 +1732,7 @@ def determine_download_needs(libraries, abs_enabled=True):
                     
                     # If completed within last 6hr, skip download
                     if time_since_completion < 21600:  # 6 hours = 21600 seconds
-                        if debug_mode:
+                        if is_debug_mode():
                             print(f"[DEBUG] ABS downloads completed {time_since_completion:.1f} seconds ago, skipping re-download")
                         result['abs_result'] = {
                             'needs_download': False,
@@ -1728,7 +1745,7 @@ def determine_download_needs(libraries, abs_enabled=True):
                         }
                         return result
                 except (IOError, ValueError) as e:
-                    if debug_mode:
+                    if is_debug_mode():
                         print(f"[DEBUG] Could not read ABS completion timestamp: {e}")
             
             abs_headers = get_abs_headers()
@@ -1744,9 +1761,15 @@ def determine_download_needs(libraries, abs_enabled=True):
                 result['total_changed'] += len(abs_result['changed_items'])
                 result['total_removed'] += abs_result['removed_count']
     
-    if debug_mode:
+    if is_debug_mode():
         print(f"[DEBUG] Download needs determined: Plex={result['plex_needs_download']}, ABS={result['abs_needs_download']}")
         print(f"[DEBUG] Totals: {result['total_new']} new, {result['total_changed']} changed, {result['total_removed']} removed")
+        if result['any_server_offline']:
+            print(f"[DEBUG] One or more servers are offline")
+        if result['plex_results']:
+            print(f"[DEBUG] Plex results: {len(result['plex_results'])} libraries checked")
+        if result['abs_result']:
+            print(f"[DEBUG] ABS result: {result['abs_result'].get('error', 'No error')}")
     
     return result
 
@@ -1761,7 +1784,7 @@ def process_smart_library_download(lib, smart_result):
     section_id = lib["key"]
     library_name = lib["title"]
     
-    if debug_mode:
+    if is_debug_mode():
         print(f"[DEBUG] Processing smart download for {library_name}: {len(smart_result['new_items'])} new, {len(smart_result['changed_items'])} changed")
     
     # Get Plex credentials
@@ -1769,7 +1792,7 @@ def process_smart_library_download(lib, smart_result):
     plex_url = os.getenv("PLEX_URL")
     
     if not plex_token or not plex_url:
-        if debug_mode:
+        if is_debug_mode():
             print(f"[ERROR] No Plex credentials available for smart download of {library_name}")
         return
     
@@ -1905,7 +1928,7 @@ def should_refresh_posters(library_id, incremental_mode=False):
             meta_file = poster_file.replace('.webp', '.json')
             meta_path = os.path.join(poster_dir, meta_file)
             if not os.path.exists(meta_path):
-                if debug_mode:
+                if is_debug_mode():
                     print(f"[DEBUG] Missing metadata for {poster_file}, triggering refresh for library {library_id}")
                 return True
     
@@ -1973,25 +1996,30 @@ def cleanup_deleted_posters(library_id, current_rating_keys):
         if os.path.exists(poster_file):
             try:
                 os.remove(poster_file)
-                if debug_mode:
+                if is_debug_mode():
                     print(f"[DEBUG] Removed deleted poster: poster_{rating_key}.webp")
                 removed_count += 1
             except Exception as e:
-                if debug_mode:
-                    print(f"[ERROR] Failed to remove poster {poster_file}: {e}")
+                print(f"[ERROR] Failed to remove poster {poster_file}: {e}")
+                if is_debug_mode():
+                    print(f"[DEBUG] Poster removal error details: {e}")
         
         # Remove metadata file
         if os.path.exists(meta_file):
             try:
                 os.remove(meta_file)
-                if debug_mode:
+                if is_debug_mode():
                     print(f"[DEBUG] Removed deleted metadata: poster_{rating_key}.json")
             except Exception as e:
-                if debug_mode:
-                    print(f"[ERROR] Failed to remove metadata {meta_file}: {e}")
+                print(f"[ERROR] Failed to remove metadata {meta_file}: {e}")
+                if is_debug_mode():
+                    print(f"[DEBUG] Metadata removal error details: {e}")
     
-    if debug_mode and removed_count > 0:
-        print(f"[INFO] Cleaned up {removed_count} deleted posters for library {library_id}")
+    if is_debug_mode():
+        if removed_count > 0:
+            print(f"[INFO] Cleaned up {removed_count} deleted posters for library {library_id}")
+        else:
+            print(f"[DEBUG] No deleted posters found for library {library_id}")
     
     return removed_count
 
@@ -2014,7 +2042,7 @@ def process_library_posters_incremental(lib, plex_url, headers, background=False
     
     # Check if posters need refreshing (incremental mode)
     if not should_refresh_posters(section_id, incremental_mode=True):
-        if debug_mode:
+        if is_debug_mode():
             print(f"[DEBUG] Skipping incremental poster refresh for {library_name} - no missing metadata")
         return 0, 0
     
@@ -2140,14 +2168,14 @@ def should_refresh_abs_posters():
     """
     audiobook_dir = os.path.join("static", "posters", "audiobooks")
     if not os.path.exists(audiobook_dir):
-        if debug_mode:
+        if is_debug_mode():
             print("[DEBUG] ABS poster directory does not exist, refresh needed")
         return True
     
     # Check if any poster files exist
     poster_files = [f for f in os.listdir(audiobook_dir) if f.lower().endswith(('.webp', '.jpg', '.jpeg', '.png'))]
     if not poster_files:
-        if debug_mode:
+        if is_debug_mode():
             print("[DEBUG] No ABS poster files found, refresh needed")
         return True
     
@@ -2159,7 +2187,7 @@ def should_refresh_abs_posters():
     # Return True if posters are older than POSTER_REFRESH_INTERVAL
     needs_refresh = (current_time - most_recent_time) > POSTER_REFRESH_INTERVAL
     
-    if debug_mode:
+    if is_debug_mode():
         print(f"[DEBUG] ABS posters age: {age_hours:.1f} hours, refresh needed: {needs_refresh}")
     
     return needs_refresh
@@ -2170,7 +2198,7 @@ def clear_library_cache():
     with library_cache_lock:
         library_cache = {}
         library_cache_timestamp = 0
-    if debug_mode:
+    if is_debug_mode():
         print("[DEBUG] Library cache cleared")
 
 def cleanup_library_cache():
@@ -2181,7 +2209,7 @@ def cleanup_library_cache():
         # If cache is too large, clear it
         if len(library_cache) > 100:  # More than 100 libraries cached
             library_cache = {}
-            if debug_mode:
+            if is_debug_mode():
                 print("[DEBUG] Library cache cleared due to size limit")
         
         # Clear cache if it's older than 1 hour
@@ -2189,13 +2217,13 @@ def cleanup_library_cache():
         if library_cache_timestamp > 0 and (current_time - library_cache_timestamp) > 3600:
             library_cache = {}
             library_cache_timestamp = 0
-            if debug_mode:
+            if is_debug_mode():
                 print("[DEBUG] Library cache cleared due to age")
 
 def fix_missing_metadata_files():
     """Check for and fix missing metadata files for existing posters"""
     try:
-        if debug_mode:
+        if is_debug_mode():
             print("[DEBUG] Checking for missing metadata files...")
         
         # Get Plex credentials
@@ -2203,7 +2231,7 @@ def fix_missing_metadata_files():
         plex_url = os.getenv("PLEX_URL")
         
         if not plex_token or not plex_url:
-            if debug_mode:
+            if is_debug_mode():
                 print("[ERROR] Plex credentials not available for metadata fix")
             return False
         
@@ -2215,7 +2243,7 @@ def fix_missing_metadata_files():
             if not os.path.exists(lib_dir):
                 continue
     
-            if debug_mode:
+            if is_debug_mode():
                 print(f"[DEBUG] Checking library directory: {lib_dir}")
             
             # Find all poster files
@@ -2230,7 +2258,7 @@ def fix_missing_metadata_files():
                     
                     # If metadata file is missing, try to recreate it
                     if not os.path.exists(meta_path):
-                        if debug_mode:
+                        if is_debug_mode():
                             print(f"[DEBUG] Missing metadata for poster: {poster_file}, ratingKey: {rating_key}")
                         
                         try:
@@ -2275,14 +2303,14 @@ def fix_missing_metadata_files():
                                     json.dump(meta, f, indent=2)
                                 
                                 fixed_count += 1
-                                if debug_mode:
+                                if is_debug_mode():
                                     print(f"[DEBUG] Fixed metadata for: {title} (ratingKey: {rating_key})")
                             
                         except Exception as e:
-                            if debug_mode:
+                            if is_debug_mode():
                                 print(f"[ERROR] Failed to fix metadata for {poster_file}: {e}")
         
-        if debug_mode:
+        if is_debug_mode():
             print(f"[DEBUG] Metadata fix complete. Fixed {fixed_count} missing metadata files.")
         
         return fixed_count > 0
@@ -2306,9 +2334,11 @@ def load_library_notes():
     return notes
 
 def save_library_notes(notes):
-    print(f"[DEBUG] save_library_notes called with: {notes}")
+    if debug_mode:
+        print(f"[DEBUG] save_library_notes called with: {notes}")
     result = save_json_file("library_notes.json", notes)
-    print(f"[DEBUG] save_json_file result: {result}")
+    if debug_mode:
+        print(f"[DEBUG] save_json_file result: {result}")
     return result
 
 def load_section7_content():
@@ -2342,9 +2372,11 @@ def load_section7_content():
 
 def save_section7_content(content):
     """Save section 7 content to JSON file"""
-    print(f"[DEBUG] save_section7_content called with: {content}")
+    if debug_mode:
+        print(f"[DEBUG] save_section7_content called with: {content}")
     result = save_json_file("section7_content.json", content)
-    print(f"[DEBUG] save_json_file result: {result}")
+    if debug_mode:
+        print(f"[DEBUG] save_json_file result: {result}")
     return result
 
 def recreate_library_notes():
@@ -3425,7 +3457,8 @@ def logout():
 def services():
     if not session.get("admin_authenticated"):
         # Use client-side redirect to preserve hash fragments
-        print(f"DEBUG: Unauthenticated access to services, storing URL: {request.url}")
+        if debug_mode:
+            print(f"[DEBUG] Unauthenticated access to services, storing URL: {request.url}")
         return render_template_string("""
             <!DOCTYPE html>
             <html>
@@ -3557,7 +3590,8 @@ def services():
         existing_notes = load_library_notes()
         
         # Debug: Print all form data to see what's being submitted
-        print(f"[DEBUG] Services form submission - All form keys: {list(request.form.keys())}")
+        if debug_mode:
+            print(f"[DEBUG] Services form submission - All form keys: {list(request.form.keys())}")
         
         # Process descriptions for all libraries that have description fields in the form
         # This ensures we don't lose descriptions when libraries are deselected
@@ -3572,30 +3606,36 @@ def services():
                 lib_id = lib_id.replace(",", "").strip()
                 desc = value.strip()
                 
-                print(f"[DEBUG] Processing library description - Key: {key}, Lib ID: {lib_id}, Description: '{desc}'")
+                if debug_mode:
+                    print(f"[DEBUG] Processing library description - Key: {key}, Lib ID: {lib_id}, Description: '{desc}'")
                 
                 # Skip if library ID is empty after cleaning
                 if not lib_id:
-                    print(f"[DEBUG] Skipping empty library ID")
+                    if debug_mode:
+                        print(f"[DEBUG] Skipping empty library ID")
                     continue
                 
                 # Initialize library entry if it doesn't exist
                 if lib_id not in existing_notes:
                     existing_notes[lib_id] = {}
-                    print(f"[DEBUG] Created new library entry for {lib_id}")
+                    if debug_mode:
+                        print(f"[DEBUG] Created new library entry for {lib_id}")
                 
                 if desc:
                     # Add or update description
                     existing_notes[lib_id]["description"] = desc
-                    print(f"[DEBUG] Updated description for library {lib_id}: '{desc}'")
+                    if debug_mode:
+                        print(f"[DEBUG] Updated description for library {lib_id}: '{desc}'")
                 else:
                     # Remove description if field is empty
                     if "description" in existing_notes[lib_id]:
                         del existing_notes[lib_id]["description"]
-                        print(f"[DEBUG] Removed description for library {lib_id}")
+                        if debug_mode:
+                            print(f"[DEBUG] Removed description for library {lib_id}")
         
         # Save the updated library notes
-        print(f"[DEBUG] Saving library notes: {existing_notes}")
+        if debug_mode:
+            print(f"[DEBUG] Saving library notes: {existing_notes}")
         save_library_notes(existing_notes)
         # Discord settings
         discord_webhook = request.form.get("discord_webhook", "").strip()
@@ -3724,9 +3764,12 @@ def services():
             
             # Find any carousel libraries that aren't in current libraries
             invalid_carousels = carousel_set - library_set
-            if invalid_carousels and debug_mode:
-                print(f"[DEBUG] Services form - Invalid carousel libraries found: {invalid_carousels}")
-                print(f"[DEBUG] Services form - These libraries are not in the current library IDs")
+            if debug_mode:
+                if invalid_carousels:
+                    print(f"[DEBUG] Services form - Invalid carousel libraries found: {invalid_carousels}")
+                    print(f"[DEBUG] Services form - These libraries are not in the current library IDs")
+                else:
+                    print(f"[DEBUG] Services form - All carousel libraries are valid")
             
             # Only keep carousel libraries that are actually in the current libraries
             valid_carousels = list(carousel_set & library_set)
@@ -5295,8 +5338,11 @@ def download_and_cache_posters_for_libraries(libraries, limit=None, background=F
                 downloaded = process_library_posters(lib, plex_url, headers, limit, background)
                 total_downloaded += downloaded
         
-        if debug_mode and incremental_mode:
-            log_info("poster_download", f"Incremental refresh complete: {total_downloaded} new posters downloaded, {total_removed} deleted posters removed")
+        if debug_mode:
+            if incremental_mode:
+                log_info("poster_download", f"Incremental refresh complete: {total_downloaded} new posters downloaded, {total_removed} deleted posters removed")
+            else:
+                log_info("poster_download", f"Full refresh complete: {total_downloaded} posters downloaded")
         
         return total_downloaded
 
@@ -5305,23 +5351,32 @@ def background_poster_worker():
     global poster_download_running, abs_download_in_progress, abs_download_completed, abs_download_queued
     poster_download_running = True
     
-    log_debug("worker", "Background poster worker started", {"worker_type": "poster_download"})
-    
     # Cleanup counter for periodic memory cleanup
     cleanup_counter = 0
+    last_cleanup_time = time.time()
+    
+    log_debug("worker", "Background poster worker started", {"worker_type": "poster_download"})
+    if debug_mode:
+        print(f"[DEBUG] Background worker initialized with cleanup counter: {cleanup_counter}")
     
     while poster_download_running:
         try:
-            # Periodic memory cleanup every 50 operations
-            cleanup_counter += 1
-            if cleanup_counter >= 50:
-                cleanup_poster_progress()
-                cleanup_counter = 0
-            
             # Wait for work with timeout
             work_item = poster_download_queue.get(timeout=1)
             if work_item is None:  # Shutdown signal
                 break
+            
+            # Only run cleanup when we actually process work, not on every idle loop
+            cleanup_counter += 1
+            current_time = time.time()
+            
+            # Run cleanup every 50 work items OR every 5 minutes, whichever comes first
+            if cleanup_counter >= 50 or (current_time - last_cleanup_time) >= 300:
+                if debug_mode:
+                    print(f"[DEBUG] Performing periodic cleanup (counter: {cleanup_counter}, time since last: {current_time - last_cleanup_time:.1f}s)")
+                cleanup_poster_progress()
+                cleanup_counter = 0
+                last_cleanup_time = current_time
             
             # Handle different work item formats
             if len(work_item) == 3:
@@ -5633,8 +5688,11 @@ def wait_for_poster_completion(timeout_seconds=300):
         
         # Log progress every 10 seconds
         elapsed = time.time() - start_time
-        if debug_mode and int(elapsed) % 10 == 0:
-            print(f"[DEBUG] Still waiting for posters... ({elapsed:.1f}s elapsed)")
+        if debug_mode:
+            if int(elapsed) % 10 == 0:
+                print(f"[DEBUG] Still waiting for posters... ({elapsed:.1f}s elapsed)")
+            elif int(elapsed) % 30 == 0:  # Additional debug every 30 seconds
+                print(f"[DEBUG] Still waiting for posters... ({elapsed:.1f}s elapsed, timeout: {timeout_seconds}s)")
         
         time.sleep(1)
     
@@ -5700,6 +5758,7 @@ def get_adaptive_restart_delay():
         else:
             if debug_mode:
                 print("[DEBUG] Poster download timeout reached, short delay")
+                print(f"[DEBUG] Timeout was {POSTER_DOWNLOAD_TIMEOUT} seconds")
             return 10  # Short delay if timeout reached
     else:
         if debug_mode:
@@ -6517,9 +6576,12 @@ def setup():
                     
                     # Find any carousel libraries that aren't in selected libraries
                     invalid_carousels = carousel_set - selected_set
-                    if invalid_carousels and debug_mode:
-                        print(f"[DEBUG] Setup form - Invalid carousel libraries found: {invalid_carousels}")
-                        print(f"[DEBUG] Setup form - These libraries are not in the selected library IDs")
+                    if debug_mode:
+                        if invalid_carousels:
+                            print(f"[DEBUG] Setup form - Invalid carousel libraries found: {invalid_carousels}")
+                            print(f"[DEBUG] Setup form - These libraries are not in the selected library IDs")
+                        else:
+                            print(f"[DEBUG] Setup form - All carousel libraries are valid")
                     
                     # Only keep carousel libraries that are actually selected
                     valid_carousels = list(carousel_set & selected_set)
@@ -6559,8 +6621,11 @@ def setup():
                 safe_set_key(env_path, "LIBRARY_NAMES", "")
                 if debug_mode:
                     print(f"[DEBUG] Setup form - Saved LIBRARY_IDS (fallback): {','.join(cleaned_library_ids)}")
-        if not cleaned_library_ids and debug_mode:
-            print(f"[DEBUG] Setup form - No library_ids found in form data")
+        if debug_mode:
+            if not cleaned_library_ids:
+                print(f"[DEBUG] Setup form - No library_ids found in form data")
+            else:
+                print(f"[DEBUG] Setup form - Found {len(cleaned_library_ids)} library IDs: {cleaned_library_ids}")
         # Save service URLs
         service_keys = [
             'PLEX', 'LIDARR', 'RADARR', 'SONARR', 'TAUTULLI', 'QBITTORRENT', 'IMMICH',
@@ -7094,8 +7159,11 @@ def load_json_file(filename, default=None):
             default
         )
         
-        if data is not None and debug_mode:
-            print(f"[DEBUG] Loaded {len(data)} entries from {filename}")
+        if debug_mode:
+            if data is not None:
+                print(f"[DEBUG] Loaded {len(data)} entries from {filename}")
+            else:
+                print(f"[DEBUG] No data loaded from {filename}, using default")
         return data
         
     except FileNotFoundError:
@@ -7128,8 +7196,11 @@ def save_json_file(filename, data):
             False
         )
         
-        if success and debug_mode:
-            print(f"[DEBUG] Successfully saved {len(data)} entries to {filename}")
+        if debug_mode:
+            if success:
+                print(f"[DEBUG] Successfully saved {len(data)} entries to {filename}")
+            else:
+                print(f"[DEBUG] Failed to save data to {filename}")
         return success
         
     except Exception as e:
@@ -7291,7 +7362,8 @@ def get_template_context():
         "RATE_LIMIT_SETTINGS_ENABLED": os.getenv("RATE_LIMIT_SETTINGS_ENABLED", "yes"),
         "RATE_LIMIT_MAX_LOGIN_ATTEMPTS": int(os.getenv("RATE_LIMIT_MAX_LOGIN_ATTEMPTS", os.getenv("RATE_LIMIT_LOGIN_ATTEMPTS", "5"))),
         "RATE_LIMIT_MAX_FORM_SUBMISSIONS": int(os.getenv("RATE_LIMIT_MAX_FORM_SUBMISSIONS", os.getenv("RATE_LIMIT_FORM_SUBMISSIONS", "1"))),
-        "ip_lists": get_ip_lists()
+        "ip_lists": get_ip_lists(),
+        "JS_DEBUG": js_debug_mode
     }
 
 @app.route("/ajax/load-library-posters", methods=["POST"])
@@ -8314,7 +8386,7 @@ def setup_poster_worker():
         if not poster_download_running:
             start_background_poster_worker()
         else:
-            if is_debug_mode():
+            if debug_mode:
                 print("[DEBUG] Background poster worker already running, skipping setup")
 
 def setup_poster_downloads(debug_mode):
@@ -8380,17 +8452,17 @@ def setup_poster_downloads(debug_mode):
                             print("[INFO] ABS posters are recent, skipping download")
                         
             except Exception as e:
-                if debug_mode:
+                if is_debug_mode():
                     print(f"[ERROR] Background poster setup failed: {e}")
         
         # Start background setup thread
         setup_thread = threading.Thread(target=background_setup, daemon=True)
         setup_thread.start()
         
-        if debug_mode:
+        if is_debug_mode():
             print("[INFO] Started background poster setup thread")
     else:
-        if debug_mode:
+        if is_debug_mode():
             print("[INFO] Skipping poster download: setup is not complete.")
 
 def setup_browser_opening(is_first_run):
@@ -8404,30 +8476,30 @@ def setup_browser_opening(is_first_run):
 def queue_posters_delayed(libraries):
     """Queue poster downloads with a small delay to ensure worker is ready"""
     time.sleep(1)  # Small delay to ensure worker is ready
-    if debug_mode:
+    if is_debug_mode():
         print(f"[INFO] Starting poster download for {len(libraries)} libraries after setup")
     download_and_cache_posters_for_libraries(libraries, background=True)
-    if debug_mode:
+    if is_debug_mode():
         print(f"[INFO] Completed poster download for {len(libraries)} libraries after setup")
 
 def queue_abs_posters_delayed():
     """Queue ABS poster download with a small delay to ensure worker is ready"""
     global abs_download_queued
     time.sleep(1)  # Small delay to ensure worker is ready
-    if debug_mode:
+    if is_debug_mode():
         print("[INFO] Starting ABS poster download after setup")
     poster_download_queue.put(('abs', None, None))
     abs_download_queued = True
-    if debug_mode:
+    if is_debug_mode():
         print("[INFO] Queued ABS poster download after setup")
 
 def fix_metadata_delayed():
     """Fix any missing metadata files after a delay"""
     time.sleep(5)  # Wait for poster downloads to complete
-    if debug_mode:
+    if is_debug_mode():
         print("[INFO] Checking for missing metadata files after setup")
     fix_missing_metadata_files()
-    if debug_mode:
+    if is_debug_mode():
         print("[INFO] Completed metadata file check after setup")
 
 @app.route("/error-logs", methods=["GET", "POST"])
@@ -8560,10 +8632,58 @@ def medialists():
     selected_ids = [i.strip() for i in selected_ids.split(",") if i.strip()]
     filtered_libraries = [lib for lib in libraries if lib["key"] in selected_ids]
 
+    # Apply the same ordering logic as onboarding:
+    # 1. Libraries with carousels first (in carousel tab order)
+    # 2. Libraries without carousels (in A-Z order)
+    # 3. Audiobooks at the bottom
+    
+    # Get carousel library IDs
+    library_carousels = os.getenv("LIBRARY_CAROUSELS", "")
+    carousel_ids = set()
+    if library_carousels:
+        carousel_ids = {str(id).strip() for id in library_carousels.split(",") if str(id).strip()}
+    
+    # Separate libraries with and without carousels
+    libraries_with_carousels = []
+    libraries_without_carousels = []
+    
+    for lib in filtered_libraries:
+        if str(lib["key"]) in carousel_ids:
+            libraries_with_carousels.append(lib)
+        else:
+            libraries_without_carousels.append(lib)
+    
+    # Apply carousel tab order to libraries with carousels
+    library_carousel_order = os.getenv("LIBRARY_CAROUSEL_ORDER", "")
+    if library_carousel_order and libraries_with_carousels:
+        custom_order_ids = [str(id).strip() for id in library_carousel_order.split(",") if str(id).strip()]
+        
+        # Create ordered list based on custom order
+        ordered_carousel_libraries = []
+        for lib_id in custom_order_ids:
+            matching_lib = next((lib for lib in libraries_with_carousels if str(lib["key"]) == lib_id), None)
+            if matching_lib:
+                ordered_carousel_libraries.append(matching_lib)
+        
+        # Add any remaining carousel libraries that weren't in the custom order
+        remaining_carousel_libs = [lib for lib in libraries_with_carousels if str(lib["key"]) not in custom_order_ids]
+        ordered_carousel_libraries.extend(remaining_carousel_libs)
+        
+        libraries_with_carousels = ordered_carousel_libraries
+    elif libraries_with_carousels:
+        # If no custom order specified, sort carousel libraries alphabetically
+        libraries_with_carousels.sort(key=lambda lib: lib["title"].lower())
+    
+    # Sort libraries without carousels alphabetically by title
+    libraries_without_carousels.sort(key=lambda lib: lib["title"].lower())
+    
+    # Combine the lists: carousel libraries first, then non-carousel libraries
+    ordered_libraries = libraries_with_carousels + libraries_without_carousels
+
     library_media = {}
     library_counts = {}  # Track total counts for each library
     # Only load titles for libraries (posters will be loaded on-demand via AJAX)
-    for lib in filtered_libraries:
+    for lib in ordered_libraries:
         section_id = lib["key"]
         name = lib["title"]
         titles = fetch_titles_for_library(section_id)

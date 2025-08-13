@@ -228,6 +228,24 @@ Create and activate a venv (conda or through system python), then:
 - It runs on port `10000` by default (change it with `changeport.py`)
 - Go to `http://127.0.0.1:10000` (or your configured port)
 
+# Debugging
+
+There are debugging options to help with troubleshooting:
+
+## Server-Side Debugging
+- **Enable Flask debugging**: Set `FLASK_DEBUG=1` in your `.env` file
+- **Disable Flask debugging**: Set `FLASK_DEBUG=0` in your `.env` file
+- This controls Python server-side logging and error messages
+- On by default
+
+## Client-Side Debugging  
+- **Enable JavaScript debugging**: Set `JS_DEBUG=1` in your `.env` file
+- **Disable JavaScript debugging**: Set `JS_DEBUG=0` in your `.env` file
+- This controls browser console logging (reduces performance when enabled)
+- Off by default
+
+After changing these settings, restart the app
+
 # Setup Form
 
 - First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1a_setup-desktop.png). Everything here can be changed afterwards from Settings on [/services](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/7a_services-desktop.png)
@@ -239,7 +257,6 @@ Create and activate a venv (conda or through system python), then:
 
 
 # Per-Host Tweaks
-
 
 <!-- S
 USE https://dashboardicons.com/icons For icons. 
