@@ -281,11 +281,11 @@ I've never made a project this complex, or had a project this many people were i
 
 Only missing feature I want to add is language switching. Someone already started that [here](https://github.com/secretlycarl/onboarderr/pull/24)
 
-If you want to make it better, please do! Fork, PR, make an issue
+
 
 # Thank You!
 
-Thanks for your interest in my project! I hope you find it useful. If you want to give me a tip for putting this all together - 
+Thanks for your interest in my project! I hope you find it useful. If you want to make it better, please do! Fork, PR, make an issue :)
 
 [ko-fi.com/secretlycarl](https://ko-fi.com/secretlycarl)
 
