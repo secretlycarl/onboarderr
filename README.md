@@ -249,7 +249,7 @@ https://github.com/homarr-labs/dashboard-icons/tree/main/webp has all icons.
 
 Most customization is done on setup and settings in the admin panel, but you may want to tweak some HTML contents or instructional images it comes with.
 
-- Delete placeholder `plex_submissions.json` and `audiobookshelf_submissions.json`. The ones that come with it have example data to populate the requests sections on `/services`
+- Delete the example placeholder submissions from `plex_submissions.json` and `audiobookshelf_submissions.json` from the appropriate requests section on `/services`
 
 - I have my Pulsarr instance set up to use the "First Season Rolling" Sonarr monitoring option, so my instructions for Pulsarr watchlist requesting reflect that. Change if you use a different monitoring option.
   
