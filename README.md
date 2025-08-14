@@ -271,7 +271,7 @@ git pull	# gets updates
 git stash pop	# re-applies your changes on top
 ```
 
-If you ever have trouble with an update, just make a new clean instance, copy/paste your previous `.env`,`/posters` folder, `library_notes.json`, any log files, and any custom files to the correct locations in the new one and it should bring everything you need to skip setup.
+If you ever have trouble with an update, just make a new clean instance, copy/paste your previous `.env`, `library_notes.json`, any log files, and any custom files to the correct locations in the new one and it should bring everything you need to skip setup.
 
 Keep copies of custom assets in another folder!
 
