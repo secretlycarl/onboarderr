@@ -177,7 +177,7 @@ Alternatively, you can manually change the port by:
 
 [Go to Site Setup Instructions](https://github.com/secretlycarl/onboarderr?tab=readme-ov-file#setup-form)
 
-# Hosting on UNRAID (untested)
+# Hosting on UNRAID
 
 > **Note:** I'm not familiar with UNRAID, but I believe this will get you up and running. Waiting on CA approval. Tell me about issues if you have any.
 
@@ -191,15 +191,15 @@ Once it's approved, you can install this app directly from the Unraid Community 
 
 - Click Apply to start the container
 
-> **Note:** For now, you can manually add the template repository:
+> **Note:** For now, you can manually add it:
 
-- Go to **Apps > Settings > CA Settings > Add New Repository**
+- Navigate to the Apps page
+ 
+- Search for Onboarderr in the search bar. Nothing will come up at first.
 
-- Paste this URL: https://github.com/secretlycarl/onboarderr-unraid
+- Next to the search bar, a button titled DockerHub will pop up, select that and Onboarderr will appear.
 
-- After saving, return to the Apps tab and search again.
-
-Alternatively, you can add it from the Docker tab in the UNRAID interface.  
+- Select and install it, and unraid will ask if you want to do any custom configuration.
 
 To update the docker image:
 
