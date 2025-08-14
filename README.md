@@ -116,8 +116,8 @@ Method of making your local server publicly accessible:
 
 Depending if you have Pulsarr, Overseerr, Jellyseerr, or none, some body content (5. Requests on `/onboarding`) will change.
 
-[Tautulli](https://github.com/Tautulli/Tautulli) - Per-user specific "episode/media item added" notifications on Discord
-- Required for Pulsarr notifications
+[Tautulli](https://github.com/Tautulli/Tautulli) - Required for Pulsarr notifications, useful in general
+- I use it if users want notifications for content added to non-movie/show libraries
 
 [Sonarr](https://github.com/Sonarr/Sonarr) & [Radarr](https://github.com/Radarr/Radarr) - to grab the watchlisted content
 
