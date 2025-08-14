@@ -236,10 +236,9 @@ Create and activate a venv (conda or through system python), then:
 - First run will bring you to [/setup](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/1a_setup-desktop.png). Everything here can be changed afterwards from Settings on [/services](https://github.com/secretlycarl/onboarderr/blob/main/screenshots/7a_services-desktop.png)
 - The library descriptions you write are saved to ```library_notes.json```, and displayed on the Plex onboarding page in section 1
 - After submission, the app will restart to apply the new ```.env```, wait for poster downloads, then direct to `/login`
+  - The poster and metadata download can take a while for large libraries
 - ```ADMIN_PASSWORD``` will take you to services page, but you can browse the others from the links at the top
 - ```SITE_PASSWORD``` will not allow access to admin page
-- After submission, it will pull all posters from selected libraries for use across the site. This can take a while for large libraries.
-
 
 # Per-Host Tweaks
 
