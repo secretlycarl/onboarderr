@@ -1819,8 +1819,8 @@ a:hover {
   position: fixed;
   bottom: 20px;
   left: 20px;
-  z-index: 1000;
-  background: rgba(0, 0, 0, 0.9);
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.75);
   padding: 12px;
   border-radius: 8px;
   backdrop-filter: blur(10px);
@@ -1829,6 +1829,8 @@ a:hover {
   min-width: auto;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
+  /* Ensure panel is always above other elements */
+  isolation: isolate;
 }
 
 .jump-sections-panel.minimized {
@@ -1855,9 +1857,12 @@ a:hover {
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  z-index: 1001;
+  z-index: 10000;
   opacity: 0;
   pointer-events: none;
+  /* Ensure button is always clickable */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .jump-sections-panel.minimized .jump-sections-toggle {
@@ -4300,7 +4305,7 @@ details.collapsible-section .section-divider {
   z-index: 1000;
   width: 48px;
   height: 48px;
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
@@ -4321,7 +4326,7 @@ details.collapsible-section .section-divider {
 }
 
 .mobile-jump-to-top:hover {
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 0.2);
   border-color: rgba(255, 255, 255, 0.3);
   transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);

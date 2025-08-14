@@ -72,34 +72,74 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Handle window resize to ensure proper state
+  let resizeTimeout;
   window.addEventListener('resize', () => {
-    const isDesktop = window.matchMedia('(min-width: 1025px)').matches;
-    if (!isDesktop && jumpSectionsPanel.classList.contains('minimized')) {
-      // If switching to mobile, expand the panel
-      jumpSectionsPanel.classList.remove('minimized');
-    }
+    // Debounce resize events to prevent excessive calls
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      const isDesktop = window.matchMedia('(min-width: 1025px)').matches;
+      if (!isDesktop && jumpSectionsPanel.classList.contains('minimized')) {
+        // If switching to mobile, expand the panel
+        jumpSectionsPanel.classList.remove('minimized');
+      }
+      // Ensure panel is visible on desktop after resize
+      if (isDesktop && !jumpSectionsPanel.classList.contains('minimized')) {
+        // Force a reflow to ensure proper rendering
+        jumpSectionsPanel.offsetHeight;
+      }
+    }, 100);
   });
 
   // Add a small delay to prevent accidental clicks during page load
   let isInitialized = false;
   setTimeout(() => {
     isInitialized = true;
-  }, 500);
+  }, 300); // Reduced from 500ms to 300ms
 
-  // Prevent accidental clicks during page load
-  jumpSectionsToggle.addEventListener('click', (event) => {
+  // Prevent accidental clicks during page load (without removing the listener)
+  const handleInitialClick = (event) => {
     if (!isInitialized) {
       event.preventDefault();
       return;
     }
-  }, { once: true });
+    // Remove this wrapper once initialized
+    jumpSectionsToggle.removeEventListener('click', handleInitialClick);
+    if (jumpSectionsTitleToggle) {
+      jumpSectionsTitleToggle.removeEventListener('click', handleInitialClick);
+    }
+  };
 
+  jumpSectionsToggle.addEventListener('click', handleInitialClick);
   if (jumpSectionsTitleToggle) {
-    jumpSectionsTitleToggle.addEventListener('click', (event) => {
-      if (!isInitialized) {
-        event.preventDefault();
-        return;
-      }
-    }, { once: true });
+    jumpSectionsTitleToggle.addEventListener('click', handleInitialClick);
   }
+
+  // Fallback mechanism: Add a global click handler as backup
+  let fallbackClickCount = 0;
+  const fallbackClickHandler = (event) => {
+    // Only trigger if clicking on the panel area and no other handlers worked
+    if (event.target.closest('.jump-sections-panel') && 
+        !event.target.closest('.jump-sections-toggle') && 
+        !event.target.closest('.jump-sections-title-toggle')) {
+      fallbackClickCount++;
+      if (fallbackClickCount >= 3) { // After 3 clicks, force toggle
+        handleToggle();
+        fallbackClickCount = 0;
+      }
+    } else {
+      fallbackClickCount = 0;
+    }
+  };
+
+  // Add fallback handler after a delay
+  setTimeout(() => {
+    document.addEventListener('click', fallbackClickHandler);
+  }, 1000);
+
+  // Emergency reset function (can be called from console)
+  window.resetJumpSectionsPanel = () => {
+    jumpSectionsPanel.classList.remove('minimized');
+    localStorage.setItem('jumpSectionsMinimized', 'false');
+    console.log('Jump sections panel reset');
+  };
 }); 

@@ -365,17 +365,26 @@
         </p>
         
         {% if section7_content.payment_services %}
-        <p>
-          Donate to my hard drive fund:
-        </p>
-        
-        <ul class="text-left max-800">
+          {% set has_valid_services = false %}
           {% for service in section7_content.payment_services %}
             {% if service.title and service.handle %}
-              <li>{{ service.title }} - <b>{{ service.handle }}</b></li>
+              {% set has_valid_services = true %}
             {% endif %}
           {% endfor %}
-        </ul>
+          
+          {% if has_valid_services %}
+          <p>
+            Donate to my hard drive fund:
+          </p>
+          
+          <ul class="text-left max-800">
+            {% for service in section7_content.payment_services %}
+              {% if service.title and service.handle %}
+                <li>{{ service.title }} - <b>{{ service.handle }}</b></li>
+              {% endif %}
+            {% endfor %}
+          </ul>
+          {% endif %}
         {% endif %}
         
         <!-- 
