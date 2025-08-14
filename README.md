@@ -52,7 +52,7 @@ Added new security features:
 
 A new `security_log.json` is created to track the security events.
 
-This is the start of my security improvements. Check any `in progress` issues to see what's being worked on.
+This is the start of my security improvements. Check the [to-do](https://github.com/secretlycarl/onboarderr/issues?q=is%3Aissue%20state%3Aopen%20label%3Ato-do) issues to see what I'll be working on next.
 
 ## Misc Frontend and Backend Tweaks
 - `/services` has a new 2 column layout, and a new "jump to:" panel to quickly jump to your desired section
