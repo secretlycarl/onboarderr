@@ -77,7 +77,7 @@ Let me know of any bugs and other feedback :)
 
 # Features
 
-- Docker & UNRAID (needs testing) support (also Win/Mac/Linux)
+- Docker & UNRAID support (also Win/Mac/Linux)
 - Customizable branding
 - Setup instructions for Plex and Audiobookshelf users
 - User access request forms for Plex and ABS
