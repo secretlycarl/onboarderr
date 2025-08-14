@@ -181,7 +181,7 @@ Alternatively, you can manually change the port by:
 
 > **Note:** I'm not familiar with UNRAID, but I believe this will get you up and running. Waiting on CA approval. Tell me about issues if you have any.
 
-You can install this app directly from the Unraid Community Applications (CA) plugin:
+Once it's approved, you can install this app directly from the Unraid Community Applications plugin:
 
 - On your Unraid server, open the Apps tab
 
@@ -191,13 +191,15 @@ You can install this app directly from the Unraid Community Applications (CA) pl
 
 - Click Apply to start the container
 
-> **Note:** If you don't see it listed, you can manually add the template repository:
+> **Note:** For now, you can manually add the template repository:
 
 - Go to **Apps > Settings > CA Settings > Add New Repository**
 
 - Paste this URL: https://github.com/secretlycarl/onboarderr-unraid
 
 - After saving, return to the Apps tab and search again.
+
+Alternatively, you can add it from the Docker tab in the UNRAID interface.  
 
 To update the docker image:
 
