@@ -51,6 +51,69 @@ if not os.path.exists('.env') and os.path.exists('empty.env'):
     print('\n[WARN] .env file not found. Copying empty.env to .env for you.\n')
     shutil.copyfile('empty.env', '.env')
 
+def update_env_with_missing_variables():
+    """Compare .env and empty.env, add missing variables to .env while preserving existing values and comments"""
+    if not os.path.exists('empty.env'):
+        print('[WARN] empty.env not found, skipping .env update')
+        return
+    
+    if not os.path.exists('.env'):
+        print('[WARN] .env not found, copying empty.env to .env')
+        shutil.copyfile('empty.env', '.env')
+        return
+    
+    try:
+        # Read empty.env to get all expected variables
+        with open('empty.env', 'r', encoding='utf-8') as f:
+            empty_env_content = f.read()
+        
+        # Parse empty.env to get variable names and default values
+        empty_vars = {}
+        for line in empty_env_content.split('\n'):
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                key, value = line.split('=', 1)
+                empty_vars[key.strip()] = value.strip()
+        
+        # Read current .env
+        with open('.env', 'r', encoding='utf-8') as f:
+            current_env_content = f.read()
+        
+        # Parse current .env to get existing variables
+        current_vars = {}
+        current_lines = current_env_content.split('\n')
+        for line in current_lines:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                key, value = line.split('=', 1)
+                current_vars[key.strip()] = value.strip()
+        
+        # Find missing variables
+        missing_vars = {}
+        for key, default_value in empty_vars.items():
+            if key not in current_vars:
+                missing_vars[key] = default_value
+        
+        if missing_vars:
+            print(f'\n[INFO] Found {len(missing_vars)} missing variables in .env, adding them...')
+            
+            # Add missing variables to the end of .env file
+            with open('.env', 'a', encoding='utf-8') as f:
+                f.write('\n')
+                for key, value in missing_vars.items():
+                    f.write(f'{key}={value}\n')
+                    print(f'[INFO] Added: {key}={value}')
+            
+            print('[INFO] .env file updated successfully\n')
+        else:
+            print('[INFO] .env file is up to date with empty.env\n')
+            
+    except Exception as e:
+        print(f'[ERROR] Failed to update .env file: {e}')
+
+# Update .env with missing variables on startup
+update_env_with_missing_variables()
+
 # ============================================================================
 # ERROR LOGGING SYSTEM
 # ============================================================================
@@ -3906,16 +3969,11 @@ def services():
         for i in range(3):
             title = request.form.get(f"payment_service_{i}_title", "").strip()
             handle = request.form.get(f"payment_service_{i}_handle", "").strip()
-            if title or handle:  # Save even if only one field is filled
+            # Only add services that have both title and handle filled
+            if title and handle:
                 payment_services.append({
                     "title": title,
                     "handle": handle
-                })
-            else:
-                # Add empty service to maintain 3 slots
-                payment_services.append({
-                    "title": "",
-                    "handle": ""
                 })
         
         section7_content = {
@@ -6668,16 +6726,11 @@ def setup():
         for i in range(3):
             title = form.get(f"payment_service_{i}_title", "").strip()
             handle = form.get(f"payment_service_{i}_handle", "").strip()
-            if title or handle:  # Save even if only one field is filled
+            # Only add services that have both title and handle filled
+            if title and handle:
                 payment_services.append({
                     "title": title,
                     "handle": handle
-                })
-            else:
-                # Add empty service to maintain 3 slots
-                payment_services.append({
-                    "title": "",
-                    "handle": ""
                 })
         
         section7_content = {

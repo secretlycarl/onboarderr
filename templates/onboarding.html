@@ -364,24 +364,22 @@
           {{ section7_content.personal_message }}
         </p>
         
-        {% if section7_content.payment_services %}
-          {% set has_valid_services = false %}
+        {% if section7_content.payment_services and section7_content.payment_services|length > 0 %}
+          {% set valid_services = [] %}
           {% for service in section7_content.payment_services %}
             {% if service.title and service.handle %}
-              {% set has_valid_services = true %}
+              {% set _ = valid_services.append(service) %}
             {% endif %}
           {% endfor %}
           
-          {% if has_valid_services %}
+          {% if valid_services|length > 0 %}
           <p>
             Donate to my hard drive fund:
           </p>
           
           <ul class="text-left max-800">
-            {% for service in section7_content.payment_services %}
-              {% if service.title and service.handle %}
-                <li>{{ service.title }} - <b>{{ service.handle }}</b></li>
-              {% endif %}
+            {% for service in valid_services %}
+              <li>{{ service.title }} - <b>{{ service.handle }}</b></li>
             {% endfor %}
           </ul>
           {% endif %}

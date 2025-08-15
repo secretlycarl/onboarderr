@@ -161,13 +161,13 @@
                 <div style="flex: 1;">
                     <label class="form-label">Service {{ i + 1 }}:</label>
                     <input type="text" name="payment_service_{{ i }}_title" id="payment_service_{{ i }}_title" 
-                           value="{{ section7_content.payment_services[i].title if section7_content and section7_content.payment_services and section7_content.payment_services[i] else '' }}" 
+                           value="{{ section7_content.payment_services[i].title if section7_content and section7_content.payment_services and i < section7_content.payment_services|length and section7_content.payment_services[i] else '' }}" 
                            class="form-input" placeholder="e.g., Venmo, PayPal, Bitcoin">
                 </div>
                 <div style="flex: 1;">
                     <label class="form-label">Handle:</label>
                     <input type="text" name="payment_service_{{ i }}_handle" id="payment_service_{{ i }}_handle" 
-                           value="{{ section7_content.payment_services[i].handle if section7_content and section7_content.payment_services and section7_content.payment_services[i] else '' }}" 
+                           value="{{ section7_content.payment_services[i].handle if section7_content and section7_content.payment_services and i < section7_content.payment_services|length and section7_content.payment_services[i] else '' }}" 
                            class="form-input" placeholder="e.g., @username, email, address">
                 </div>
             </div>
