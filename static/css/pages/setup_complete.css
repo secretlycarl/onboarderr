@@ -1,0 +1,118 @@
+/* Setup Complete Page Styles */
+
+.complete-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.complete-card {
+  max-width: 400px;
+  width: 100%;
+  background: var(--container-bg);
+  border-radius: 1rem;
+  padding: 2rem 2rem;
+  text-align: center;
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--border);
+}
+
+.complete-logo {
+  max-width: 175px;
+  height: auto;
+  margin: 0 auto 1.5rem;
+  display: block;
+}
+
+.complete-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.complete-message {
+  max-width: 80%;
+  font-size: 1rem;
+  color: var(--text);
+  line-height: 1.4;
+  margin: 0.5rem auto;
+  display: block;
+}
+
+.complete-message strong {
+  color: var(--text);
+}
+
+.countdown-container {
+  margin-top: 1rem;
+  margin-bottom: 0rem;
+}
+
+.countdown-bar-container {
+  width: 100%;
+  background: var(--input-bg);
+  border-radius: 1rem;
+  height: 2rem;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--input-border);
+  padding: 0;
+  margin: 0 auto;
+  display: block;
+}
+
+.countdown-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  border-radius: 0.75rem 0 0 0.75rem;
+  transition: width 0.5s ease-out;
+}
+
+.countdown-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.5rem;
+  z-index: 2;
+  white-space: nowrap;
+  min-width: max-content;
+}
+
+.complete-card .login-btn {
+  display: none;
+  margin-top: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: white;
+  border-radius: 1rem;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow);
+}
+
+.complete-card .login-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .complete-card {
+    padding: 2rem 1.5rem;
+  }
+} 

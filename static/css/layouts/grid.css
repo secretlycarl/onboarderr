@@ -1,0 +1,153 @@
+/* Grid Layout Styles */
+
+/* Services Grid Layout */
+.services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Service URLs Grid */
+.service-urls-grid {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+@media (min-width: 640px) {
+  .service-urls-grid {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+}
+
+.service-url-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.service-label {
+  font-weight: 500;
+  color: var(--text);
+  min-width: 120px;
+  font-size: 0.9rem;
+}
+
+/* Permissions Grid */
+.permissions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.8rem;
+}
+
+/* Jump Navigation Links Grid */
+.jump-nav-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.8rem;
+  margin-top: 1rem;
+}
+
+/* Posters Container Grid */
+.posters-container ul {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr); /* Fixed 4 columns for desktop */
+  gap: 1rem;
+  list-style: none;
+  padding: 0 !important; /* Override the 10% padding from .onboarding-content ul */
+  margin: 0;
+  justify-content: center;
+  max-width: 100%;
+}
+
+/* Letter Content Grid */
+.letter-content ul {
+  list-style: none;
+  padding: 0 !important;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  justify-content: center;
+  overflow: visible; /* Ensure grid content is not cut off */
+}
+
+/* Mobile Responsive Grid Adjustments */
+@media (max-width: 640px) {
+  .services-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+  
+  .service-url-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .service-label {
+    min-width: auto;
+  }
+  
+  .permissions-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .jump-nav-links {
+    grid-template-columns: 1fr;
+    gap: 0.6rem;
+  }
+  
+  .posters-container ul {
+    grid-template-columns: repeat(3, 1fr); /* Fixed 3 columns for tablet */
+    gap: 1rem;
+    justify-content: center;
+  }
+  
+  .letter-content ul {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem;
+    justify-content: center;
+    padding: 0 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .posters-container ul {
+    grid-template-columns: repeat(2, 1fr); /* Fixed 2 columns for mobile */
+    gap: 0.75rem;
+    justify-content: center;
+  }
+  
+  .letter-content ul {
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 0.5rem;
+    justify-content: center;
+    padding: 0 !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .services-grid {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.5rem;
+  }
+}
+
+/* Larger screens get more columns */
+@media (min-width: 1200px) {
+  .posters-container ul {
+    grid-template-columns: repeat(5, 1fr); /* 5 columns for large screens */
+  }
+}
+
+@media (min-width: 1600px) {
+  .posters-container ul {
+    grid-template-columns: repeat(5, 1fr); /* 6 columns for very large screens */
+  }
+} 

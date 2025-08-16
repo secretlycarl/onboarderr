@@ -1,0 +1,258 @@
+/* Utility Classes */
+
+/* Text Utilities */
+.text-left {
+  text-align: left !important;
+}
+
+.accent {
+  color: var(--accent) !important;
+}
+
+.muted {
+  color: var(--text-muted) !important;
+}
+
+/* Layout Utilities */
+.max-850 {
+  max-width: 850px !important;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Wordmark Styles */
+.wordmark {
+  width: 100%;
+  max-width: 400px;
+  min-width: 120px;
+  display: block;
+  margin: 2rem auto 2rem;
+  height: auto;
+}
+
+/* Mobile Responsive for Wordmark */
+@media (pointer: coarse) and (max-width: 1024px) {
+  .wordmark {
+    max-width: 70%;
+    margin: 3rem auto 2rem;
+  }
+}
+
+/* Caption Styles */
+.caption {
+  color: var(--text) !important;
+  font-size: 1rem;
+  text-align: center;
+  margin-top: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+/* Mobile Responsive for Caption */
+@media (pointer: coarse) and (max-width: 1024px) {
+  .caption {
+    font-size: 1rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* Mobile-only content */
+.mobile-only {
+  display: none;
+}
+
+/* Show mobile-only content on actual mobile devices */
+.mobile-device .mobile-only {
+  display: block;
+}
+
+/* Fallback for older browsers */
+@media (max-width: 768px) {
+  .mobile-only {
+    display: block;
+  }
+  
+  .carousel-note {
+    text-align: left;
+  }
+  
+  .screenshot-caption {
+    text-align: left;
+  }
+}
+
+/* Paragraph and List Styling */
+p {
+  margin-bottom: 1.25rem;
+}
+
+/* Override collapsible section margin reset for last-child paragraphs */
+details.collapsible-section p:last-child {
+  margin-bottom: 1rem !important;
+}
+
+ul {
+  list-style: disc;
+  padding-left: 10%;
+  margin-bottom: 1.25rem;
+}
+
+/* Ensure onboarding and audiobookshelf templates have consistent ul styling */
+.onboarding-content ul,
+.onboarding-section ul,
+details.collapsible-section ul {
+  list-style: disc;
+  padding-left: 10% !important;
+  margin-bottom: 1.25rem;
+}
+
+/* Target specific classes that might override padding */
+.onboarding-content ul.text-left,
+.onboarding-section ul.text-left,
+details.collapsible-section ul.text-left,
+.onboarding-content ul.max-800,
+.onboarding-section ul.max-800,
+details.collapsible-section ul.max-800 {
+  padding-left: 10% !important;
+}
+
+ul:last-child {
+  margin-bottom: 1rem;
+}
+
+li {
+  margin-bottom: 0.5rem;
+}
+
+/* Link Styles */
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+a:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+/* Service link styling */
+.service-link {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+/* Mobile Device Detection */
+.mobile-device .mobile-only {
+  display: block !important;
+}
+
+/* Info Boxes */
+.info-box {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+/* File Help + Info Box Adjacent Sibling */
+.file-help + .info-box {
+  margin-top: 0.5rem;
+}
+
+.file-help:has(+ .info-box) {
+  margin-bottom: 0.25rem;
+}
+
+/* Mobile Device Overrides */
+.mobile-device .setup-form > .info-box {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.mobile-device .form-section .info-box {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.mobile-device .onboarding-section .info-box {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.mobile-device .onboarding-section .warning-box {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.mobile-device .onboarding-section .error-box {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Fallback for older browsers that don't support the class approach */
+@media (pointer: coarse) and (max-width: 1024px) {
+  .setup-form > .info-box {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  .form-section .info-box {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  .onboarding-section .info-box {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  .onboarding-section .warning-box {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  .onboarding-section .error-box {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  /* Small mobile adjustments for paragraphs and lists */
+  p {
+    margin-bottom: 1.25rem;
+  }
+  
+  ul {
+    padding-left: 15%;
+  }
+  
+  .onboarding-content ul,
+  .onboarding-section ul,
+  details.collapsible-section ul {
+    padding-left: 15% !important;
+  }
+  
+  /* Target specific classes that might override padding on mobile */
+  .onboarding-content ul.text-left,
+  .onboarding-section ul.text-left,
+  details.collapsible-section ul.text-left,
+  .onboarding-content ul.max-800,
+  .onboarding-section ul.max-800,
+  details.collapsible-section ul.max-800 {
+    padding-left: 15% !important;
+  }
+  
+  li {
+    margin-bottom: 0.5rem;
+  }
+} 

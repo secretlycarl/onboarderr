@@ -1,0 +1,40 @@
+/* CSS Custom Properties - Design System Variables */
+
+:root {
+  /* Color Palette */
+  --bg: #111111;
+  --container-bg: #1e1e1e;
+  --card-bg: #1a1a1a;
+  
+  /* Accent Colors */
+  --accent: var(--accent-color);
+  --accent-hover: color-mix(in srgb, var(--accent) 85%, black);
+  --accent-dark: color-mix(in srgb, var(--accent) 70%, black);
+  --accent-10: color-mix(in srgb, var(--accent) 10%, transparent);
+  --accent-20: color-mix(in srgb, var(--accent) 20%, transparent);
+  
+  /* Text Colors */
+  --text: #ffffff;
+  --text-muted: #a0a0a0;
+  --text-secondary: #888888;
+  
+  /* Border Colors */
+  --border: #424242;
+  
+  /* Input Colors */
+  --input-bg: #424242;
+  --input-border: #424242;
+  --input-focus: #4f46e5;
+  
+  /* Status Colors */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  
+  /* Shadow System */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+} 

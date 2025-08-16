@@ -1,0 +1,246 @@
+/* Card Component Styles */
+
+/* Service Cards */
+.service-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background-color: var(--card-bg);
+  padding: 1.5rem 1rem;
+  border-radius: 1rem;
+  color: var(--text);
+  text-decoration: none;
+  box-shadow: var(--shadow);
+  transition: all 0.2s ease;
+  border: 1px solid var(--border);
+  min-height: 120px;
+}
+
+.service-card:hover {
+  transform: translateY(-2px);
+  background-color: var(--container-bg);
+  box-shadow: var(--shadow-md);
+  border-color: var(--accent-20);
+}
+
+.service-icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 0.75rem;
+  border-radius: 50%;
+  padding: 0.5rem;
+}
+
+.service-icon {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  filter: brightness(0.9);
+  transition: filter 0.2s ease;
+}
+
+.service-card:hover .service-icon {
+  filter: brightness(1.1);
+}
+
+.service-name {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.2;
+  max-width: 100%;
+  word-wrap: break-word;
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
+/* Library Items */
+.library-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: var(--input-bg);
+  border-radius: 0.5rem;
+  border: 1px solid var(--input-border);
+  transition: all 0.2s ease;
+  flex-wrap: nowrap;
+}
+
+.library-item:hover {
+  border-color: var(--accent);
+  background: var(--accent-20);
+}
+
+.library-checkbox {
+  width: 1.25rem;
+  height: 1.25rem;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.library-title {
+  font-weight: 500;
+  color: var(--text);
+  flex: 1;
+  margin-bottom: 0;
+  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  min-height: 1.5rem;
+  min-width: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  margin-left: 0.5rem;
+}
+
+.library-id {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  text-align: right;
+  flex-shrink: 0;
+  min-width: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.library-description {
+  color: var(--text-muted);
+  font-size: 0.9em;
+  text-align: left;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+/* Description Items */
+.description-item {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: var(--card-bg);
+  border-radius: 0.5rem;
+  border: 1px solid var(--input-border);
+}
+
+.description-label {
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+/* Info Boxes */
+.info-box {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.warning-box {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.error-box {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .service-card {
+    padding: 1rem 0.75rem;
+    min-height: 100px;
+  }
+  
+  .service-icon-container {
+    width: 36px;
+    height: 36px;
+    margin-bottom: 0.5rem;
+  }
+  
+  .service-icon {
+    width: 36px !important;
+    height: 36px !important;
+  }
+  
+  .service-name {
+    font-size: 0.8rem;
+  }
+  
+  .library-item {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+  }
+  
+  .library-checkbox {
+    margin-top: 0;
+  }
+  
+  .library-title {
+    flex: 1;
+    margin-left: 0.25rem;
+  }
+  
+  .library-id {
+    text-align: right;
+    flex-shrink: 0;
+  }
+  
+  .library-description {
+    width: 100%;
+    text-align: left;
+    margin-top: 0.5rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .service-card {
+    padding: 1.75rem 1.25rem;
+    min-height: 140px;
+  }
+  
+  .service-icon-container {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 1rem;
+  }
+  
+  .service-name {
+    font-size: 1rem;
+  }
+} 

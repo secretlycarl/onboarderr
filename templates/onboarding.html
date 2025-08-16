@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ SERVER_NAME }} - Join Plex</title>
   <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}" />
-  <link rel="stylesheet" href="/static/modern-style.css" />
+  <link rel="stylesheet" href="/static/css/modern-style.css" />
   <script>
     // Set accent color from environment variable
     document.addEventListener('DOMContentLoaded', function() {
@@ -66,10 +66,10 @@
         <p class="carousel-note">
           {% if carousel_libraries|length > 1 %}
           Random selection of posters from each library. Go <a href="/medialists" class="accent" id="medialists-link">here</a> for the full list. <br>
-          <span class="mobile-only">On mobile, scroll horizontally to browse through posters.</span>
+          <span class="mobile-only">On mobile, scroll horizontally to browse.</span>
           {% else %}
           Random selection of posters from my library. Go <a href="/medialists" class="accent" id="medialists-link">here</a> for the full list. <br>
-          <span class="mobile-only">On mobile, scroll horizontally to browse through posters.</span>
+          <span class="mobile-only">On mobile, scroll horizontally to browse.</span>
           {% endif %}
         </p>
 

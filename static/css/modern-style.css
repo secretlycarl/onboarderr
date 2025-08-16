@@ -1,0 +1,23 @@
+/* Import base styles */
+@import url('./base/variables.css');
+@import url('./base/reset.css');
+@import url('./base/utilities.css');
+
+/* Import component styles */
+@import url('./components/buttons.css');
+@import url('./components/forms.css');
+@import url('./components/cards.css');
+@import url('./components/navigation.css');
+@import url('./components/carousel.css');
+@import url('./components/modals.css');
+
+/* Import layout styles */
+@import url('./layouts/grid.css');
+@import url('./layouts/containers.css');
+
+/* Import page-specific styles */
+@import url('./pages/login.css');
+@import url('./pages/setup.css');
+@import url('./pages/setup_complete.css');
+@import url('./pages/onboarding.css');
+@import url('./pages/services.css');

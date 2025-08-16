@@ -1,0 +1,113 @@
+/* Login Page Styles */
+
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.login-card {
+  max-width: 400px;
+  width: 100%;
+  background: var(--container-bg);
+  border-radius: 1rem;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--border);
+}
+
+.login-logo {
+  max-width: 175px;
+  height: auto;
+  margin: 0 auto 1.5rem;
+  display: block;
+}
+
+.login-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 1.5rem;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.login-form label {
+  font-weight: 500;
+  color: var(--text);
+  text-align: left;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.login-form input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 0.5rem;
+  color: var(--text);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.login-form input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-10);
+}
+
+.login-form input::placeholder {
+  color: var(--text-secondary);
+}
+
+.login-btn {
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: white;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 1rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow);
+  width: 100%;
+  margin: 0 auto;
+  display: block;
+}
+
+.login-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.countdown {
+  font-size: 1.2em;
+}
+
+.rate-limit-message {
+  text-align: center;
+  color: var(--error);
+  font-weight: bold;
+  margin: 1em 0;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .login-title {
+    font-size: 1.5rem;
+  }
+} 
