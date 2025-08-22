@@ -176,6 +176,7 @@
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
+  text-align: left;
 }
 
 /* Mobile Responsive */

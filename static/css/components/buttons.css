@@ -73,6 +73,8 @@
   transition: all 0.2s ease;
   box-shadow: var(--shadow-lg);
   min-width: 200px;
+  display: block;
+  margin: 0 auto;
 }
 
 .submit-btn:hover:not(:disabled) {
