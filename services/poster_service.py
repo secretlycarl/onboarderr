@@ -375,4 +375,84 @@ class PosterService:
             
         except Exception as e:
             print(f"[ERROR] Failed to get posters for library {library_id}: {e}")
-            return [] 
+            return []
+    
+    def should_wait_for_posters(self):
+        """
+        Check if we should wait for poster downloads to complete.
+        
+        Returns:
+            bool: True if we should wait, False otherwise
+        """
+        with self.download_lock:
+            # Check if downloads are in progress
+            if self.download_running and self.download_queue:
+                return True
+            
+            # Check if any downloads are still processing
+            if any(status.get('status') == 'in_progress' for status in self.download_progress.values()):
+                return True
+            
+            return False
+    
+    def is_download_in_progress(self):
+        """
+        Check if any poster downloads are in progress.
+        
+        Returns:
+            bool: True if downloads are in progress, False otherwise
+        """
+        with self.download_lock:
+            return self.download_running and (len(self.download_queue) > 0 or 
+                    any(status.get('status') == 'in_progress' for status in self.download_progress.values()))
+    
+    def get_download_progress(self):
+        """
+        Get the current download progress.
+        
+        Returns:
+            dict: Current download progress
+        """
+        with self.download_lock:
+            return self.download_progress.copy()
+    
+    def get_unified_status(self):
+        """
+        Get the unified download status.
+        
+        Returns:
+            dict: Unified status or None if not available
+        """
+        with self.download_lock:
+            return self.download_progress.get('unified')
+    
+    def should_refresh_abs_posters(self):
+        """
+        Check if ABS posters should be refreshed.
+        
+        Returns:
+            bool: True if refresh is needed, False otherwise
+        """
+        # This is a simplified implementation
+        # In the full implementation, this would check various conditions
+        return False
+    
+    def is_abs_download_in_progress(self):
+        """
+        Check if ABS downloads are in progress.
+        
+        Returns:
+            bool: True if ABS downloads are in progress, False otherwise
+        """
+        with self.download_lock:
+            return self.download_progress.get('abs', {}).get('status') == 'in_progress'
+    
+    def is_abs_download_completed(self):
+        """
+        Check if ABS downloads are completed.
+        
+        Returns:
+            bool: True if ABS downloads are completed, False otherwise
+        """
+        with self.download_lock:
+            return self.download_progress.get('abs', {}).get('status') == 'completed' 

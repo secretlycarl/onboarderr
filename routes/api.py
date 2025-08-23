@@ -30,8 +30,45 @@ def register_api_routes(app):
     
     # Note: We'll handle rate limiting and CSRF differently for the fetch-libraries route
     
-    # Note: fetch-libraries route is handled separately to avoid CSRF issues
-    # It will be registered directly on the app in the main app.py file
+    @api_bp.route("/fetch-libraries", methods=["POST"])
+    def fetch_libraries():
+        """Fetch libraries from Plex server."""
+        
+        try:
+            data = request.get_json()
+            plex_token = data.get("plex_token")
+            plex_url = data.get("plex_url")
+            
+            if not plex_token or not plex_url:
+                return jsonify({"error": "Plex token and URL are required"}), 400
+            
+            headers = {"X-Plex-Token": plex_token}
+            url = f"{plex_url}/library/sections"
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            
+            root = ET.fromstring(response.text)
+            libraries = []
+            
+            for directory in root.findall(".//Directory"):
+                title = directory.attrib.get("title")
+                key = directory.attrib.get("key")
+                media_type = directory.attrib.get("type")  # Get the media type
+                
+                if title and key:
+                    libraries.append({
+                        "title": title, 
+                        "key": key, 
+                        "media_type": media_type
+                    })
+            
+            # For configuration purposes, show all libraries so admin can select which ones should be available
+            # The filtering will be handled by the frontend based on current LIBRARY_IDS
+            
+            return jsonify({"libraries": libraries})
+            
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
     
     @api_bp.route("/ajax/delete-plex-request", methods=["POST"])
     def delete_plex_request():

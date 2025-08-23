@@ -36,8 +36,74 @@ def register_admin_routes(app):
         except Exception as e:
             return jsonify({"error": str(e)}), 500
     
-    # Note: check-restart-readiness route is handled separately to avoid authentication issues
-    # It will be registered directly on the app in the main app.py file
+    @admin_bp.route("/check-restart-readiness", methods=["GET"])
+    def check_restart_readiness():
+        """Check if the system is ready for restart."""
+        
+        try:
+            # Get poster service for status checks
+            from services.poster_service import PosterService
+            poster_service = PosterService()
+            
+            # Check if we should wait for posters
+            should_wait = poster_service.should_wait_for_posters()
+            ready = not should_wait  # Ready if we don't need to wait for posters
+            
+            # Get poster status
+            poster_status = {
+                "in_progress": poster_service.is_download_in_progress(),
+                "worker_running": poster_service.download_running,
+                "queue_size": len(poster_service.download_queue),
+                "progress": poster_service.get_download_progress()
+            }
+            
+            # Get setup download status
+            setup_download_status = {}
+            current_phase = "idle"
+            
+            unified_status = poster_service.get_unified_status()
+            if unified_status:
+                setup_download_status['unified'] = unified_status
+                
+                # Determine current phase based on unified status
+                status = unified_status.get('status', 'idle')
+                if status == 'checking':
+                    current_phase = "checking"
+                elif status == 'no_downloads_needed':
+                    current_phase = "no_downloads_needed"
+                elif status == 'server_offline':
+                    current_phase = "server_offline"
+                elif status == 'plex_downloading':
+                    current_phase = "plex"
+                elif status == 'plex_completed':
+                    current_phase = "plex_completed"
+                elif status == 'abs_downloading':
+                    current_phase = "abs"
+                elif status == 'completed':
+                    current_phase = "completed"
+                elif status == 'error':
+                    current_phase = "error"
+            
+            # Get ABS-specific status
+            abs_enabled = poster_service.config.get("ABS_ENABLED", "yes") == "yes"
+            abs_needs_refresh = poster_service.should_refresh_abs_posters() if abs_enabled else False
+            abs_download_in_progress = poster_service.is_abs_download_in_progress()
+            abs_download_completed = poster_service.is_abs_download_completed()
+            
+            return jsonify({
+                "ready": ready,
+                "poster_status": poster_status,
+                "setup_download_status": setup_download_status,
+                "current_phase": current_phase,
+                "should_wait_for_posters": should_wait,
+                "abs_enabled": abs_enabled,
+                "abs_needs_refresh": abs_needs_refresh,
+                "abs_download_in_progress": abs_download_in_progress,
+                "abs_download_completed": abs_download_completed
+            })
+            
+        except Exception as e:
+            return jsonify({"ready": True, "error": str(e)})
     
     @admin_bp.route("/error-logs", methods=["GET", "POST"])
     def error_logs():
