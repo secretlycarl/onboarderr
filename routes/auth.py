@@ -32,16 +32,29 @@ def get_services():
     debug_log("Getting service instances")
     config = get_config()
     
-    auth_service = AuthService(config)
-    auth_service.initialize()
+    # Only initialize services if not already done
+    if not hasattr(get_services, '_auth_service'):
+        auth_service = AuthService(config)
+        auth_service.initialize()
+        get_services._auth_service = auth_service
+    else:
+        auth_service = get_services._auth_service
     
-    rate_limit_service = RateLimitService(config)
-    rate_limit_service.initialize()
+    if not hasattr(get_services, '_rate_limit_service'):
+        rate_limit_service = RateLimitService(config)
+        rate_limit_service.initialize()
+        get_services._rate_limit_service = rate_limit_service
+    else:
+        rate_limit_service = get_services._rate_limit_service
     
-    notification_service = NotificationService(config)
-    notification_service.initialize()
+    if not hasattr(get_services, '_notification_service'):
+        notification_service = NotificationService(config)
+        notification_service.initialize()
+        get_services._notification_service = notification_service
+    else:
+        notification_service = get_services._notification_service
     
-    debug_log("Service instances initialized successfully")
+    debug_log("Service instances retrieved successfully")
     return auth_service, rate_limit_service, notification_service
 
 def get_client_ip():
@@ -98,8 +111,12 @@ def login():
             session_data = auth_service.create_session(auth_result["user_type"])
             session.update(session_data)
             
-            # Record successful login
+            # Record successful login and check if it's first time
             rate_limit_service.check_first_time_login_success(client_ip)
+            
+            # Reset failed attempts on successful login
+            rate_limit_service.clear_failed_attempts(client_ip)
+            rate_limit_service.clear_lockout(client_ip)
             
             # Get intended URL from form data (sent by client-side JavaScript)
             intended_url_after_login = request.form.get("intended_url_after_login")
@@ -124,6 +141,7 @@ def login():
                 f"Successful login by {auth_result['user_type']} user"
             )
             
+            debug_log(f"Successful login for {auth_result['user_type']} user, redirecting to {redirect_url}")
             return redirect(redirect_url)
         else:
             # Record failed attempt
@@ -138,8 +156,10 @@ def login():
             
             # Check if this is an AJAX request
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                debug_log(f"AJAX login failed, returning JSON error response")
                 return jsonify({"success": False, "error": "Incorrect password"}), 401
             else:
+                debug_log(f"Regular form login failed, returning template with error")
                 return render_template("login.html", 
                     error="Incorrect password",
                     SERVER_NAME=config.get_server_name(),
@@ -159,8 +179,6 @@ def logout():
 
 def register_auth_routes(app):
     """Register authentication routes with the Flask app."""
-    app.register_blueprint(auth_bp, url_prefix='/auth')
-    
-    # Also register the main routes without prefix for backward compatibility
+    # Register routes directly on the app to maintain the same endpoint names
     app.add_url_rule('/login', 'login', login, methods=['GET', 'POST'])
     app.add_url_rule('/logout', 'logout', logout) 

@@ -15,24 +15,21 @@ from config import Config
 
 def get_client_ip() -> str:
     """
-    Get the client IP address from the request.
+    Get the client's IP address, handling proxies.
     
     Returns:
         str: Client IP address
     """
-    # Check for forwarded headers first (for proxy setups)
-    forwarded_for = request.headers.get('X-Forwarded-For')
-    if forwarded_for:
-        # Take the first IP in the chain
-        return forwarded_for.split(',')[0].strip()
-    
-    # Check for real IP header
-    real_ip = request.headers.get('X-Real-IP')
-    if real_ip:
-        return real_ip.strip()
-    
-    # Fall back to remote address
-    return request.remote_addr
+    try:
+        if request.headers.get('X-Forwarded-For'):
+            return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+        elif request.headers.get('X-Real-IP'):
+            return request.headers.get('X-Real-IP')
+        else:
+            return request.remote_addr
+    except RuntimeError:
+        # Handle case where request context is not available
+        return "127.0.0.1"
 
 
 def is_valid_ip_range(ip_range: str) -> bool:
@@ -232,22 +229,24 @@ def safe_operation(operation, error_message: str, error_type: str = "general",
 
 def get_app_url() -> str:
     """
-    Get the application URL based on configuration.
+    Determine the correct URL to open in browser.
     
     Returns:
         str: Application URL
     """
-    config = Config()
+    import os
     
-    # Check if running in Docker
+    # Get port from environment variable
+    port = int(os.getenv('APP_PORT', 10000))
+    
+    # Check if we're in Docker
     if is_running_in_docker():
-        # Use Docker-specific URL
-        docker_host = config.get("DOCKER_HOST", "localhost")
-        port = config.get_int("APP_PORT", 42069)
-        return f"http://{docker_host}:{port}"
+        # In Docker, we need to determine the external URL
+        # This could be localhost if port is mapped, or a different host
+        # For now, we'll use localhost as the most common case
+        return f"http://localhost:{port}"
     else:
-        # Use local development URL
-        port = config.get_int("APP_PORT", 42069)
+        # Native installation
         return f"http://localhost:{port}"
 
 
@@ -261,9 +260,9 @@ def is_running_in_docker() -> bool:
     try:
         with open('/proc/1/cgroup', 'r') as f:
             return any('docker' in line for line in f)
-    except FileNotFoundError:
-        # Not on Linux or not in container
-        return False
+    except (FileNotFoundError, PermissionError):
+        # Check for Docker environment variables
+        return any(var in os.environ for var in ['DOCKER_CONTAINER', 'KUBERNETES_SERVICE_HOST'])
 
 
 def check_network_connectivity(url: str, timeout: int = 10) -> Tuple[bool, str]:
@@ -305,9 +304,44 @@ def get_request_headers() -> Dict[str, str]:
     }
 
 
+def open_browser_delayed():
+    """Open browser after a delay to ensure server is running"""
+    import time
+    import webbrowser
+    
+    time.sleep(2)  # Wait for Flask to start
+    try:
+        url = get_app_url()
+        print(f"\n[INFO] Opening browser to: {url}")
+        webbrowser.open(url)
+    except Exception as e:
+        print(f"[WARN] Failed to open browser: {e}")
+        print(f"[INFO] Please manually open: {get_app_url()}")
+
+
+def get_abs_headers() -> Dict[str, str]:
+    """
+    Get headers for ABS API requests.
+    
+    Returns:
+        Dict[str, str]: Headers dictionary with authorization if token is available
+    """
+    import os
+    from utils.logging_utils import log_debug, log_warning
+    
+    headers = {}
+    abs_token = os.getenv("AUDIOBOOKSHELF_TOKEN")
+    if abs_token:
+        headers["Authorization"] = f"Bearer {abs_token}"
+        log_debug("network_utils", "Using ABS token for authentication")
+    else:
+        log_warning("network_utils", "No ABS token provided, trying without authentication")
+    return headers
+
+
 def format_time_remaining(seconds: int) -> str:
     """
-    Format time remaining in a human-readable format.
+    Format remaining time in a human-readable format.
     
     Args:
         seconds: Number of seconds remaining
@@ -316,12 +350,11 @@ def format_time_remaining(seconds: int) -> str:
         str: Formatted time string
     """
     if seconds < 60:
-        return f"{seconds}s"
+        return f"{int(seconds)} seconds"
     elif seconds < 3600:
-        minutes = seconds // 60
-        remaining_seconds = seconds % 60
-        return f"{minutes}m {remaining_seconds}s"
+        minutes = int(seconds // 60)
+        return f"{minutes} minute{'s' if minutes != 1 else ''}"
     else:
-        hours = seconds // 3600
-        remaining_minutes = (seconds % 3600) // 60
-        return f"{hours}h {remaining_minutes}m" 
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        return f"{hours} hour{'s' if hours != 1 else ''} and {minutes} minute{'s' if minutes != 1 else ''}" 

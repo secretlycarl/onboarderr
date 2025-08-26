@@ -7,6 +7,7 @@ and other alerting functionality.
 
 import time
 from typing import Dict, Optional, Any
+from config import Config
 
 
 class NotificationService:
@@ -19,7 +20,7 @@ class NotificationService:
     
     def __init__(self, config_instance=None):
         """Initialize the notification service."""
-        self.config = config_instance
+        self.config = config_instance or Config()
         self._initialized = False
     
     def initialize(self) -> None:
@@ -155,6 +156,45 @@ class NotificationService:
         
         return self.send_security_alert("suspicious_activity", ip, message)
     
+    def send_security_notification(self, event_type: str, ip: str, details: Optional[Dict[str, Any]] = None) -> bool:
+        """
+        Send a security notification for security events.
+        
+        Args:
+            event_type: The type of security event
+            ip: The IP address involved
+            details: Additional details about the event
+            
+        Returns:
+            True if notification was sent successfully, False otherwise
+        """
+        if not self.is_enabled():
+            return False
+        
+        # Format the message based on event type
+        if event_type == "login_attempt":
+            message = f"Login attempt from IP {ip}"
+        elif event_type == "rate_limit_exceeded":
+            message = f"Rate limit exceeded from IP {ip}"
+        elif event_type == "suspicious_activity":
+            message = f"Suspicious activity detected from IP {ip}"
+        elif event_type == "ip_banned":
+            message = f"IP {ip} has been banned"
+        elif event_type == "ip_whitelisted":
+            message = f"IP {ip} has been whitelisted"
+        elif event_type == "ip_blacklisted":
+            message = f"IP {ip} has been blacklisted"
+        else:
+            message = f"Security event '{event_type}' from IP {ip}"
+        
+        # Add details if provided
+        if details:
+            detail_str = ", ".join([f"{k}: {v}" for k, v in details.items() if k != 'user_agent'])
+            if detail_str:
+                message += f" - {detail_str}"
+        
+        return self.send_security_alert(event_type, ip, message)
+    
     def _get_alert_color(self, alert_type: str) -> int:
         """
         Get the color for a Discord embed based on alert type.
@@ -191,6 +231,12 @@ class NotificationService:
         try:
             import requests
             
+            # Apply API rate limiting
+            from services.rate_limit_service import RateLimitService
+            rate_limit_service = RateLimitService(self.config)
+            rate_limit_service.initialize()
+            rate_limit_service.check_api_rate_limit('discord')
+            
             payload = {
                 "embeds": [embed]
             }
@@ -226,4 +272,71 @@ class NotificationService:
             'enabled': self.is_enabled(),
             'webhook_configured': bool(self.config.get("DISCORD_WEBHOOK_URL")),
             'notifications_sent': 0  # This would be tracked in a real implementation
-        } 
+        }
+    
+    def send_security_discord_notification(self, event_type: str, ip: str, details: str) -> None:
+        """
+        Send Discord notification for security events, respecting notification toggles.
+        
+        Args:
+            event_type: Type of security event
+            ip: IP address involved
+            details: Event details
+        """
+        # Check if Discord notifications are enabled for this event type
+        if event_type == "rate_limited" and not self.config.get_bool("DISCORD_NOTIFY_RATE_LIMITING", False):
+            return
+        if event_type in ["ip_whitelisted", "ip_whitelist_removed", "ip_banned", "ip_blacklist_removed"] and not self.config.get_bool("DISCORD_NOTIFY_IP_MANAGEMENT", False):
+            return
+        if event_type in ["login_success", "login_failed", "login_lockout"] and not self.config.get_bool("DISCORD_NOTIFY_LOGIN_ATTEMPTS", False):
+            return
+        if event_type == "form_rate_limited" and not self.config.get_bool("DISCORD_NOTIFY_FORM_RATE_LIMITING", False):
+            return
+        if event_type == "first_access" and not self.config.get_bool("DISCORD_NOTIFY_FIRST_ACCESS", False):
+            return
+        
+        webhook_url = self.config.get("DISCORD_WEBHOOK")
+        if not self.config.validate_url(webhook_url, "DISCORD_WEBHOOK"):
+            return
+        
+        username = self.config.get("DISCORD_USERNAME", "Onboarderr Security")
+        avatar_url = self.config.get("DISCORD_AVATAR", "")
+        color = self.config.get("DISCORD_COLOR", "#ff0000")  # Red for security events
+        
+        # Get Onboarderr URL for admin link
+        onboarderr_url = self.config.get("ONBOARDERR_URL", "")
+        
+        # Build description with optional admin link
+        description = f"**Security Event:** {event_type.replace('_', ' ').title()}\n**IP:** {ip}\n**Details:** {details}"
+        if onboarderr_url:
+            # Add linked text to admin page
+            admin_link = f"{onboarderr_url}/services"
+            description += f"\n\n[🔧 **View Admin Panel**]({admin_link})"
+        
+        embed = {
+            "title": "🚨 Security Alert",
+            "description": description,
+            "color": int(color.lstrip('#'), 16) if color.startswith('#') else 0,
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        }
+        
+        payload = {
+            "username": username,
+            "embeds": [embed]
+        }
+        if avatar_url:
+            payload["avatar_url"] = avatar_url
+        
+        try:
+            # Apply rate limiting for Discord API
+            from services.rate_limit_service import RateLimitService
+            rate_limit_service = RateLimitService(self.config)
+            rate_limit_service.initialize()
+            rate_limit_service.check_api_rate_limit('discord')
+            
+            timeout = self.config.get_int("DISCORD_API_TIMEOUT", 5)
+            import requests
+            requests.post(webhook_url, json=payload, timeout=timeout)
+        except Exception as e:
+            if self.config.get_bool("FLASK_DEBUG", False):
+                print(f"Failed to send security Discord notification: {e}") 

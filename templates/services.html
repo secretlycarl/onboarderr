@@ -593,6 +593,7 @@
       
       <div class="form-group">
         <button type="button" onclick="fetchLibrariesAdmin()" class="btn btn-secondary">Fetch Plex Libraries</button>
+        <button type="button" onclick="triggerSmartRefresh()" class="btn btn-secondary" style="margin-left: 0.5em;">Smart Refresh Posters</button>
       </div>
              
       <div id="libraries-section-admin" class="library-section" style="display:none;">
@@ -1346,8 +1347,7 @@
       fetch('/fetch-libraries', {
           method: 'POST',
           headers: {
-              'Content-Type': 'application/json',
-              'X-CSRFToken': csrfToken
+              'Content-Type': 'application/json'
           },
           body: JSON.stringify({
               plex_token: token,
@@ -1761,6 +1761,36 @@
           }
       }).catch(error => {
           console.error('Error triggering poster refresh:', error);
+      });
+  }
+  
+  function triggerSmartRefresh() {
+      var csrfToken = document.querySelector('input[name="csrf_token"]').value;
+      const button = event.target;
+      const originalText = button.textContent;
+      button.textContent = 'Refreshing...';
+      button.disabled = true;
+      
+      fetch('/ajax/trigger-smart-refresh', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken
+          }
+      }).then(response => response.json()).then(data => {
+          if (data.success) {
+              alert(`Smart refresh completed!\n\n${data.message}`);
+              console.log('Smart refresh completed:', data);
+          } else {
+              alert('Failed to trigger smart refresh: ' + (data.error || 'Unknown error'));
+              console.error('Failed to trigger smart refresh:', data.error);
+          }
+      }).catch(error => {
+          console.error('Error triggering smart refresh:', error);
+          alert('Error triggering smart refresh. Please try again.');
+      }).finally(() => {
+          button.textContent = originalText;
+          button.disabled = false;
       });
   }
   

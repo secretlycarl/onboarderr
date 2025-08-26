@@ -10,6 +10,7 @@ import requests
 import xml.etree.ElementTree as ET
 from typing import Dict, List, Tuple, Optional, Any
 from pathlib import Path
+import threading
 
 from config import get_config
 import os
@@ -34,12 +35,31 @@ from utils.crypto_utils import generate_salt, hash_password
 class SetupService:
     """Service class for handling setup operations."""
     
+    _instance = None
+    _lock = threading.Lock()
+    
+    def __new__(cls):
+        """Implement singleton pattern."""
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+        return cls._instance
+    
     def __init__(self):
         """Initialize the setup service."""
-        debug_log(f"[DEBUG] SetupService constructor called")
+        # Only initialize once
+        if hasattr(self, '_initialized'):
+            return
+            
+        # Only log initialization in verbose debug mode
+        if os.getenv("VERBOSE_DEBUG", "0") == "1":
+            debug_log(f"[DEBUG] SetupService constructor called")
         self.config = get_config()
         self.env_path = get_env_file_path()
-        debug_log(f"[DEBUG] SetupService initialized with env path: {self.env_path}")
+        self._initialized = True
+        if os.getenv("VERBOSE_DEBUG", "0") == "1":
+            debug_log(f"[DEBUG] SetupService initialized with env path: {self.env_path}")
     
     def is_setup_complete(self) -> bool:
         """
@@ -49,7 +69,9 @@ class SetupService:
             True if setup is complete, False otherwise
         """
         setup_complete = self.config.is_setup_complete()
-        debug_log(f"[DEBUG] Setup service setup complete check: {setup_complete}")
+        # Only log setup complete checks in verbose debug mode
+        if os.getenv("VERBOSE_DEBUG", "0") == "1":
+            debug_log(f"[DEBUG] Setup service setup complete check: {setup_complete}")
         return setup_complete
     
     def get_setup_context(self) -> Dict[str, Any]:
@@ -87,7 +109,10 @@ class SetupService:
             "ACCENT_COLOR": self.config.get(ACCENT_COLOR_KEY, "#d33fbc"),
             "service_urls": self.config.get_service_urls(),
             "ip_lists": self._get_ip_lists(),
-            "section7_content": self._load_section7_content()
+            "section7_content": self._load_section7_content(),
+            "RATE_LIMIT_SETTINGS_ENABLED": self.config.get(RATE_LIMIT_SETTINGS_ENABLED_KEY, "yes"),
+            "RATE_LIMIT_MAX_LOGIN_ATTEMPTS": self.config.get_int(RATE_LIMIT_MAX_LOGIN_ATTEMPTS_KEY, 5),
+            "RATE_LIMIT_MAX_FORM_SUBMISSIONS": self.config.get_int(RATE_LIMIT_MAX_FORM_SUBMISSIONS_KEY, 2)
         }
     
     def validate_setup_form(self, form_data: Dict[str, Any]) -> Tuple[bool, Optional[str], Dict[str, Any]]:
@@ -264,6 +289,15 @@ class SetupService:
             debug_log(f"[DEBUG] Reloading config instance")
             self.config.reload()
             
+            # Clear template context cache to ensure fresh data
+            try:
+                from services.template_context_service import TemplateContextService
+                template_service = TemplateContextService()
+                template_service.clear_cache()
+                debug_log(f"[DEBUG] Template context cache cleared")
+            except Exception as e:
+                debug_log(f"[WARN] Failed to clear template context cache: {e}")
+            
             debug_log(f"[INFO] Setup form processed successfully")
             return True, None
             
@@ -282,7 +316,10 @@ class SetupService:
             "server_name": self.config.get(SERVER_NAME_KEY, ""),
             "service_urls": self.config.get_service_urls(),
             "ip_lists": self._get_ip_lists(),
-            "section7_content": self._load_section7_content()
+            "section7_content": self._load_section7_content(),
+            "RATE_LIMIT_SETTINGS_ENABLED": self.config.get(RATE_LIMIT_SETTINGS_ENABLED_KEY, "yes"),
+            "RATE_LIMIT_MAX_LOGIN_ATTEMPTS": self.config.get_int(RATE_LIMIT_MAX_LOGIN_ATTEMPTS_KEY, 5),
+            "RATE_LIMIT_MAX_FORM_SUBMISSIONS": self.config.get_int(RATE_LIMIT_MAX_FORM_SUBMISSIONS_KEY, 2)
         }
     
     def _save_discord_settings(self, form_data: Dict[str, Any]):
@@ -344,6 +381,13 @@ class SetupService:
             try:
                 headers = {"X-Plex-Token": plex_token}
                 url = f"{plex_url}/library/sections"
+                
+                # Apply API rate limiting
+                from services.rate_limit_service import RateLimitService
+                rate_limit_service = RateLimitService(self.config)
+                rate_limit_service.initialize()
+                rate_limit_service.check_api_rate_limit('plex')
+                
                 response = requests.get(url, headers=headers, timeout=5)
                 response.raise_for_status()
                 
@@ -393,6 +437,37 @@ class SetupService:
             safe_set_key(self.env_path, LIBRARY_CAROUSEL_ORDER_KEY, ",".join(valid_order_ids))
         else:
             safe_set_key(self.env_path, LIBRARY_CAROUSEL_ORDER_KEY, "")
+        
+        # Clear caches to ensure changes are reflected immediately
+        self._clear_carousel_caches()
+    
+    def _clear_carousel_caches(self):
+        """Clear caches related to carousel settings to ensure immediate updates."""
+        try:
+            # Clear library service cache
+            from services.library_service import LibraryService
+            library_service = LibraryService()
+            if hasattr(library_service, '_config_cache'):
+                library_service._config_cache = {}
+                library_service._config_cache_timestamp = 0
+            
+            # Clear template context service cache
+            from services.template_context_service import TemplateContextService
+            template_service = TemplateContextService()
+            if hasattr(template_service, '_context_cache'):
+                template_service._context_cache = None
+                template_service._cache_timestamp = 0
+            if hasattr(template_service, '_config_cache'):
+                template_service._config_cache = {}
+                template_service._config_cache_timestamp = 0
+            
+            # Reload configuration
+            from config import reload_config
+            reload_config()
+            
+            debug_log("Carousel caches cleared successfully")
+        except Exception as e:
+            debug_log(f"Error clearing carousel caches: {e}")
     
     def _save_service_urls(self, form_data: Dict[str, Any]):
         """Save service URLs."""
@@ -542,4 +617,153 @@ class SetupService:
             
         except Exception as e:
             debug_log(f"[ERROR] Failed to save password {key}: {e}")
-            return False 
+            return False
+    
+    def create_abs_user(self, username: str, password: str, user_type: str = "user", permissions: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Create a user in Audiobookshelf using the API.
+        
+        Args:
+            username: Username for the new user
+            password: Password for the new user
+            user_type: Type of user ("user", "admin", "guest")
+            permissions: Custom permissions dictionary
+            
+        Returns:
+            Dictionary with success status and user information
+        """
+        abs_url = self.config.get("AUDIOBOOKSHELF_URL")
+        abs_token = self.config.get("AUDIOBOOKSHELF_TOKEN")
+        
+        if not self.config.validate_url(abs_url, "AUDIOBOOKSHELF_URL"):
+            return {"success": False, "error": "Invalid Audiobookshelf URL"}
+        
+        if not self.config.validate_token(abs_token, "AUDIOBOOKSHELF_TOKEN"):
+            return {"success": False, "error": "Invalid Audiobookshelf API token"}
+        
+        # Validate inputs
+        if not username or not password:
+            return {"success": False, "error": "Username and password are required"}
+        
+        if user_type not in ["user", "admin", "guest"]:
+            return {"success": False, "error": "Invalid user type. Must be 'user', 'admin', or 'guest'"}
+        
+        # Default permissions based on user type
+        if permissions is None:
+            if user_type == "admin":
+                permissions = {
+                    "download": True,
+                    "update": True,
+                    "delete": True,
+                    "upload": True,
+                    "accessAllLibraries": True,
+                    "accessAllTags": True,
+                    "accessExplicitContent": True
+                }
+            elif user_type == "user":
+                permissions = {
+                    "download": True,
+                    "update": True,
+                    "delete": False,
+                    "upload": False,
+                    "accessAllLibraries": True,
+                    "accessAllTags": True,
+                    "accessExplicitContent": True
+                }
+            else:  # guest
+                permissions = {
+                    "download": False,
+                    "update": False,
+                    "delete": False,
+                    "upload": False,
+                    "accessAllLibraries": True,
+                    "accessAllTags": True,
+                    "accessExplicitContent": False
+                }
+        
+        # Prepare the user data
+        user_data = {
+            "username": username,
+            "password": password,
+            "type": user_type,
+            "permissions": permissions,
+            "librariesAccessible": [],
+            "itemTagsAccessible": [],
+            "isActive": True,
+            "isLocked": False
+        }
+        
+        try:
+            import requests
+            
+            headers = {
+                "Authorization": f"Bearer {abs_token}",
+                "Content-Type": "application/json"
+            }
+            
+            timeout = self.config.get_int("ABS_API_TIMEOUT", 10)
+            response = requests.post(
+                f"{abs_url}/api/users",
+                headers=headers,
+                json=user_data,
+                timeout=timeout
+            )
+            
+            if response.status_code == 200:
+                user_info = response.json()
+                return {
+                    "success": True,
+                    "user_id": user_info.get("id"),
+                    "username": username,
+                    "email": "",  # Will be filled by caller
+                    "message": "User created successfully"
+                }
+            elif response.status_code == 500:
+                # Check if it's a username already taken error
+                try:
+                    error_data = response.json()
+                    if "username" in error_data.get("error", "").lower():
+                        return {
+                            "success": False,
+                            "username": username,
+                            "email": "",  # Will be filled by caller
+                            "error": "Username already exists"
+                        }
+                except:
+                    pass
+                
+                return {
+                    "success": False,
+                    "username": username,
+                    "email": "",  # Will be filled by caller
+                    "error": f"ABS API error: {response.status_code}"
+                }
+            else:
+                return {
+                    "success": False,
+                    "username": username,
+                    "email": "",  # Will be filled by caller
+                    "error": f"ABS API returned status {response.status_code}"
+                }
+                
+        except requests.exceptions.Timeout:
+            return {
+                "success": False,
+                "username": username,
+                "email": "",  # Will be filled by caller
+                "error": "ABS API request timed out"
+            }
+        except requests.exceptions.ConnectionError:
+            return {
+                "success": False,
+                "username": username,
+                "email": "",  # Will be filled by caller
+                "error": "Failed to connect to ABS API"
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "username": username,
+                "email": "",  # Will be filled by caller
+                "error": f"Unexpected error: {str(e)}"
+            } 

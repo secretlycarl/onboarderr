@@ -26,8 +26,8 @@ def register_audiobookshelf_routes(app):
     def audiobookshelf():
         """Handle the audiobookshelf page."""
         
-        # Check if user is authenticated
-        if not session.get("admin_authenticated", False):
+        # Check if user is authenticated (regular or admin)
+        if not session.get("authenticated", False) and not session.get("admin_authenticated", False):
             return redirect(url_for("login"))
         
         # Get template context

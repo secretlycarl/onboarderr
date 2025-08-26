@@ -79,14 +79,15 @@ class AuthService:
         else:
             debug_log(f"[WARN] No secret key configured, auth service not fully initialized")
         
-        # Debug: Show what password values are available
-        debug_log(f"[DEBUG] Auth service password check:")
-        debug_log(f"[DEBUG] - ADMIN_PASSWORD: {bool(self.config.get('ADMIN_PASSWORD'))}")
-        debug_log(f"[DEBUG] - ADMIN_PASSWORD_HASH: {bool(self.config.get('ADMIN_PASSWORD_HASH'))}")
-        debug_log(f"[DEBUG] - ADMIN_PASSWORD_SALT: {bool(self.config.get('ADMIN_PASSWORD_SALT'))}")
-        debug_log(f"[DEBUG] - SITE_PASSWORD: {bool(self.config.get('SITE_PASSWORD'))}")
-        debug_log(f"[DEBUG] - SITE_PASSWORD_HASH: {bool(self.config.get('SITE_PASSWORD_HASH'))}")
-        debug_log(f"[DEBUG] - SITE_PASSWORD_SALT: {bool(self.config.get('SITE_PASSWORD_SALT'))}")
+        # Only show password availability in debug mode
+        if os.getenv("FLASK_DEBUG", "0") == "1":
+            debug_log(f"[DEBUG] Auth service password check:")
+            debug_log(f"[DEBUG] - ADMIN_PASSWORD: {bool(self.config.get('ADMIN_PASSWORD'))}")
+            debug_log(f"[DEBUG] - ADMIN_PASSWORD_HASH: {bool(self.config.get('ADMIN_PASSWORD_HASH'))}")
+            debug_log(f"[DEBUG] - ADMIN_PASSWORD_SALT: {bool(self.config.get('ADMIN_PASSWORD_SALT'))}")
+            debug_log(f"[DEBUG] - SITE_PASSWORD: {bool(self.config.get('SITE_PASSWORD'))}")
+            debug_log(f"[DEBUG] - SITE_PASSWORD_HASH: {bool(self.config.get('SITE_PASSWORD_HASH'))}")
+            debug_log(f"[DEBUG] - SITE_PASSWORD_SALT: {bool(self.config.get('SITE_PASSWORD_SALT'))}")
     
     def cleanup(self) -> None:
         """Clean up the auth service."""
@@ -119,7 +120,9 @@ class AuthService:
             Dictionary with authentication result
         """
         try:
-            debug_log(f"[DEBUG] Authenticating user with password length: {len(password)}")
+            # Only log in debug mode
+            if os.getenv("FLASK_DEBUG", "0") == "1":
+                debug_log(f"[DEBUG] Authenticating user with password length: {len(password)}")
             
             # Get hashed passwords and salts from config
             admin_password_hash = self.config.get("ADMIN_PASSWORD_HASH")
@@ -131,42 +134,46 @@ class AuthService:
             admin_password_plain = self.config.get("ADMIN_PASSWORD")
             site_password_plain = self.config.get("SITE_PASSWORD")
             
-            debug_log(f"[DEBUG] Admin password hash exists: {bool(admin_password_hash)}")
-            debug_log(f"[DEBUG] Admin password salt exists: {bool(admin_password_salt)}")
-            debug_log(f"[DEBUG] Site password hash exists: {bool(site_password_hash)}")
-            debug_log(f"[DEBUG] Site password salt exists: {bool(site_password_salt)}")
-            debug_log(f"[DEBUG] Admin password plain exists: {bool(admin_password_plain)}")
-            debug_log(f"[DEBUG] Site password plain exists: {bool(site_password_plain)}")
+            # Only log in debug mode
+            if os.getenv("FLASK_DEBUG", "0") == "1":
+                debug_log(f"[DEBUG] Admin password hash exists: {bool(admin_password_hash)}")
+                debug_log(f"[DEBUG] Admin password salt exists: {bool(admin_password_salt)}")
+                debug_log(f"[DEBUG] Site password hash exists: {bool(site_password_hash)}")
+                debug_log(f"[DEBUG] Site password salt exists: {bool(site_password_salt)}")
+                debug_log(f"[DEBUG] Admin password plain exists: {bool(admin_password_plain)}")
+                debug_log(f"[DEBUG] Site password plain exists: {bool(site_password_plain)}")
             
             # Check admin password
             admin_authenticated = False
             if admin_password_hash and admin_password_salt:
-                debug_log(f"[DEBUG] Attempting admin authentication with hash/salt")
-                debug_log(f"[DEBUG] Admin salt: {admin_password_salt[:10]}...")
-                debug_log(f"[DEBUG] Admin hash: {admin_password_hash[:10]}...")
+                if os.getenv("FLASK_DEBUG", "0") == "1":
+                    debug_log(f"[DEBUG] Attempting admin authentication with hash/salt")
                 admin_authenticated = verify_password(password, admin_password_salt, admin_password_hash)
-                debug_log(f"[DEBUG] Admin hash authentication result: {admin_authenticated}")
+                if os.getenv("FLASK_DEBUG", "0") == "1":
+                    debug_log(f"[DEBUG] Admin hash authentication result: {admin_authenticated}")
             elif admin_password_plain:
                 # Fallback to plain text for backward compatibility
-                debug_log(f"[DEBUG] Attempting admin authentication with plain text")
-                debug_log(f"[DEBUG] Admin plain password: {admin_password_plain[:3]}...")
+                if os.getenv("FLASK_DEBUG", "0") == "1":
+                    debug_log(f"[DEBUG] Attempting admin authentication with plain text")
                 admin_authenticated = (password == admin_password_plain)
-                debug_log(f"[DEBUG] Admin plain text authentication result: {admin_authenticated}")
+                if os.getenv("FLASK_DEBUG", "0") == "1":
+                    debug_log(f"[DEBUG] Admin plain text authentication result: {admin_authenticated}")
             
             # Check site password
             site_authenticated = False
             if site_password_hash and site_password_salt:
-                debug_log(f"[DEBUG] Attempting site authentication with hash/salt")
-                debug_log(f"[DEBUG] Site salt: {site_password_salt[:10]}...")
-                debug_log(f"[DEBUG] Site hash: {site_password_hash[:10]}...")
+                if os.getenv("FLASK_DEBUG", "0") == "1":
+                    debug_log(f"[DEBUG] Attempting site authentication with hash/salt")
                 site_authenticated = verify_password(password, site_password_salt, site_password_hash)
-                debug_log(f"[DEBUG] Site hash authentication result: {site_authenticated}")
+                if os.getenv("FLASK_DEBUG", "0") == "1":
+                    debug_log(f"[DEBUG] Site hash authentication result: {site_authenticated}")
             elif site_password_plain:
                 # Fallback to plain text for backward compatibility
-                debug_log(f"[DEBUG] Attempting site authentication with plain text")
-                debug_log(f"[DEBUG] Site plain password: {site_password_plain[:3]}...")
+                if os.getenv("FLASK_DEBUG", "0") == "1":
+                    debug_log(f"[DEBUG] Attempting site authentication with plain text")
                 site_authenticated = (password == site_password_plain)
-                debug_log(f"[DEBUG] Site plain text authentication result: {site_authenticated}")
+                if os.getenv("FLASK_DEBUG", "0") == "1":
+                    debug_log(f"[DEBUG] Site plain text authentication result: {site_authenticated}")
             
             # Determine authentication result
             if admin_authenticated:
@@ -178,6 +185,9 @@ class AuthService:
                     "message": "Authentication successful"
                 }
             elif site_authenticated:
+                # Check if this is a guest login (same password as site password but different session)
+                # For now, we'll treat site password as both user and guest access
+                # In the future, we could add a separate guest password
                 user_type = "user"
                 debug_log(f"[INFO] Successful authentication for {user_type} user")
                 return {
@@ -213,7 +223,7 @@ class AuthService:
             # Generate session ID
             session_id = base64.b64encode(os.urandom(32)).decode('utf-8')
             
-            # Create session data
+            # Create session data - match old app pattern
             session_data = {
                 "authenticated": True,
                 "admin_authenticated": (user_type == "admin"),

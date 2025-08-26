@@ -6,6 +6,7 @@ This module provides centralized logging functions for error, debug, info, and w
 
 import time
 import traceback
+import json
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from threading import Lock
@@ -120,26 +121,102 @@ def log_warning(warning_type: str, message: str, details: Optional[Dict[str, Any
         print(f"[WARN] {warning_type} details: {details}")
 
 
+def load_json_file(filename: str, default_value: Any = None) -> Any:
+    """
+    Load JSON file with improved error handling.
+    
+    Args:
+        filename: Name of the JSON file to load
+        default_value: Default value to return if file doesn't exist or is invalid
+        
+    Returns:
+        Loaded JSON data or default value
+    """
+    try:
+        with open(filename, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, IOError):
+        return default_value
+
+
+def save_json_file(filename: str, data: Any) -> bool:
+    """
+    Save JSON file with improved error handling.
+    
+    Args:
+        filename: Name of the JSON file to save
+        data: Data to save
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        return True
+    except (IOError, TypeError):
+        return False
+
+
 def log_security_event(event_type: str, ip: str, details: Optional[Dict[str, Any]] = None) -> None:
     """
-    Log security-related events.
+    Log security events with JSON file storage and retention management.
     
     Args:
         event_type: Type of security event
         ip: IP address associated with the event
         details: Additional security event details
     """
-    security_details = {
-        "ip": ip,
-        "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
-        "user_agent": details.get("user_agent", "Unknown") if details else "Unknown",
-        "event_type": event_type
-    }
-    
-    if details:
-        security_details.update(details)
-    
-    log_warning("security", f"Security event: {event_type} from IP {ip}", security_details)
+    try:
+        config = Config()
+        if not config.get_bool("ENABLE_AUDIT_LOGGING", True):
+            return
+        
+        log_entry = {
+            "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
+            "event_type": event_type,
+            "ip_address": ip,
+            "user_agent": details.get('user_agent', '') if details else '',
+            "details": details or {}
+        }
+        
+        # Load existing logs
+        log_file = "security_log.json"
+        logs = load_json_file(log_file, [])
+        
+        # Add new log entry
+        logs.append(log_entry)
+        
+        # Keep only last 90 days of logs
+        retention_days = config.get_int("AUDIT_LOG_RETENTION_DAYS", 90)
+        cutoff_time = datetime.now(timezone.utc).timestamp() - (retention_days * 86400)
+        
+        # Filter logs by timestamp (if they have one)
+        filtered_logs = []
+        for log in logs:
+            try:
+                log_timestamp = datetime.fromisoformat(log.get("timestamp", "").replace("Z", "+00:00")).timestamp()
+                if log_timestamp > cutoff_time:
+                    filtered_logs.append(log)
+            except:
+                # If timestamp parsing fails, keep the log
+                filtered_logs.append(log)
+        
+        # Save filtered logs
+        save_json_file(log_file, filtered_logs)
+        
+        # Send Discord notification for security events
+        try:
+            from services.notification_service import NotificationService
+            notification_service = NotificationService()
+            notification_service.send_security_notification(event_type, ip, details)
+        except Exception as e:
+            if is_debug_mode():
+                print(f"Error sending security Discord notification: {e}")
+                
+    except Exception as e:
+        if is_debug_mode():
+            print(f"Error logging security event: {e}")
 
 
 def is_debug_mode() -> bool:
@@ -315,7 +392,6 @@ def export_error_log(format: str = "json") -> str:
     """
     with error_lock:
         if format.lower() == "json":
-            import json
             return json.dumps(error_log, indent=2)
         elif format.lower() == "text":
             return "\n".join(format_log_entry(entry) for entry in error_log)

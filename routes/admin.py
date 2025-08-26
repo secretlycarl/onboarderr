@@ -10,6 +10,7 @@ from services.template_context_service import TemplateContextService
 from services.library_service import LibraryService
 from services.submissions_service import SubmissionsService
 from config import get_config
+import os
 
 def register_admin_routes(app):
     """Register admin routes with the Flask app."""
@@ -31,8 +32,31 @@ def register_admin_routes(app):
             return jsonify({"error": "Unauthorized"}), 401
         
         try:
-            # This will be implemented with actual restart logic
-            return jsonify({"status": "success", "message": "Restart triggered successfully"})
+            # Start restart in background thread
+            def restart_container_delayed():
+                """Restart container after a delay"""
+                import time
+                import subprocess
+                import sys
+                
+                time.sleep(2)  # Small delay
+                try:
+                    # Try to restart the application
+                    if os.path.exists('compose.yml'):
+                        # Docker compose restart
+                        subprocess.run(['docker-compose', 'restart'], check=True)
+                    else:
+                        # Simple process restart
+                        os.execv(sys.executable, ['python'] + sys.argv)
+                except Exception as e:
+                    print(f"Restart failed: {e}")
+            
+            # Start restart thread
+            import threading
+            restart_thread = threading.Thread(target=restart_container_delayed, daemon=True)
+            restart_thread.start()
+            
+            return jsonify({"status": "restarting"})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
     

@@ -45,6 +45,7 @@
             // Check if restart was already triggered from backend
             const urlParams = new URLSearchParams(window.location.search);
             const fromServices = urlParams.get('from_services');
+            const fromSetup = urlParams.get('from_setup');
             
             let totalSeconds = 5; // Default to 5 seconds for immediate settings
             let elapsed = 0;
@@ -271,7 +272,7 @@
             }
             
             // For setup form submissions, trigger poster downloads first
-            if (isAdaptive && changedSettings && changedSettings.length > 0) {
+            if (isAdaptive && (fromSetup === 'true' || (changedSettings && changedSettings.length > 0))) {
                 if (window.debugLog) {
                     window.debugLog('Setup detected - triggering poster downloads');
                 }

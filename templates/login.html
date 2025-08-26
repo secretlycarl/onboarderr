@@ -110,6 +110,7 @@
     
     // Submit form via AJAX to prevent page reload
     async function submitFormAjax() {
+      console.log('Submitting form via AJAX...');
       const form = document.getElementById('login-form');
       const formData = new FormData(form);
       
@@ -117,10 +118,12 @@
       const intendedUrl = sessionStorage.getItem('intended_url_after_login');
       if (intendedUrl) {
         formData.append('intended_url_after_login', intendedUrl);
+        console.log('Added intended URL to form data:', intendedUrl);
         // Don't remove from sessionStorage yet - we need it for hash fragment handling
       }
       
       try {
+        console.log('Making fetch request to /login...');
         const response = await fetch('/login', {
           method: 'POST',
           headers: {
@@ -128,9 +131,13 @@
           },
           body: formData
         });
+        console.log('Fetch response status:', response.status);
+        console.log('Fetch response redirected:', response.redirected);
+        console.log('Fetch response URL:', response.url);
         
         if (response.redirected) {
           // Successful login, redirect to the target page
+          console.log('Login successful, redirecting to:', response.url);
           // Check if we need to preserve hash fragment
           if (intendedUrl && intendedUrl.includes('#')) {
             // Extract hash fragment and append to redirect URL
@@ -146,28 +153,36 @@
           sessionStorage.removeItem('intended_url_after_login');
         } else if (response.status === 401) {
           // Failed login with JSON response
+          console.log('Received 401 response for failed login');
           const result = await response.json();
+          console.log('Failed login response:', result);
           showErrorMessage(result.error || 'Incorrect password');
           
           // Record the failed attempt and check rate limit
           await recordFailedAttempt();
         } else if (response.ok) {
           // Successful login with JSON response
+          console.log('Received OK response, parsing JSON');
           const result = await response.json();
+          console.log('OK response result:', result);
           if (result.success) {
             if (result.redirect_url) {
               // Redirect to the specified URL
+              console.log('Redirecting to specified URL:', result.redirect_url);
               window.location.href = result.redirect_url;
             } else {
               // Default redirect for admin users
+              console.log('Redirecting to default admin URL: /services');
               window.location.href = '/services';
             }
           } else {
+            console.log('Response indicates login failed:', result.error);
             showErrorMessage(result.error || 'Login failed');
             await recordFailedAttempt();
           }
         } else {
           // Unexpected response, reload the page
+          console.log('Unexpected response status:', response.status, 'reloading page');
           window.location.reload();
         }
       } catch (error) {

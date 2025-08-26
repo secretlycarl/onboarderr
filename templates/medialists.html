@@ -30,21 +30,18 @@
       <div class="form-group">
         <label for="list-select" class="form-label">Select Library:</label>
         <select id="list-select" class="form-input" style="max-width: 350px;">
-          {% set all_libraries = [] %}
-          {% for lib_name in library_media.keys() %}
-            {% set _ = all_libraries.append(('plex-' + loop.index0|string, lib_name, 'plex')) %}
+          {% for library in ordered_libraries %}
+          <option value="plex-{{ loop.index0 }}">{{ library.title }}</option>
           {% endfor %}
           {% if abs_book_groups %}
-            {% set _ = all_libraries.append(('abs', 'Audiobooks', 'abs')) %}
+          <option value="abs">Audiobooks</option>
           {% endif %}
-          {% for value, name, service in all_libraries %}
-            <option value="{{ value }}" {% if (service == 'plex' and selected_service == 'plex' and selected_library == name) or (service == 'abs' and selected_service == 'abs') %}selected{% endif %}>{{ name }}</option>
-          {% endfor %}
         </select>
       </div>
       
-      {% for lib_name, media_groups in library_media.items() %}
+      {% for library in ordered_libraries %}
       {% set library_index = loop.index0 %}
+      {% set lib_name = library.title %}
       {% set library_count = library_counts.get(lib_name, 0) %}
       <div class="medialist-section" id="plex-{{ library_index }}" style="display:none;">
         <div style="display: flex; align-items: center; gap: 1em;">
@@ -57,12 +54,9 @@
         <div class="letter-navigation" data-library-index="{{ library_index }}">
           {% set all_letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'|list + ['0-9', 'Other'] %}
           {% for letter in all_letters %}
-            {% set titles = media_groups.get(letter, []) %}
-            {% if titles %}
-              <button class="letter-button" data-letter="{{ letter }}" data-library-index="{{ library_index }}">
-                {{ letter }}
-              </button>
-            {% endif %}
+            <button class="letter-button" data-letter="{{ letter }}" data-library-index="{{ library_index }}">
+              {{ letter }}
+            </button>
           {% endfor %}
         </div>
         
@@ -87,8 +81,8 @@
       {% if abs_book_groups %}
       <!-- Hidden ABS data for JavaScript -->
       <script>
-        window.absBookGroups = {{ abs_book_groups|tojson }};
-        window.absBookCount = {{ abs_book_count }};
+        window.absBookGroups = JSON.parse(`{{ abs_book_groups|tojson }}`);
+        window.absBookCount = JSON.parse(`{{ abs_book_count|tojson }}`);
       </script>
       
       <div class="medialist-section" id="abs" style="display:none;">
@@ -201,13 +195,9 @@
       }
       
       function showSection(id) {
-        sections.forEach(sec => sec.style.display = "none");
-        const el = document.getElementById(id);
-        if (el) el.style.display = "block";
-        
-        // Reset active states when switching sections
-        document.querySelectorAll('.letter-button.active').forEach(btn => {
-          btn.classList.remove('active');
+        // Handle section visibility
+        sections.forEach(section => {
+          section.style.display = section.id === id ? 'block' : 'none';
         });
         
         // Show initial message and hide posters container
@@ -404,7 +394,7 @@
             html += '<li>';
             const goodreadsUrl = `https://www.goodreads.com/search?q=${encodeURIComponent((book.author || '') + ' ' + book.title)}`;
             html += `<a href="${goodreadsUrl}" target="_blank" style="display: block;">`;
-            html += `<img src="${book.cover || '{{ url_for("static", filename=logo_filename) }}'}" alt="${book.title} cover" style="cursor: pointer;" onerror="this.onerror=null;this.src='{{ url_for("static", filename=logo_filename) }}';" />`;
+            html += `<img src="${book.poster || '{{ url_for("static", filename=logo_filename) }}'}" alt="${book.title} cover" style="cursor: pointer;" onerror="this.onerror=null;this.src='{{ url_for("static", filename=logo_filename) }}';" />`;
             html += '</a>';
             html += `<div style="font-size: 0.9em; color: #aaa; margin-bottom: 0.25rem;">${book.author}</div>`;
             html += `<div style="font-weight: bold; margin-bottom: 0.25rem;">${book.title}</div>`;
@@ -630,5 +620,8 @@
   <!-- Quick Access Panel Script -->
   <script src="{{ url_for('static', filename='quick-access.js') }}"></script>
 
+  <!-- Carousel Auto-Scroll Script -->
+  <script src="{{ url_for('static', filename='carousel-auto-scroll.js') }}"></script>
 </body>
 </html>
+

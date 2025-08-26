@@ -8,6 +8,7 @@ including loading, saving, and managing submission data.
 import os
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timezone
+import threading
 
 from config import get_config
 from utils.data_utils import load_json_file, save_json_file
@@ -24,11 +25,30 @@ def debug_log(message: str) -> None:
 class SubmissionsService:
     """Service for handling form submissions."""
     
+    _instance = None
+    _lock = threading.Lock()
+    
+    def __new__(cls):
+        """Implement singleton pattern."""
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+        return cls._instance
+    
     def __init__(self):
         """Initialize the submissions service."""
-        debug_log("Initializing SubmissionsService")
+        # Only initialize once
+        if hasattr(self, '_initialized'):
+            return
+            
+        # Only log initialization in verbose debug mode
+        if os.getenv("VERBOSE_DEBUG", "0") == "1":
+            debug_log("Initializing SubmissionsService")
         self.config = get_config()
-        debug_log("SubmissionsService initialized")
+        self._initialized = True
+        if os.getenv("VERBOSE_DEBUG", "0") == "1":
+            debug_log("SubmissionsService initialized")
     
     def load_plex_submissions(self) -> List[Dict[str, Any]]:
         """
@@ -193,6 +213,26 @@ class SubmissionsService:
         
         debug_log(f"Submission stats: {stats}")
         return stats
+    
+    def get_submissions(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Get all submissions (both Plex and Audiobookshelf).
+        
+        Returns:
+            Dictionary containing both types of submissions
+        """
+        debug_log("Getting all submissions")
+        
+        plex_submissions = self.load_plex_submissions()
+        abs_submissions = self.load_audiobookshelf_submissions()
+        
+        submissions = {
+            "plex": plex_submissions,
+            "audiobookshelf": abs_submissions
+        }
+        
+        debug_log(f"Retrieved {len(plex_submissions)} Plex and {len(abs_submissions)} Audiobookshelf submissions")
+        return submissions
     
     def delete_submission(self, submission_type: str, index: int) -> bool:
         """
