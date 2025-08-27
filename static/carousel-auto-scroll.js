@@ -72,8 +72,8 @@ class CarouselAutoScroll {
   }
 
   setupEventListeners() {
-    // Touch events for mobile
-    if (this.isMobile && this.options.pauseOnInteraction) {
+    // Touch events for mobile - always set up touch events for better compatibility
+    if (this.options.pauseOnInteraction) {
       this.setupTouchEvents();
     }
 
@@ -84,7 +84,8 @@ class CarouselAutoScroll {
   }
 
   setupTouchEvents() {
-    this.container.addEventListener('touchstart', (e) => {
+    // Store handlers so we can remove them later if needed
+    this._touchStartHandler = (e) => {
       this.isUserInteracting = true;
       this.isManualScrolling = true;
       this.manualScrollStartX = e.touches[0].clientX;
@@ -98,9 +99,9 @@ class CarouselAutoScroll {
       }
       
       this.log('Manual scroll started - auto-scroll paused');
-    }, { passive: true });
+    };
 
-    this.container.addEventListener('touchmove', (e) => {
+    this._touchMoveHandler = (e) => {
       if (this.isManualScrolling) {
         const now = Date.now();
         // Throttle touch move events to reduce jumpiness - use 16ms for realistic 60fps
@@ -123,9 +124,9 @@ class CarouselAutoScroll {
         this.offset = newOffset;
         this.carousel.style.transform = `translateX(${this.offset}px)`;
       }
-    }, { passive: true });
+    };
 
-    this.container.addEventListener('touchend', (e) => {
+    this._touchEndHandler = (e) => {
       this.isManualScrolling = false;
       const touchDuration = Date.now() - this.touchStartTime;
       
@@ -135,7 +136,12 @@ class CarouselAutoScroll {
         this.log('Manual scroll ended - auto-scroll resumed');
         this.resumeAnimation();
       }, 300);
-    }, { passive: true });
+    };
+
+    // Add event listeners with proper options
+    this.container.addEventListener('touchstart', this._touchStartHandler, { passive: true });
+    this.container.addEventListener('touchmove', this._touchMoveHandler, { passive: true });
+    this.container.addEventListener('touchend', this._touchEndHandler, { passive: true });
   }
 
   setupScrollDetection() {
@@ -327,6 +333,19 @@ class CarouselAutoScroll {
     if (this.scrollTimeout) {
       clearTimeout(this.scrollTimeout);
       this.scrollTimeout = null;
+    }
+    
+    // Clean up touch event handlers
+    if (this.container) {
+      if (this._touchStartHandler) {
+        this.container.removeEventListener('touchstart', this._touchStartHandler);
+      }
+      if (this._touchMoveHandler) {
+        this.container.removeEventListener('touchmove', this._touchMoveHandler);
+      }
+      if (this._touchEndHandler) {
+        this.container.removeEventListener('touchend', this._touchEndHandler);
+      }
     }
     
     this.log('Carousel auto-scroll destroyed');

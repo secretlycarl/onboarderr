@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ SERVER_NAME }} - Join Plex</title>
   <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}" />
-  <link rel="stylesheet" href="/static/modern-style.css" />
+  <link rel="stylesheet" href="/static/css/modern-style.css" />
   <script>
     // Set accent color from environment variable
     document.addEventListener('DOMContentLoaded', function() {
@@ -20,7 +20,7 @@
   <body>
   <script>
     // Initialize debug state from server
-    window.DEBUG_ENABLED = {{ JS_DEBUG|lower }};
+    window.DEBUG_ENABLED = JSON.parse(`{{ JS_DEBUG|tojson }}`);
   </script>
   {% include "_bottom_nav.html" %}
   
@@ -48,9 +48,9 @@
           
           {% if carousel_libraries|length > 1 %}
           <div class="library-selector">
-            <button class="library-tab {% if default_library == 'random-all' %}active{% endif %}" data-library="random-all">🎲 Random All</button>
-            {% for lib in carousel_libraries %}
-              <button class="library-tab {% if default_library == lib.title %}active{% endif %}" data-library="{{ lib.title }}">{{ lib.title }}</button>
+            <button class="library-tab {% if default_library == 'plex' %}active{% endif %}" data-library="plex">🎲 Random All</button>
+            {% for library in carousel_libraries %}
+            <button class="library-tab" data-library="{{ library.title }}">{{ library.title }}</button>
             {% endfor %}
           </div>
           {% endif %}
@@ -66,10 +66,10 @@
         <p class="carousel-note">
           {% if carousel_libraries|length > 1 %}
           Random selection of posters from each library. Go <a href="/medialists" class="accent" id="medialists-link">here</a> for the full list. <br>
-          <span class="mobile-only">On mobile, scroll horizontally to browse through posters.</span>
+          <span class="mobile-only">On mobile, scroll horizontally to browse.</span>
           {% else %}
           Random selection of posters from my library. Go <a href="/medialists" class="accent" id="medialists-link">here</a> for the full list. <br>
-          <span class="mobile-only">On mobile, scroll horizontally to browse through posters.</span>
+          <span class="mobile-only">On mobile, scroll horizontally to browse.</span>
           {% endif %}
         </p>
 
@@ -588,14 +588,14 @@
         // Multiple libraries available, use default library
         currentLibrary = defaultLibrary;
         loadCarousel('main-carousel', defaultLibrary);
-      } else if (!hasMultipleLibraries && Object.keys(libraryPosters).length === 1) {
-        // Only one library available, load it directly
-        const singleLibrary = Object.keys(libraryPosters)[0];
+      } else if (!hasMultipleLibraries && availableLibraryTabs.length === 1) {
+        // Only one library tab available, load it directly
+        const singleLibrary = availableLibraryTabs[0].getAttribute('data-library');
         console.log(`Single library detected, loading ${singleLibrary}`);
         currentLibrary = singleLibrary;
         loadCarousel('main-carousel', singleLibrary);
-      } else if (Object.keys(libraryPosters).length === 0) {
-        // No libraries available, show message
+      } else if (availableLibraryTabs.length === 0) {
+        // No library tabs available, show message
         const carousel = document.getElementById('main-carousel');
         if (carousel) {
           carousel.innerHTML = '<div style="display: flex; align-items: center; justify-content: center; height: 200px; color: #888;">No library carousels are currently enabled.</div>';
@@ -642,7 +642,7 @@
               count: count
             };
             
-            if (library === 'random-all') {
+            if (library === 'plex') {
               endpoint = '/ajax/get-random-posters-all';
               requestData.include_music = false;  // Exclude music by default for "Random All"
               console.log('Using random-all endpoint (excluding music)');
@@ -833,7 +833,7 @@
                 appendPostersToCarousel(data.posters, data.imdb_ids, [], data.titles || [], updateObserver);
               } else {
                 // If AJAX fails, try fallback data
-                if (library === 'random-all') {
+                if (library === 'plex') {
                   // For random-all, combine all available posters
                   const allPosters = [];
                   const allImdbIds = [];
@@ -900,7 +900,7 @@
           } else {
             // Fallback to original library_posters data if AJAX fails
             console.log('AJAX failed, using fallback data for', library);
-            if (library === 'random-all') {
+            if (library === 'plex') {
               // For random-all, combine all available posters
               const allPosters = [];
               const allImdbIds = [];
@@ -984,7 +984,7 @@
         }).catch(error => {
           console.error('Error in initial poster loading:', error);
           // Fallback to original library_posters data
-          if (library === 'random-all') {
+          if (library === 'plex') {
             // For random-all, combine all available posters
             const allPosters = [];
             const allImdbIds = [];
@@ -1069,9 +1069,9 @@
       function updateMedialistsLink() {
         const medialistsLink = document.getElementById('medialists-link');
         if (medialistsLink) {
-          if (currentLibrary === 'random-all') {
+          if (currentLibrary === 'plex') {
             // For random view, go to first available library
-            const firstLibraryTab = document.querySelector('.library-tab:not([data-library="random-all"])');
+            const firstLibraryTab = document.querySelector('.library-tab:not([data-library="plex"])');
             if (firstLibraryTab) {
               const firstLibrary = firstLibraryTab.getAttribute('data-library');
               medialistsLink.href = `/medialists?service=plex&library=${encodeURIComponent(firstLibrary)}`;
@@ -1301,7 +1301,7 @@
   <script src="{{ url_for('static', filename='debug-utils.js') }}"></script>
   <script>
     // Initialize debug state from server
-    window.DEBUG_ENABLED = {{ JS_DEBUG|lower }};
+    window.DEBUG_ENABLED = JSON.parse(`{{ JS_DEBUG|tojson }}`);
   </script>
 
 </body>

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ SERVER_NAME }} - ABS</title>
   <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}" />
-  <link rel="stylesheet" href="/static/modern-style.css" />
+  <link rel="stylesheet" href="/static/css/modern-style.css" />
   <script>
     // Set accent color from environment variable
     document.addEventListener('DOMContentLoaded', function() {
@@ -40,7 +40,7 @@
 
       <p class="carousel-note">
         Random selection of audiobooks on my server. Go <a href="/medialists?service=abs" class="accent">here</a> for the full list.<br>
-        <span class="mobile-only">On mobile, scroll horizontally to browse through posters.</span>
+        <span class="mobile-only">On mobile, scroll horizontally to browse.</span>
       </p>
 
       <h3>Desktop and Mobile UI</h3>
@@ -344,6 +344,7 @@
     let currentGoodreadsLinks = [];
     let currentTitles = [];
     let updateObserver = null;
+    let autoScrollInstance = null;
 
     // Function to load more audiobook posters
     async function loadMoreAudiobookPosters() {
@@ -420,10 +421,38 @@
       }
     }
 
+    // Function to initialize auto-scroll
+    function initializeAutoScroll() {
+      if (autoScrollInstance) {
+        autoScrollInstance.destroy();
+      }
+      
+      const autoScrollOptions = {
+        scrollSpeed: 0.5,
+        pauseOnHover: true,
+        pauseOnInteraction: true,
+        resumeDelay: 1000,
+        minPosters: 8,
+        loadMoreThreshold: 15,
+        onLoadMore: loadMoreAudiobookPosters,
+        debug: false
+      };
+      
+      autoScrollInstance = window.initializeCarouselAutoScroll('audiobook-carousel', autoScrollOptions);
+      console.log('Audiobookshelf carousel auto-scroll initialized');
+    }
+
     // Initialize with initial load
     loadMoreAudiobookPosters().then(() => {
       // Setup the carousel after initial load
       updateObserver = setupInfiniteCarousel(container, loadMoreAudiobookPosters);
+      
+      // Initialize auto-scroll after a short delay to ensure posters are loaded
+      setTimeout(() => {
+        if (container.children.length > 0) {
+          initializeAutoScroll();
+        }
+      }, 500);
     });
   </script>
 

@@ -1,0 +1,134 @@
+/* Setup Page Styles */
+
+.setup-container {
+  min-height: 100vh;
+  padding: 1rem 0;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.setup-container .container {
+  padding: 0;
+  max-width: none;
+}
+
+.setup-header {
+  text-align: center;
+  margin-bottom: 0.5rem;
+  padding: 2rem 0;
+}
+
+.setup-logo {
+  max-width: 175px;
+  height: auto;
+  margin: 0 auto 1rem;
+  display: block;
+}
+
+.setup-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.setup-subtitle {
+  color: var(--text-muted);
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+.setup-form {
+  max-width: 800px;
+  margin: 0 auto 1.5rem;
+}
+
+/* Setup Section Styles */
+.setup-section {
+  margin-bottom: 1rem;
+  padding: 1.5rem;
+  background: var(--card-bg);
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.setup-section:last-of-type {
+  margin-bottom: 1rem;
+}
+
+/* Info-box width adjustments based on context */
+.setup-form > .info-box {
+  width: 100%;
+  max-width: 100%;
+}
+
+.form-section .info-box {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Warning and Error Boxes */
+.warning-box {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.error-box {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .setup-form {
+    margin: 0 1rem;
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+  }
+  
+  .setup-title {
+    font-size: 1.5rem;
+  }
+  
+  .setup-section {
+    margin-bottom: 2rem;
+    padding: 1rem;
+  }
+  
+  .setup-form > .info-box {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+  
+  .form-section .info-box {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+} 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Onboarderr - Setup</title>
     <link rel="icon" type="image/webp" href="{{ url_for('static', filename='favicon.webp', v=favicon_timestamp) }}">
-    <link rel="stylesheet" href="/static/modern-style.css">
+    <link rel="stylesheet" href="/static/css/modern-style.css">
     <script>
       // Set accent color from environment variable
       document.addEventListener('DOMContentLoaded', function() {
@@ -761,12 +761,10 @@
                 alert('Please enter Plex Token and URL first.');
                 return;
             }
-            var csrfToken = document.querySelector('input[name="csrf_token"]').value;
             fetch('/fetch-libraries', {
                 method: 'POST',
                 headers: { 
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ plex_token: token, plex_url: url })
             })
@@ -1667,11 +1665,10 @@
             }
             
             try {
-                const response = await fetch('/ajax/ip-management', {
+                const response = await fetch('/ajax/setup-ip-management', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ 
                         action: 'whitelist',
@@ -1680,7 +1677,7 @@
                 });
                 
                 const result = await response.json();
-                if (result.success) {
+                if (result.status === 'success') {
                     alert('IP added to whitelist successfully.');
                     // Clear the input field
                     ipInput.value = '';
@@ -1706,11 +1703,10 @@
             }
             
             try {
-                const response = await fetch('/ajax/ip-management', {
+                const response = await fetch('/ajax/setup-ip-management', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ 
                         action: 'blacklist',
@@ -1719,7 +1715,7 @@
                 });
                 
                 const result = await response.json();
-                if (result.success) {
+                if (result.status === 'success') {
                     alert('IP added to blacklist successfully.');
                     // Clear the input field
                     ipInput.value = '';
@@ -1741,11 +1737,10 @@
             }
             
             try {
-                const response = await fetch('/ajax/ip-management', {
+                const response = await fetch('/ajax/setup-ip-management', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ 
                         action: 'remove_whitelist',
@@ -1754,7 +1749,7 @@
                 });
                 
                 const result = await response.json();
-                if (result.success) {
+                if (result.status === 'success') {
                     alert('IP removed from whitelist successfully.');
                     // Refresh the IP lists without reloading the page
                     refreshIPLists();
@@ -1774,11 +1769,10 @@
             }
             
             try {
-                const response = await fetch('/ajax/ip-management', {
+                const response = await fetch('/ajax/setup-ip-management', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ 
                         action: 'remove_blacklist',
@@ -1787,7 +1781,7 @@
                 });
                 
                 const result = await response.json();
-                if (result.success) {
+                if (result.status === 'success') {
                     alert('IP removed from blacklist successfully.');
                     // Refresh the IP lists without reloading the page
                     refreshIPLists();
@@ -1803,15 +1797,12 @@
         // Refresh IP lists without reloading the page
         async function refreshIPLists() {
             try {
-                const response = await fetch('/ajax/get-ip-lists', {
-                    method: 'GET',
-                    headers: {
-                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
-                    }
+                const response = await fetch('/ajax/setup-get-ip-lists', {
+                    method: 'GET'
                 });
                 
                 const result = await response.json();
-                if (result.success) {
+                if (result.whitelist || result.blacklist) {
                     // Update whitelisted IPs
                     const whitelistSection = document.querySelector('.ip-list-section:first-of-type');
                     
@@ -1821,10 +1812,10 @@
                         existingWhitelistContent.remove();
                     }
                     
-                    if (result.whitelisted && result.whitelisted.length > 0) {
+                    if (result.whitelist && result.whitelist.length > 0) {
                         const whitelistContainer = document.createElement('div');
                         whitelistContainer.className = 'ip-list';
-                        whitelistContainer.innerHTML = result.whitelisted.map(ip => 
+                        whitelistContainer.innerHTML = result.whitelist.map(ip => 
                             `<div class="ip-item">
                                 <span class="ip-address">${ip}</span>
                                 <button type="button" onclick="removeFromWhitelist('${ip}')" class="btn btn-small btn-danger">Remove</button>
@@ -1847,10 +1838,10 @@
                         existingBlacklistContent.remove();
                     }
                     
-                    if (result.banned && result.banned.length > 0) {
+                    if (result.blacklist && result.blacklist.length > 0) {
                         const blacklistContainer = document.createElement('div');
                         blacklistContainer.className = 'ip-list';
-                        blacklistContainer.innerHTML = result.banned.map(ip => 
+                        blacklistContainer.innerHTML = result.blacklist.map(ip => 
                             `<div class="ip-item">
                                 <span class="ip-address">${ip}</span>
                                 <button type="button" onclick="removeFromBlacklist('${ip}')" class="btn btn-small btn-danger">Remove</button>

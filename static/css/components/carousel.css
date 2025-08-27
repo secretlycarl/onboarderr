@@ -1,0 +1,285 @@
+/* Carousel Component Styles */
+
+/* Carousel Container */
+.poster-carousel-container {
+  overflow: hidden;
+  width: 100%;
+  height: 290px;
+  border-radius: 0.5rem;
+  position: relative;
+  padding: 10px 0;
+  /* Ensure proper box-sizing for accurate height calculation */
+  box-sizing: border-box;
+}
+
+.poster-carousel {
+  display: flex;
+  gap: 1rem;
+}
+
+#show-poster-carousel {
+  display: flex;
+  gap: 1rem;
+}
+
+.carousel-img {
+  width: 180px;
+  height: 270px;
+  object-fit: cover;
+  border-radius: 0.25rem;
+  box-shadow: var(--shadow-lg);
+  transition: transform 0.2s ease, box-shadow 0.2s;
+  /* Prevent size changes during loading */
+  min-width: 180px;
+  min-height: 270px;
+  max-width: 180px;
+  max-height: 270px;
+  /* Ensure images don't cause layout shifts */
+  background-color: var(--card-bg);
+  /* Prevent aspect ratio issues */
+  object-position: center;
+  /* Prevent layout shifts during loading */
+  display: block;
+  flex-shrink: 0;
+  /* Improve loading performance */
+  will-change: transform;
+  /* Better image rendering */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Desktop hover effects for clickable carousel posters */
+@media (pointer: fine) or (min-width: 1024px) {
+  .poster-carousel a {
+    cursor: pointer;
+    display: inline-block;
+    position: relative;
+  }
+  
+  .poster-carousel a:hover .carousel-img {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-xl);
+  }
+}
+
+.carousel-row {
+  margin-bottom: 2rem;
+}
+
+/* Mobile Carousel Styles - Auto-scroll compatible */
+@media (pointer: coarse) and (max-width: 1024px) {
+  .poster-carousel-container {
+    overflow: hidden; /* Changed from auto to hidden for auto-scroll */
+    /* Enable smooth momentum scrolling when user interacts */
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: auto; /* Changed from smooth to auto for better control */
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+    /* Optimize touch scrolling */
+    touch-action: pan-x;
+    /* Allow natural momentum scrolling */
+    overscroll-behavior: auto;
+    /* Better mobile performance */
+    will-change: scroll-position;
+    /* Prevent layout shifts */
+    contain: layout style paint;
+  }
+  
+  .poster-carousel-container::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+  }
+  
+  .poster-carousel,
+  #show-poster-carousel {
+    /* Use natural flex layout for scrolling */
+    flex-wrap: nowrap;
+    /* Ensure proper width for scrolling */
+    width: max-content;
+    min-width: 100%;
+    /* Prevent flex shrinking */
+    flex-shrink: 0;
+    /* Allow JavaScript to control scroll position */
+    transform: none;
+    /* Better performance */
+    will-change: scroll-position;
+    /* Prevent layout shifts */
+    contain: layout style paint;
+  }
+  
+  /* Ensure images don't shrink on mobile */
+  .carousel-img {
+    flex-shrink: 0;
+    /* Mobile-specific sizing - more book-like aspect ratio */
+    width: 180px;
+    height: 280px;
+    min-width: 180px;
+    min-height: 280px;
+    max-width: 180px;
+    max-height: 280px;
+    /* Smooth scrolling snap points */
+    scroll-snap-align: start;
+    /* Improve mobile performance */
+    will-change: scroll-position;
+    /* Better image rendering for mobile */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+  
+  /* Visual feedback during scrolling */
+  .poster-carousel-container.scrolling {
+    cursor: grabbing;
+  }
+  
+  .poster-carousel-container.scrolling .carousel-img {
+    transition: transform 0.1s ease;
+  }
+}
+
+/* Carousel Tab Order Preview Styles */
+.carousel-tabs-preview {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.carousel-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: var(--bg);
+  border-radius: 0.4rem;
+  min-height: 3rem;
+}
+
+.carousel-tab {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: var(--input-bg);
+  border: 2px solid var(--border);
+  border-radius: 1rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.carousel-tab:hover {
+  background: var(--accent-10);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.carousel-tab.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.tab-order-controls {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.tab-order-controls .btn {
+  min-width: 100px;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .carousel-tabs {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .carousel-tab {
+    text-align: center;
+    justify-content: center;
+  }
+  
+  .tab-order-controls {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .tab-order-controls .btn {
+    width: 100%;
+    max-width: 200px;
+  }
+}
+
+/* Mobile Jump to Top Button */
+.mobile-jump-to-top {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  width: 48px;
+  height: 48px;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.8);
+}
+
+.mobile-jump-to-top.visible {
+  opacity: 1;
+  pointer-events: all;
+  transform: scale(1);
+}
+
+.mobile-jump-to-top:hover {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.mobile-jump-to-top:active {
+  transform: scale(0.95);
+}
+
+.mobile-jump-to-top svg {
+  color: #ffffff;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+  transition: transform 0.2s ease;
+}
+
+.mobile-jump-to-top:hover svg {
+  transform: translateY(-1px);
+}
+
+/* Focus styles for accessibility */
+.mobile-jump-to-top:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
+.mobile-jump-to-top:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.8);
+  outline-offset: 2px;
+}
+
+/* Hide on desktop */
+@media (min-width: 769px) {
+  .mobile-jump-to-top {
+    display: none;
+  }
+} 

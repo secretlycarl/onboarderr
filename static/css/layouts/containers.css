@@ -1,0 +1,178 @@
+/* Container Layout Styles */
+
+/* Main Container */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+@media (min-width: 640px) {
+  .container {
+    padding: 0 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding: 0 2rem;
+  }
+}
+
+/* Setup Container */
+.setup-container {
+  min-height: 100vh;
+  padding: 1rem 0;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.setup-container .container {
+  padding: 0;
+  max-width: none;
+}
+
+/* Onboarding Container */
+.onboarding-container {
+  min-height: 100vh;
+  padding: 1rem 0;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.onboarding-content {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 0.5rem;
+}
+
+/* Allow more width for media lists page */
+.onboarding-content.medialists-page {
+  max-width: 1200px;
+}
+
+/* Onboarding Content Layout */
+.onboarding-content {
+  display: block;
+  gap: 1rem;
+}
+
+/* Desktop 2-column masonry layout for services page only */
+@media (min-width: 1200px) {
+  /* Only apply 2-column layout to services page */
+  .onboarding-content.services-page {
+    display: block;
+    column-count: 2;
+    column-gap: 1rem;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  
+  /* Force sections to break properly in columns */
+  .onboarding-content.services-page .onboarding-section {
+    break-inside: avoid;
+    margin-bottom: 1rem;
+    display: block;
+  }
+  
+  /* Hide mobile-only sections on desktop */
+  .onboarding-content.services-page .onboarding-section.mobile-only {
+    display: none !important;
+  }
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .onboarding-content {
+    column-count: 1;
+    gap: 1rem;
+  }
+  
+  .container {
+    padding: 0;
+    margin-bottom: 0;
+  }
+}
+
+/* Library Section Container */
+.library-section {
+  background: var(--card-bg);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  margin-top: 1em;
+  border: 1px solid var(--border);
+}
+
+.library-list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+/* Description Section Container */
+.description-section {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Submit Section Container */
+.submit-section {
+  text-align: center;
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+}
+
+/* IP List Section Container */
+.ip-list-section {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--card-bg);
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+}
+
+.ip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Current Library Selection Container */
+.current-library-selection {
+  padding: 1rem;
+  background: var(--card-bg);
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  margin-bottom: 1.25rem;
+}
+
+/* Mobile Responsive Container Adjustments */
+@media (max-width: 640px) {
+  .setup-form {
+    margin: 0 1rem;
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+  }
+  
+  .setup-section {
+    margin-bottom: 2rem;
+    padding: 1rem;
+  }
+  
+  .library-section {
+    padding: 1rem;
+  }
+  
+  .ip-list-section {
+    padding: 0.75rem;
+  }
+  
+  .current-library-selection {
+    padding: 0.75rem;
+  }
+} 
