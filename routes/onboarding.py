@@ -225,6 +225,10 @@ def register_onboarding_routes(app):
         # Get default library setting
         default_library = config.get("DEFAULT_LIBRARY", "all")
         
+        # Map "all" to "plex" for the "Random All" tab
+        if default_library == "all":
+            default_library = "plex"
+        
         # Get all libraries to map numbers to names (use local data)
         library_map = {lib["key"]: lib["title"] for lib in all_libraries}
         

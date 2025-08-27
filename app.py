@@ -225,6 +225,21 @@ def inject_admin_status():
     )
 
 @app.context_processor
+def inject_server_name():
+    """Inject server name and configuration variables into all templates."""
+    from config import get_config
+    config = get_config()
+    return dict(
+        SERVER_NAME=config.get("SERVER_NAME", "Onboarderr"),
+        ABS_ENABLED=config.get("ABS_ENABLED", "yes"),
+        AUDIOBOOKSHELF_URL=config.get("AUDIOBOOKSHELF_URL", ""),
+        ACCENT_COLOR=config.get("ACCENT_COLOR", "#d33fbc"),
+        QUICK_ACCESS_ENABLED=config.get("QUICK_ACCESS_ENABLED", "yes"),
+        LIBRARY_CAROUSELS=config.get("LIBRARY_CAROUSELS", ""),
+        ONBOARDERR_URL=config.get("ONBOARDERR_URL", "")
+    )
+
+@app.context_processor
 def inject_favicon_timestamp():
     """Inject favicon timestamp to force browser cache updates."""
     favicon_path = os.path.join('static', 'favicon.webp')

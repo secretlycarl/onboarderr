@@ -641,9 +641,32 @@ def register_poster_routes(app):
                         
                         title = meta.get("title")
                         if title:
-                            # Check if title starts with the specified letter (case-insensitive)
+                            # Strip articles for sorting purposes
                             sort_title = poster_service.strip_articles(title)
-                            if sort_title.lower().startswith(letter.lower()):
+                            
+                            # Use the same letter extraction logic as the old app.py
+                            letter_match = False
+                            
+                            if sort_title and sort_title[0].isdigit():
+                                # Check if sort_title starts with a digit
+                                if letter == "0-9":
+                                    letter_match = True
+                            else:
+                                # Find the first ASCII letter in the sort_title
+                                import re
+                                match = re.search(r'[A-Za-z]', sort_title)
+                                if match:
+                                    extracted_letter = match.group(0).upper()
+                                    if letter == extracted_letter:
+                                        letter_match = True
+                                elif any(c.isdigit() for c in sort_title):
+                                    if letter == "0-9":
+                                        letter_match = True
+                                else:
+                                    if letter == "Other":
+                                        letter_match = True
+                            
+                            if letter_match:
                                 poster_file = meta.get("poster")
                                 poster_url = f"/static/posters/{section_id}/{poster_file}" if poster_file else None
                                 
@@ -651,10 +674,19 @@ def register_poster_routes(app):
                                 is_artist = poster_service.is_music_artist(meta, library)
                                 lastfm_url = poster_service.get_lastfm_url(title) if is_artist else None
                                 
+                                # Debug logging for music detection
+                                if is_artist:
+                                    print(f"DEBUG: Music artist detected: {title} - Last.fm URL: {lastfm_url}")
+                                
+                                # Debug logging for IMDB IDs
+                                imdb_id = meta.get("imdb")
+                                if imdb_id:
+                                    print(f"DEBUG: IMDB ID found for {title}: {imdb_id}")
+                                
                                 items_with_posters.append({
                                     "title": title,
                                     "poster": poster_url,
-                                    "imdb": meta.get("imdb"),
+                                    "imdb": imdb_id,
                                     "tmdb": meta.get("tmdb"),
                                     "tvdb": meta.get("tvdb"),
                                     "lastfm_url": lastfm_url,
@@ -666,6 +698,11 @@ def register_poster_routes(app):
             
             # Sort items alphabetically by title (stripping articles for sorting)
             items_with_posters.sort(key=lambda x: poster_service.strip_articles(x["title"]).lower())
+            
+            print(f"DEBUG: Returning {len(items_with_posters)} items for letter '{letter}'")
+            # Debug: Print first few items to check if IMDB and Last.fm links are present
+            for i, item in enumerate(items_with_posters[:3]):
+                print(f"DEBUG: Item {i}: {item.get('title')} - IMDB: {item.get('imdb')} - Last.fm: {item.get('lastfm_url')} - Is Artist: {item.get('is_artist')}")
             
             return jsonify({"success": True, "items": items_with_posters})
             
@@ -700,6 +737,31 @@ def register_poster_routes(app):
         except Exception as e:
             print(f"Error triggering smart refresh: {e}")
             return jsonify({"error": "Failed to trigger smart refresh"}), 500
+    
+    @poster_bp.route("/ajax/fix-missing-poster-fields", methods=["POST"])
+    def fix_missing_poster_fields():
+        """Fix existing metadata files that are missing the poster field."""
+        
+        # Check if user is authenticated (admin only)
+        if not session.get("admin_authenticated", False):
+            return jsonify({"error": "Admin authentication required"}), 401
+        
+        try:
+            from services.poster_service import PosterService
+            poster_service = PosterService()
+            
+            # Fix missing poster fields
+            fixed_count = poster_service.fix_missing_poster_fields()
+            
+            return jsonify({
+                "success": True,
+                "message": f"Fixed {fixed_count} metadata files with missing poster fields",
+                "fixed_count": fixed_count
+            })
+            
+        except Exception as e:
+            print(f"Error fixing missing poster fields: {e}")
+            return jsonify({"error": "Failed to fix missing poster fields"}), 500
     
     # Register the blueprint with the app
     app.register_blueprint(poster_bp) 

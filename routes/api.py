@@ -419,8 +419,6 @@ def register_api_routes(app):
             if not library_name:
                 return jsonify({"error": "Library name required"}), 400
             
-            print(f"DEBUG: Received request - library_name: '{library_name}'")
-            
             # Get ordered libraries using the helper function
             ordered_libraries = library_service.get_ordered_libraries()
             
@@ -432,18 +430,12 @@ def register_api_routes(app):
                     break
             
             if library is None:
-                print(f"DEBUG: Library '{library_name}' not found in ordered libraries")
-                print(f"DEBUG: Available libraries: {[lib['title'] for lib in ordered_libraries]}")
                 return jsonify({"error": "Library not found"}), 404
             
             section_id = library["key"]
-            print(f"DEBUG: Found library '{library_name}' with section_id '{section_id}'")
             
             # Load cached poster metadata for this specific library
             poster_dir = library_service.get_library_poster_dir(section_id)
-            
-            print(f"DEBUG: Poster directory: {poster_dir}")
-            print(f"DEBUG: Poster directory exists: {os.path.exists(poster_dir)}")
             
             items_with_posters = []
             
@@ -493,9 +485,6 @@ def register_api_routes(app):
             
             items_with_posters.sort(key=lambda x: strip_articles(x["title"]).lower())
             
-            print(f"DEBUG: Returning {len(items_with_posters)} items with posters")
-            print(f"DEBUG: Items with posters: {[item.get('title', 'Unknown') for item in items_with_posters[:5]]}")
-            
             return jsonify({
                 "success": True,
                 "library": library_name,
@@ -508,106 +497,7 @@ def register_api_routes(app):
             traceback.print_exc()
             return jsonify({"error": str(e)}), 500
     
-    @api_bp.route("/ajax/load-posters-by-letter", methods=["POST"])
-    def load_posters_by_letter():
-        """Load posters for a library filtered by letter."""
-        if not session.get("authenticated"):
-            return jsonify({"error": "Not authenticated"}), 401
-        
-        try:
-            data = request.get_json()
-            library_name = data.get("library_name")
-            letter = data.get("letter", "").upper()
-            
-            if not library_name:
-                return jsonify({"error": "Library name required"}), 400
-            
-            print(f"DEBUG: Received request - library_name: '{library_name}', letter: '{letter}'")
-            
-            # Get ordered libraries using the helper function
-            ordered_libraries = library_service.get_ordered_libraries()
-            
-            # Find library by name
-            library = None
-            for lib in ordered_libraries:
-                if lib["title"] == library_name:
-                    library = lib
-                    break
-            
-            if library is None:
-                print(f"DEBUG: Library '{library_name}' not found in ordered libraries")
-                return jsonify({"error": "Library not found"}), 404
-            
-            section_id = library["key"]
-            print(f"DEBUG: Found library '{library_name}' with section_id '{section_id}'")
-            
-            # Load cached poster metadata for this specific library
-            poster_dir = library_service.get_library_poster_dir(section_id)
-            
-            items_with_posters = []
-            
-            if os.path.exists(poster_dir):
-                # Get all JSON files
-                json_files = [f for f in os.listdir(poster_dir) if f.endswith(".json")]
-                
-                for fname in json_files:
-                    meta_path = os.path.join(poster_dir, fname)
-                    try:
-                        with open(meta_path, "r", encoding="utf-8") as f:
-                            meta = json.load(f)
-                        
-                        title = meta.get("title")
-                        if title:
-                            # Filter by letter if specified
-                            if not letter or title.upper().startswith(letter):
-                                poster_file = meta.get("poster")
-                                poster_url = f"/static/posters/{section_id}/{poster_file}" if poster_file else None
-                                
-                                # Check if this is a music artist and add Last.fm URL
-                                is_artist = meta.get('media_type') == 'artist' or library.get('media_type') == 'artist'
-                                lastfm_url = f"https://www.last.fm/music/{urllib.parse.quote(title)}" if is_artist else None
-                                
-                                items_with_posters.append({
-                                    "title": title,
-                                    "poster": poster_url,
-                                    "imdb": meta.get("imdb"),
-                                    "tmdb": meta.get("tmdb"),
-                                    "tvdb": meta.get("tvdb"),
-                                    "lastfm_url": lastfm_url,
-                                    "is_artist": is_artist,
-                                })
-                    except Exception as e:
-                        print(f"Error loading poster metadata from {meta_path}: {e}")
-                        continue
-            
-            # Sort items alphabetically by title (stripping articles for sorting)
-            def strip_articles(title):
-                """Strip common articles from the beginning of titles for sorting"""
-                if not title:
-                    return title
-                title = title.strip()
-                articles = ['a ', 'an ', 'the ']
-                for article in articles:
-                    if title.lower().startswith(article):
-                        return title[len(article):].strip()
-                return title
-            
-            items_with_posters.sort(key=lambda x: strip_articles(x["title"]).lower())
-            
-            print(f"DEBUG: Returning {len(items_with_posters)} items with posters for letter '{letter}'")
-            
-            return jsonify({
-                "success": True,
-                "library_name": library_name,
-                "letter": letter,
-                "items": items_with_posters
-            })
-            
-        except Exception as e:
-            print(f"Error loading posters by letter: {e}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({"error": str(e)}), 500
+    # Note: load-posters-by-letter route is now handled by routes/posters.py to avoid conflicts
     
     # Register the blueprint with the app
     app.register_blueprint(api_bp) 

@@ -4369,3 +4369,16 @@ details.collapsible-section .section-divider {
   .mobile-jump-to-top {
   }
 }
+
+/* Hover effects for poster images in medialists */
+.posters-container a:hover img {
+  transform: scale(1.05);
+  box-shadow: var(--shadow-xl);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.posters-container img {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Larger screens get more columns */

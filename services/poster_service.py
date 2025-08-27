@@ -140,29 +140,19 @@ class PosterService:
         return os.path.join("static", "posters", str(library_id))
     
     def is_music_artist(self, poster_data, library_info=None):
-        """Determine if an item is a music artist based on metadata and library type"""
+        """Check if a poster represents a music artist - simplified logic matching old app.py"""
         try:
-            # Check if library is music type
-            if library_info and library_info.get("type") == "artist":
-                return True
+            if not poster_data:
+                return False
             
-            # Check metadata for music indicators
-            if poster_data:
-                # Check for music-specific fields
-                if any(field in poster_data for field in ["artist", "album", "track", "musicbrainz"]):
-                    return True
+            # If library info is provided, check if it's actually a music library
+            if library_info and library_info.get("media_type") == "artist":
+                title = poster_data.get("title")
+                year = poster_data.get("year")
                 
-                # Check title patterns that suggest music
-                title = poster_data.get("title", "").lower()
-                if any(pattern in title for pattern in ["feat.", "ft.", "featuring", "&", "and"]):
+                # For music libraries, if it has a title but no year, it's likely an artist
+                if title and year is None:
                     return True
-                
-                # Check for music genres
-                genres = poster_data.get("genres", [])
-                if isinstance(genres, list):
-                    music_genres = ["rock", "pop", "jazz", "classical", "hip hop", "rap", "country", "blues", "electronic", "folk", "metal", "punk", "reggae", "soul", "r&b"]
-                    if any(genre.lower() in music_genres for genre in genres):
-                        return True
             
             return False
         except Exception as e:
@@ -614,6 +604,7 @@ class PosterService:
                 "ratingKey": item["ratingKey"],
                 "year": item.get("year"),
                 "guids": guids,
+                "poster": f"{safe_filename}.webp",  # Add poster filename to metadata
                 "downloaded_at": time.time()
             }
             
@@ -2777,3 +2768,68 @@ class PosterService:
         except Exception as e:
             log_error("poster_service", f"Error getting items from library {library_id}", {}, e)
             return []
+    
+    def fix_missing_poster_fields(self):
+        """
+        Fix existing metadata files that are missing the poster field.
+        This function should be called once to update old metadata files.
+        
+        Returns:
+            int: Number of files fixed
+        """
+        fixed_count = 0
+        
+        try:
+            # Get all library directories
+            posters_dir = os.path.join("static", "posters")
+            
+            if not os.path.exists(posters_dir):
+                return 0
+            
+            for lib_dir in os.listdir(posters_dir):
+                lib_path = os.path.join(posters_dir, lib_dir)
+                
+                # Skip non-directories and audiobooks directory
+                if not os.path.isdir(lib_path) or lib_dir == "audiobooks":
+                    continue
+                
+                # Get all JSON files in this library directory
+                json_files = [f for f in os.listdir(lib_path) if f.endswith('.json')]
+                
+                for json_file in json_files:
+                    json_path = os.path.join(lib_path, json_file)
+                    
+                    try:
+                        # Load existing metadata
+                        with open(json_path, 'r', encoding='utf-8') as f:
+                            meta = json.load(f)
+                        
+                        # Check if poster field is missing
+                        if 'poster' not in meta:
+                            # Extract rating key from filename (poster_123456.json -> poster_123456.webp)
+                            rating_key = json_file.replace('.json', '')
+                            poster_filename = f"{rating_key}.webp"
+                            
+                            # Check if the poster file exists
+                            poster_path = os.path.join(lib_path, poster_filename)
+                            if os.path.exists(poster_path):
+                                # Add poster field to metadata
+                                meta['poster'] = poster_filename
+                                
+                                # Save updated metadata
+                                with open(json_path, 'w', encoding='utf-8') as f:
+                                    json.dump(meta, f, indent=2)
+                                
+                                fixed_count += 1
+                                print(f"Fixed metadata for: {meta.get('title', 'Unknown')} (ratingKey: {meta.get('ratingKey', 'Unknown')})")
+                    
+                    except Exception as e:
+                        print(f"Error fixing metadata for {json_file}: {e}")
+                        continue
+            
+            print(f"Metadata fix complete. Fixed {fixed_count} missing poster fields.")
+            return fixed_count
+            
+        except Exception as e:
+            print(f"Error in fix_missing_poster_fields: {e}")
+            return 0

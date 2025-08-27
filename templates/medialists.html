@@ -455,10 +455,10 @@
               if (item.poster) {
                 if (posterLink) {
                   html += `<a href="${posterLink}" target="_blank" style="display: block;">`;
-                  html += `<img src="${item.poster}" alt="${item.title} poster" style="cursor: pointer;" />`;
+                  html += `<img src="${item.poster}" alt="${item.title} poster" class="carousel-img" style="cursor: pointer;" />`;
                   html += '</a>';
                 } else {
-                  html += `<img src="${item.poster}" alt="${item.title} poster" />`;
+                  html += `<img src="${item.poster}" alt="${item.title} poster" class="carousel-img" />`;
                 }
               }
               html += `<div style="font-weight: bold; margin-bottom: 0.25rem;">${item.title}</div>`;

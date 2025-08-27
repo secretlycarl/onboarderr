@@ -179,6 +179,12 @@ def logout():
 
 def register_auth_routes(app):
     """Register authentication routes with the Flask app."""
+    # Import limiter from app to exempt login from default rate limiting
+    from app import limiter
+    
+    # Exempt login from Flask-Limiter's default rate limiting since it has custom rate limiting
+    login_exempt = limiter.exempt(login)
+    
     # Register routes directly on the app to maintain the same endpoint names
-    app.add_url_rule('/login', 'login', login, methods=['GET', 'POST'])
+    app.add_url_rule('/login', 'login', login_exempt, methods=['GET', 'POST'])
     app.add_url_rule('/logout', 'logout', logout) 
